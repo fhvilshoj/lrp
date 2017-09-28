@@ -37,9 +37,6 @@ def linear(tensor, R):
         bias_positive = tf.transpose(lrp_util.replace_negatives_with_zeros(bias))
 
     zp_sum_with_bias = tf.add(zp_sum, bias_positive)
-    div = tf.divide(zp, zp_sum_with_bias)
-    R_new = tf.matmul(R, div)
-
-    R_new = tf.Print(R_new, [R, zp, zp_sum_with_bias])
+    R_new = tf.matmul(R, tf.divide(zp, zp_sum_with_bias))
 
     return lrp._lrp(lrp_util.find_path_towards_input(matmultensor), R_new)

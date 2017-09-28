@@ -1,6 +1,7 @@
 from lrp import lrp
 import tensorflow as tf
 
+
 def max_pooling(tensor, R):
     """
     Max pooling lrp

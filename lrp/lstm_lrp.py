@@ -1,6 +1,7 @@
 from lrp import lrp
 import tensorflow as tf
 
+
 def lstm(tensor, R):
     """
     Convolutional lstm

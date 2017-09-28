@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from lrp import lrp_util
 
+
 def linear(tensor, R):
     """
     linear lrp

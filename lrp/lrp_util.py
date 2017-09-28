@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 def find_path_towards_input(tensor):
     # Expects minimum one input for the operation
     inputs = tensor.op.inputs

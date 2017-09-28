@@ -4,6 +4,6 @@ This project aims to implement the LRP rules for any [tensorflow](https://www.te
 
 # Status
 ### Alpha rule
-- [x] Linear layers
+- [ ] Linear layers
 - [ ] Convolutions
 - [ ] LSTM

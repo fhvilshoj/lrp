@@ -30,7 +30,7 @@ def linear(tensor, R):
     zp = lrp_util.replace_negatives_with_zeros(zs)
 
     # Take the sum of each row of z_ij^+'s
-    zp_sum = tf.expand_dims(tf.reduce_sum(zp, axis=1), axis=-1)
+    zp_sum = tf.reduce_sum(zp, axis=1, keep_dims=True)
 
     # Find the positive parts of an eventual bias that is added to the results of the matrix multiplication (i.e. b^+).
     # Use zeroes if there is no bias addition after the matrix multiplication.

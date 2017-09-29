@@ -6,13 +6,17 @@ from lrp.linear_lrp import linear
 from lrp.lstm_lrp import lstm
 from lrp.max_pooling_lrp import max_pooling
 
-
+# Internal function that traverses the network layer by layer and applies LRP to each of them
 def _lrp(tensor, R):
+
+    # Find the operation that created the tensor
     operation = tensor.op
 
+    # TODO why does this work? Will there not be an operation with an input even if we are in the input layer?
     if not operation.inputs:
         return R
 
+    # Check if the operation is a matrix multiplication or an addition, which means that the current layer is a linear layer
     if operation.type in ['MatMul', 'Add']:
         return linear(tensor, R)
     # elif 'conv' in operation.type:
@@ -28,9 +32,9 @@ def _lrp(tensor, R):
 def lrp(prediction):
     """
     lrp main function
-    :param prediction: Expecting Tensor of a single prediction [h1]
-    :return: Tensor of network input size for distributed relevance
+    :param prediction: Expecting a tensor containing a single prediction [h1]
+    :return: Tensor of network input size containing a relevance score for each feature of the input
     """
 
-    # Recurse on each layer
+    # Recurse on each layer with the relevance for the last layer set to the activation of the last layer (following the LRP convention)
     return _lrp(prediction, prediction)

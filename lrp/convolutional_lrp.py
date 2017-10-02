@@ -15,7 +15,6 @@ def convolutional(tensor, R):
     convolutiontensor = tensor
     with_bias = False
 
-
     # If the activation tensor is the output of an addition (i.e. the above assumption does not hold), move through the graph to find the output of the nearest convolution.
     if tensor.op.type == 'Add':
         convolutiontensor = lrp_util.find_first_tensor_from_type(tensor, 'Conv2D')
@@ -44,7 +43,7 @@ def convolutional(tensor, R):
 
     # Reshape the extracted patches to get a tensor I of shape (batch, out_height, out_width, filter_height, filter_width, input_channels)
     image_patches = tf.reshape(image_patches,
-                      [batch, output_height, output_width, filter_height, filter_width, input_channels])
+                               [batch, output_height, output_width, filter_height, filter_width, input_channels])
 
     # Multiply each patch by each filter to get the z_ijk's in a tensor zs
     zs = tf.multiply(tf.expand_dims(filters, 0), tf.expand_dims(image_patches, -1))
@@ -65,11 +64,8 @@ def convolutional(tensor, R):
     R_new = tf.reshape(R_new, [batch, output_height, output_width, filter_height * filter_width * input_channels])
 
     # Reconstruct the shape of the input, thereby summing the relevances for each individual pixel
-    R_new = lrp_util.patches_to_images(R_new, batch, input_height, input_width, input_channels, output_height, output_width, filter_height, filter_width, strides[1], strides[2], padding)
+    R_new = lrp_util.patches_to_images(R_new, batch, input_height, input_width, input_channels, output_height,
+                                       output_width, filter_height, filter_width, strides[1], strides[2], padding)
 
     # Recursively find the relevance of the next layer in the network
     return lrp._lrp(lrp_util.find_path_towards_input(convolutiontensor), R_new)
-
-
-
-

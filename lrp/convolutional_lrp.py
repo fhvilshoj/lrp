@@ -23,7 +23,7 @@ def convolutional(tensor, R):
         with_bias = True
 
     # Find the inputs to the convolution
-    (input, filters) = convolutiontensor.op.inputs
+    (conv_input, filters) = convolutiontensor.op.inputs
 
     # Find the padding and strides that were used in the convolution
     padding = convolutiontensor.op.get_attr("padding").decode("UTF-8")
@@ -33,7 +33,7 @@ def convolutional(tensor, R):
     (filter_height, filter_width, input_channels, output_channels) = filters.get_shape().as_list()
 
     # Get shape of the input
-    (batch, input_height, input_width, input_channels) = input.get_shape().as_list()
+    (batch, input_height, input_width, input_channels) = conv_input.get_shape().as_list()
 
     # Get the shape of the output of the convolution
     (_, output_height, output_width, _) = convolutiontensor.get_shape().as_list()
@@ -41,7 +41,7 @@ def convolutional(tensor, R):
     # Extract every patch of the input (i.e. portion of the input that a filter looks at a
     # time), to get a tensor of shape
     # (batch, out_height, out_width, filter_height*filter_width*input_channels)
-    image_patches = tf.extract_image_patches(input, [1, filter_height, filter_width, 1],
+    image_patches = tf.extract_image_patches(conv_input, [1, filter_height, filter_width, 1],
                                              strides, [1, 1, 1, 1], padding)
 
     # Reshape the extracted patches to get a tensor I of shape
@@ -71,6 +71,14 @@ def convolutional(tensor, R):
     # Reconstruct the shape of the input, thereby summing the relevances for each individual pixel
     R_new = lrp_util.patches_to_images(R_new, batch, input_height, input_width, input_channels, output_height,
                                        output_width, filter_height, filter_width, strides[1], strides[2], padding)
+
+    R_new = tf.Print(R_new, [conv_input], message="\n\nconv_input\n", summarize=20)
+    R_new = tf.Print(R_new, [filters], message="\n\nfilters\n", summarize=20)
+    R_new = tf.Print(R_new, [convolutiontensor], message="\n\nctensor\n", summarize=20)
+    R_new = tf.Print(R_new, [zs], message="\n\nzs\n", summarize=20)
+    R_new = tf.Print(R_new, [zs], message="\n\nzs\n", summarize=20)
+    R_new = tf.Print(R_new, [zp], message="\n\nzp\n", summarize=20)
+    R_new = tf.Print(R_new, [zp], message="\n\nzp_sum\n", summarize=20)
 
     # Recursively find the relevance of the next layer in the network
     return lrp._lrp(lrp_util.find_path_towards_input(convolutiontensor), R_new)

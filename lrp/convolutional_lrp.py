@@ -10,12 +10,14 @@ def convolutional(tensor, R):
     :return: lower layer relevance (i.e. relevance distributed to the input to the convolution)
     """
 
-    # Start by assuming the activation tensor is the output of a convolution (i.e. not an addition with a bias)
+    # Start by assuming the activation tensor is the output
+    # of a convolution (i.e. not an addition with a bias)
     # Tensor shape: (upper_layer_height, upper_layer_width, upper_layer_depth)
     convolutiontensor = tensor
     with_bias = False
 
-    # If the activation tensor is the output of an addition (i.e. the above assumption does not hold), move through the graph to find the output of the nearest convolution.
+    # If the activation tensor is the output of an addition (i.e. the above assumption
+    # does not hold), move through the graph to find the output of the nearest convolution.
     if tensor.op.type == 'Add':
         convolutiontensor = lrp_util.find_first_tensor_from_type(tensor, 'Conv2D')
         with_bias = True
@@ -36,12 +38,14 @@ def convolutional(tensor, R):
     # Get the shape of the output of the convolution
     (_, output_height, output_width, _) = convolutiontensor.get_shape().as_list()
 
-    # Extract every patch of the input (i.e. portion of the input that a filter looks at a time), to get a tensor of
-    # shape (batch, out_height, out_width, filter_height*filter_width*input_channels)
+    # Extract every patch of the input (i.e. portion of the input that a filter looks at a
+    # time), to get a tensor of shape
+    # (batch, out_height, out_width, filter_height*filter_width*input_channels)
     image_patches = tf.extract_image_patches(input, [1, filter_height, filter_width, 1],
                                              strides, [1, 1, 1, 1], padding)
 
-    # Reshape the extracted patches to get a tensor I of shape (batch, out_height, out_width, filter_height, filter_width, input_channels)
+    # Reshape the extracted patches to get a tensor I of shape
+    # (batch, out_height, out_width, filter_height, filter_width, input_channels)
     image_patches = tf.reshape(image_patches,
                                [batch, output_height, output_width, filter_height, filter_width, input_channels])
 
@@ -57,7 +61,8 @@ def convolutional(tensor, R):
     # Reshape the relevance
     upper_layer_relevance = tf.reshape(R, [batch, input_height, input_width, 1, 1, 1, output_channels])
 
-    # Find the contribution of each feature in the input to the activations, i.e. the ratio between the z_ijk's and the z_jk's
+    # Find the contribution of each feature in the input to the activations,
+    # i.e. the ratio between the z_ijk's and the z_jk's
     R_new = tf.reduce_sum((zp / zp_sum) * upper_layer_relevance, 6)
 
     # Reshape the relevance tensor, so each patch becomes a vector

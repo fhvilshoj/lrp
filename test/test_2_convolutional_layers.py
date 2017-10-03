@@ -1,39 +1,53 @@
 import tensorflow as tf
 import numpy as np
-from lrp import lrp
 import unittest
-import os
+
+from lrp import lrp
 
 
-# Class for testing that inherits from the unittest.TestCase class
-class ConvolutionBiasLRPTest(unittest.TestCase):
-    # Test case that builds a simple one layer convolution network with bias,
-    # finds the relevance and compares them to the results obtained by calculating the same example by hand
+class Convolution2LayersLRPTest(unittest.TestCase):
     def runTest(self):
-        # Get a tensorflow graph
+        # Construct tensorflow graph
         g = tf.Graph()
-        # Set the graph as default
+        # Use tensorflows default graph
         with g.as_default():
             # Create a placeholder for the input
             inp = tf.placeholder(tf.float32, shape=(1, 2, 2, 2))
 
-            # Create the convolutional layer
-            # Set the weights and biases
-            weights = tf.constant([[[[2., 1, 1],
-                                     [1., 1, 0]],
-                                    [[2., 2, 1],
-                                     [1., 1, 1]]],
-                                   [[[1., -1, 1],
-                                     [0., 1, 0]],
-                                    [[2., 0, 0],
-                                     [0., -1, 1]]]], dtype=tf.float32)
-            bias = tf.constant([1, 2, -2], dtype=tf.float32)
+            # Create first convolutional layer (simple layer that copies the
+            # input to the next layer and copies relevances backwards in the
+            # same manner (so we were able to reuse calculations from earlier
+            # test case, `test_convolution_with_bias.py`)
+            with tf.name_scope('conv1'):
+                weights = tf.constant([[[[1, 0],
+                                         [0, 1]],
+                                        [[0, 0],
+                                         [0, 0]]],
+                                       [[[0, 0],
+                                         [0, 0]],
+                                        [[0, 0],
+                                         [0, 0]]]],
+                                      dtype=tf.float32)
+                activation = tf.nn.conv2d(inp, weights, [1, 1, 1, 1], "SAME")
 
-            # Perform the convolution
-            activation = tf.nn.conv2d(inp, weights, [1, 1, 1, 1], "SAME")
+            # Create the second convolutional layer equal to `test_convolution_with_bias.py`
+            with tf.name_scope('conv2'):
+                # Set the weights and biases
+                weights = tf.constant([[[[2., 1, 1],
+                                         [1., 1, 0]],
+                                        [[2., 2, 1],
+                                         [1., 1, 1]]],
+                                       [[[1., -1, 1],
+                                         [0., 1, 0]],
+                                        [[2., 0, 0],
+                                         [0., -1, 1]]]], dtype=tf.float32)
+                bias = tf.constant([1, 2, -2], dtype=tf.float32)
 
-            # Add bias
-            activation = tf.nn.bias_add(activation, bias)
+                # Perform the convolution
+                activation = tf.nn.conv2d(activation, weights, [1, 1, 1, 1], "SAME")
+
+                # Add bias
+                activation = tf.nn.bias_add(activation, bias)
 
             # Set the prediction to be equal to the activations of the last layer (there is no softmax in this network)
             pred = activation
@@ -66,6 +80,7 @@ class ConvolutionBiasLRPTest(unittest.TestCase):
                 self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
 
                 # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
+                print(explanation[0])
                 self.assertTrue(
                     np.allclose(explanation[0], [[[[1.06, 0],
                                                    [0, 4.49]],

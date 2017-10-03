@@ -52,21 +52,18 @@ def convolutional(tensor, R):
     image_patches = tf.reshape(image_patches,
                                [batch, output_height, output_width, filter_height, filter_width, input_channels])
 
-    image_patches = tf.Print(image_patches, [image_patches], message="\n\nimage_patches\n", summarize=1000)
-
     # Multiply each patch by each filter to get the z_ijk's in a tensor zs
     zs = tf.multiply(tf.expand_dims(filters, 0), tf.expand_dims(image_patches, -1))
 
-    slice = zs[0, 0, 0, :, :, :, :]
-    zs = tf.Print(zs, [zs], message="\n\nzs\n", summarize=1000)
-    zs = tf.Print(zs, [slice], message="\n\nslice\n", summarize=1000)
-
     # Replace the negative elements with zeroes to only have the positive z's left (i.e. z_ijk^+)
     zp = lrp_util.replace_negatives_with_zeros(zs)
-    zp = tf.Print(zp, [zp], message="\n\nzp\n", summarize=1000)
 
     # Sum over each patch and add the positive parts of bias to get z_jk+'s
     zp_sum = tf.reduce_sum(zp, [3, 4, 5], keep_dims=True)
+
+    # Add stabilizer to the sum to avoid dividing by 0
+    zp_sum += 1e-12 * tf.ones_like(zp_sum)
+
     zp_sum += tf.expand_dims(positive_bias_tensor, 0)
 
 

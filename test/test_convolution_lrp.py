@@ -57,8 +57,6 @@ class ConvolutionLRPTest(unittest.TestCase):
                 #                                                                   ]})
 
                 # Check if the predictions has the right shape
-                print(prediction.shape)
-                print(R_mock.shape)
                 self.assertEqual(prediction.shape, (1, 2, 2, 3),
                                  msg="Should be able to do a convolutional forward pass")
 
@@ -66,7 +64,6 @@ class ConvolutionLRPTest(unittest.TestCase):
                 self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
 
                 # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
-                print(explanation[0])
                 self.assertTrue(
                     np.allclose(explanation[0], [[[[1.37, 0],
                                                    [0, 6.83]],

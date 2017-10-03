@@ -4,6 +4,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import sparse_ops
 from tensorflow.python.framework import sparse_tensor, ops
 
+
 # Helper function that takes a tensor, goes back to the operation that created it, and determines which of the operation's inputs lead in the direction of the input to the network (i.e. the output of a previous layer)
 def find_path_towards_input(tensor):
     # Find the inputs of the operation that created the tensor
@@ -39,9 +40,11 @@ def find_first_tensor_from_type(tensor, t):
     # Move one layer (in the direction towards the input to the network) and continue the search
     return find_first_tensor_from_type(find_path_towards_input(tensor), t)
 
+
 # Helper function that takes a tensor and replaces all negative entries with zeroes
 def replace_negatives_with_zeros(tensor):
     return tf.where(tf.greater(tensor, 0), tensor, tf.zeros_like(tensor))
+
 
 # Helper function that takes a tensor, finds the operation that created it, and recursively prints the inputs to the operation
 def _print(tensor, R, index=''):
@@ -49,13 +52,13 @@ def _print(tensor, R, index=''):
     for inp in tensor.op.inputs:
         _print(inp, R, index + '  ')
 
+
 # Helper function borrowed from https://github.com/VigneshSrinivasan10/interprettensor/blob/master/interprettensor/modules/convolution.py#L209
 # TODO: Do we want to change this to something we develop ourself?
 def patches_to_images(patches, batch_size, rows_in, cols_in, channels, rows_out, cols_out, ksize_r, ksize_c,
                       stride_h, stride_r, padding):
-
-    ksize_r_eff = ksize_r #+ (ksize_r - 1) * (rate_r - 1)
-    ksize_c_eff = ksize_c #+ (ksize_c - 1) * (rate_c - 1)
+    ksize_r_eff = ksize_r  # + (ksize_r - 1) * (rate_r - 1)
+    ksize_c_eff = ksize_c  # + (ksize_c - 1) * (rate_c - 1)
 
     if padding == 'SAME':
         rows_out = int(ceil(rows_in / stride_r))
@@ -73,7 +76,7 @@ def patches_to_images(patches, batch_size, rows_in, cols_in, channels, rows_out,
 
     grad_expanded = array_ops.transpose(
         array_ops.reshape(patches, (batch_size, rows_out,
-                                       cols_out, ksize_r, ksize_c, channels)),
+                                    cols_out, ksize_r, ksize_c, channels)),
         (1, 2, 3, 4, 0, 5)
     )
     grad_flat = array_ops.reshape(grad_expanded, (-1, batch_size * channels))

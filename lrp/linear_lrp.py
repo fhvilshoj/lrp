@@ -36,11 +36,8 @@ def linear(tensor, R):
     # Use zeroes if there is no bias addition after the matrix multiplication.
     bias_positive = tf.zeros_like(zp_sum)
     if with_bias:
-        # Find bias tensor if using bias, by identifying which of the two inputs to the addition are a variable (accessed with the operation identity) or a constant
-        if tensor.op.inputs[0].op.type in ['Identity', 'Const']:
-            bias = tensor.op.inputs[0]
-        else:
-            bias = tensor.op.inputs[1]
+        bias = lrp_util.get_input_bias_from_add(tensor)
+
         # Replace the negative elements in the bias with zeroes and transpose to the right form
         bias_positive = tf.transpose(lrp_util.replace_negatives_with_zeros(bias))
 

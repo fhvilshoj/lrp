@@ -25,25 +25,48 @@ def find_path_towards_input(tensor):
     return inputs[0]
 
 
-# Helper function that takes a tensor and a type of operation as input, goes back to the operation that created the tensor, and then goes through the network (in the direction towards the input) until it finds a tensor created by an operation of the specified type
+# Helper function that takes a tensor and a type of operation (or a list of types)
+# as input, goes back to the operation that created the tensor, and then goes through
+# the network (in the direction towards the input) until it finds a tensor created by
+# an operation of the specified type
 def find_first_tensor_from_type(tensor, t):
+    if not isinstance(t, list):
+        t = [t]
     # If there are no inputs to the operation that created the tensor, return nothing
     if not tensor.op.inputs:
         return None
 
     # Run through the inputs to the operation that created the tensor
-    for input in tensor.op.inputs:
+    for inp in tensor.op.inputs:
         # If a tensor that is created by the specified type of operation is found, return that tensor
-        if input.op.type == t:
-            return input
+        if inp.op.type in t:
+            return inp
 
     # Move one layer (in the direction towards the input to the network) and continue the search
     return find_first_tensor_from_type(find_path_towards_input(tensor), t)
 
 
+# Determine which type of operation an addition (the input) is associated with
+def addition_associated_with(tensor):
+    known_types = ['Conv2D', 'MatMul']
+    found_tensor = find_first_tensor_from_type(tensor, known_types)
+    return found_tensor.op.type
+
+
 # Helper function that takes a tensor and replaces all negative entries with zeroes
 def replace_negatives_with_zeros(tensor):
     return tf.where(tf.greater(tensor, 0), tensor, tf.zeros_like(tensor))
+
+
+# Finds the one of the two inputs to an add that is given as a constant or a variable
+def get_input_bias_from_add(tensor):
+    # Find bias tensor by identifying which of the two inputs to the addition are a variable (accessed
+    # with the operation identity) or a constant
+    if tensor.op.inputs[0].op.type in ['Identity', 'Const']:
+        bias = tensor.op.inputs[0]
+    else:
+        bias = tensor.op.inputs[1]
+    return bias
 
 
 # Helper function that takes a tensor, finds the operation that created it, and recursively prints the inputs to the operation

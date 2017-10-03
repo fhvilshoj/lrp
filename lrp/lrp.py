@@ -16,10 +16,15 @@ def _lrp(tensor, R):
     if not operation.inputs:
         return R
 
+    operation_type = operation.type
+
     # Check if the operation is a matrix multiplication or an addition, which means that the current layer is a linear layer
-    if operation.type in ['MatMul', 'Add']:
+    if operation_type in ['Add', 'BiasAdd']:
+      operation_type = lrp_util.addition_associated_with(tensor)
+
+    if operation_type in ['MatMul']:
         return linear(tensor, R)
-    elif 'Conv' in operation.type:
+    elif operation_type in ['Conv2D']:
         return convolutional(tensor, R)
     # elif 'lstm' in operation.type:
     #     return lstm(tensor, R)

@@ -150,3 +150,5 @@ fabric.properties
 */__pycache__/**
 
 playground.py
+plg_*.py
+/MNIST_data/

@@ -26,12 +26,13 @@ def _lrp(tensor, R):
         return linear(tensor, R)
     elif operation_type in ['Conv2D']:
         return convolutional(tensor, R)
+    # elif operation_type in ['Expand', 'Squeeze', 'Reshape']:
+    #     return convolutional(tensor, R)
     # elif 'lstm' in operation.type:
     #     return lstm(tensor, R)
     # elif 'pool' in operation.type:
     #     return max_pooling(tensor, R)
     else:
-        print(operation.type)
         return _lrp(lrp_util.find_path_towards_input(tensor), R)
 
 

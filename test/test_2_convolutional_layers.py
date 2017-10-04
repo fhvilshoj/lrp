@@ -5,7 +5,7 @@ import unittest
 from lrp import lrp
 
 
-class Convolution2LayersLRPTest(unittest.TestCase):
+class   Convolution2LayersLRPTest(unittest.TestCase):
     def runTest(self):
         # Construct tensorflow graph
         g = tf.Graph()
@@ -80,7 +80,6 @@ class Convolution2LayersLRPTest(unittest.TestCase):
                 self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
 
                 # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
-                print(explanation[0])
                 self.assertTrue(
                     np.allclose(explanation[0], [[[[1.06, 0],
                                                    [0, 4.49]],

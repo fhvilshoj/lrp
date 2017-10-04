@@ -66,10 +66,8 @@ def convolutional(tensor, R):
 
     zp_sum += tf.expand_dims(positive_bias_tensor, 0)
 
-
     # Reshape the relevance from the upper layer
     upper_layer_relevance = tf.reshape(R, [batch, input_height, input_width, 1, 1, 1, output_channels])
-
 
     # Find the contribution of each feature in the input to the activations,
     # i.e. the ratio between the z_ijk's and the z_jk's

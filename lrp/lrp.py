@@ -7,6 +7,9 @@ from lrp.lstm_lrp import lstm
 from lrp.max_pooling_lrp import max_pooling
 
 # Internal function that traverses the network layer by layer and applies LRP to each of them
+from lrp.shaping_lrp import shaping
+
+
 def _lrp(tensor, R):
 
     # Find the operation that created the tensor
@@ -26,8 +29,8 @@ def _lrp(tensor, R):
         return linear(tensor, R)
     elif operation_type in ['Conv2D']:
         return convolutional(tensor, R)
-    # elif operation_type in ['Expand', 'Squeeze', 'Reshape']:
-    #     return convolutional(tensor, R)
+    elif operation_type in ['ExpandDims', 'Squeeze', 'Reshape']:
+        return shaping(tensor, R)
     # elif 'lstm' in operation.type:
     #     return lstm(tensor, R)
     # elif 'pool' in operation.type:

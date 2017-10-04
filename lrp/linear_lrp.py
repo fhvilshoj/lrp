@@ -47,6 +47,7 @@ def linear(tensor, R):
     zp_sum_with_bias += 1e-12
 
     # Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
+    # lrp_util._print(zp_sum_with_bias)
     R_new = tf.matmul(R, tf.divide(zp, zp_sum_with_bias))
 
     # Recursively find the relevance of the next layer in the network

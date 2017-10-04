@@ -72,8 +72,8 @@ def get_input_bias_from_add(tensor):
 # Helper function that takes a tensor, finds the operation that created it, and recursively prints the inputs to the operation
 def _print(tensor, index=''):
     print(index + str(tensor.op.type))
-    if (tensor.op.type == "Squeeze" or tensor.op.type == "Reshape" ):
-        print('Squeeze', tensor.op)
+    # if (tensor.op.type == "Squeeze" or tensor.op.type == "Reshape" ):
+    #     print('Squeeze', tensor.op)
     for inp in tensor.op.inputs:
         _print(inp, index + ' | ')
 

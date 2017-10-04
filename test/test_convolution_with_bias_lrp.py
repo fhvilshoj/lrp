@@ -18,8 +18,8 @@ class ConvolutionBiasLRPTest(unittest.TestCase):
             inp = tf.placeholder(tf.float32, shape=(1, 2, 2, 2))
 
             # Create the convolutional layer
-            # Set the weights and biases
-            weights = tf.constant([[[[2., 1, 1],
+            # Set the filters and biases
+            filters = tf.constant([[[[2., 1, 1],
                                      [1., 1, 0]],
                                     [[2., 2, 1],
                                      [1., 1, 1]]],
@@ -30,7 +30,7 @@ class ConvolutionBiasLRPTest(unittest.TestCase):
             bias = tf.constant([1, 2, -2], dtype=tf.float32)
 
             # Perform the convolution
-            activation = tf.nn.conv2d(inp, weights, [1, 1, 1, 1], "SAME")
+            activation = tf.nn.conv2d(inp, filters, [1, 1, 1, 1], "SAME")
 
             # Add bias
             activation = tf.nn.bias_add(activation, bias)

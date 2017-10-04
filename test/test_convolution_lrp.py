@@ -17,8 +17,8 @@ class ConvolutionLRPTest(unittest.TestCase):
             inp = tf.placeholder(tf.float32, shape=(1, 2, 2, 2))
 
             # Create the convolutional layer
-            # Set the weights
-            weights = tf.constant([[[[2., 1, 1],
+            # Set the filters
+            filters = tf.constant([[[[2., 1, 1],
                                      [1., 1, 0]],
                                     [[2., 2, 1],
                                      [1., 1, 1]]],
@@ -28,7 +28,7 @@ class ConvolutionLRPTest(unittest.TestCase):
                                      [0., -1, 1]]]], dtype=tf.float32)
 
             # Perform the convolution
-            activation = tf.nn.conv2d(inp, weights, [1, 1, 1, 1], "SAME")
+            activation = tf.nn.conv2d(inp, filters, [1, 1, 1, 1], "SAME")
 
             # Set the prediction to be equal to the activations of the last layer (there is no softmax in this network)
             pred = activation

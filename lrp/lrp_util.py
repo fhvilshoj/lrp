@@ -70,10 +70,13 @@ def get_input_bias_from_add(tensor):
 
 
 # Helper function that takes a tensor, finds the operation that created it, and recursively prints the inputs to the operation
-def _print(tensor, R, index=''):
+def _print(tensor, index=''):
     print(index + str(tensor.op.type))
+    # if (tensor.op.type == "Squeeze" or tensor.op.type == "Reshape" ):
+    #     print('Squeeze', tensor.op)
     for inp in tensor.op.inputs:
-        _print(inp, R, index + '  ')
+        _print(inp, index + ' | ')
+
 
 
 # Helper function borrowed from https://github.com/VigneshSrinivasan10/interprettensor/blob/master/interprettensor/modules/convolution.py#L209

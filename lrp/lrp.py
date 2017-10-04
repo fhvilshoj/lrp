@@ -31,10 +31,10 @@ def _lrp(tensor, R):
         return convolutional(tensor, R)
     elif operation_type in ['ExpandDims', 'Squeeze', 'Reshape']:
         return shaping(tensor, R)
+    elif operation_type == 'MaxPool':
+        return max_pooling(tensor, R)
     # elif 'lstm' in operation.type:
     #     return lstm(tensor, R)
-    # elif 'pool' in operation.type:
-    #     return max_pooling(tensor, R)
     else:
         return _lrp(lrp_util.find_path_towards_input(tensor), R)
 

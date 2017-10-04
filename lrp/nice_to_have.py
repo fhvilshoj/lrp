@@ -1,6 +1,11 @@
 import numpy as np
 import tensorflow as tf
 
+g = tf.Graph()
+g = g.as_default()
+
+s = tf.Session()
+
 def brackets(arr):
     res = "["
     if len(arr) > 1:

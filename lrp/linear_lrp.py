@@ -37,12 +37,14 @@ def linear(tensor, R):
     bias_positive = tf.zeros_like(zp_sum)
     if with_bias:
         bias = lrp_util.get_input_bias_from_add(tensor)
-
+        if tf.rank(bias) != tf.rank(zp_sum):
+            bias = tf.reshape(bias, zp_sum.shape)
         # Replace the negative elements in the bias with zeroes and transpose to the right form
-        bias_positive = tf.transpose(lrp_util.replace_negatives_with_zeros(bias))
+        bias_positive = lrp_util.replace_negatives_with_zeros(bias)
 
     # Add the sum of the z_ij^+'s and the positive bias (i.e. find the z_j^+'s)
     zp_sum_with_bias = tf.add(zp_sum, bias_positive)
+    zp_sum_with_bias += 1e-12
 
     # Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
     R_new = tf.matmul(R, tf.divide(zp, zp_sum_with_bias))

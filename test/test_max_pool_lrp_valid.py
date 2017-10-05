@@ -45,7 +45,6 @@ class MaxPoolLRPTest(unittest.TestCase):
                 # Check if the explanation has the right shape
                 self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
 
-                print(explanation)
                 # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
                 self.assertTrue(
                     np.allclose(explanation, [[0, 0, 0, 0],

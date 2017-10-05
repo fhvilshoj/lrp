@@ -1,7 +1,7 @@
 from lrp import lrp, lrp_util
 import tensorflow as tf
 
-
+# TODO: We do not currently support max pooling where kernels span over the depts dimension (k: [1,1,1,d])
 def max_pooling(tensor, R):
     """
     Max pooling lrp
@@ -35,8 +35,6 @@ def max_pooling(tensor, R):
     image_patches = tf.extract_image_patches(max_pool_input, kernel_size,
                                              strides, [1, 1, 1, 1], padding)
 
-    image_patches = tf.Print(image_patches, [image_patches], message="IMAGE_PATCHES", summarize=1000)
-
     # Find the largest elements in each patch and set all other entries to zero (to find z_ijk+'s)
     max_elems = tf.reduce_max(image_patches, axis=3, keep_dims=True)
     zs = tf.where(tf.equal(image_patches, max_elems), image_patches, tf.zeros_like(image_patches))
@@ -49,15 +47,11 @@ def max_pooling(tensor, R):
     # Find the relevance of each feature
     relevances = fraction * R
 
-    shape1 = tf.shape(relevances)
-    relevances = tf.Print(relevances, [relevances, shape1], message="Before stich", summarize=1000)
     # Reconstruct the shape of the input, thereby summing the relevances for each individual pixel
     R_new = lrp_util.patches_to_images_for_max_pool(relevances, batch, input_height, input_width, input_channels, output_height,
                                        output_width, kernel_size[1], kernel_size[2], strides[1], strides[2], padding)
 
 
-    shape2 = tf.shape(R_new)
-    R_new = tf.Print(R_new, [R_new, shape2, kernel_size, strides], message="After stich", summarize=1000)
     # Recursively find the relevance of the next layer in the network
     return lrp._lrp(max_pool_input, R_new)
 

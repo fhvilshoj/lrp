@@ -63,8 +63,6 @@ class LinearConvolutionLinearRPTest(unittest.TestCase):
             # Set the prediction to be equal to the activations of the last layer (there is no softmax in this network)
             pred = activation_3
 
-            _print(pred)
-
             # --------------------- Calculate relevances -----------------------------
             # Calculate the relevance scores using lrp
 

@@ -72,17 +72,14 @@ def get_input_bias_from_add(tensor):
 # Helper function that takes a tensor, finds the operation that created it, and recursively prints the inputs to the operation
 def _print(tensor, index=''):
     print(index + str(tensor.op.type))
-    # if (tensor.op.type == "Squeeze" or tensor.op.type == "Reshape" ):
-    #     print('Squeeze', tensor.op)
     for inp in tensor.op.inputs:
         _print(inp, index + ' | ')
-
 
 
 # Helper function borrowed from https://github.com/VigneshSrinivasan10/interprettensor/blob/master/interprettensor/modules/convolution.py#L209
 # TODO: Do we want to change this to something we develop ourself?
 def patches_to_images(patches, batch_size, rows_in, cols_in, channels, rows_out, cols_out, ksize_r, ksize_c,
-                      stride_h, stride_r, padding):
+                      stride_r, stride_h, padding):
     ksize_r_eff = ksize_r  # + (ksize_r - 1) * (rate_r - 1)
     ksize_c_eff = ksize_c  # + (ksize_c - 1) * (rate_c - 1)
 
@@ -143,8 +140,10 @@ def patches_to_images(patches, batch_size, rows_in, cols_in, channels, rows_out,
 
     return result
 
-def patches_to_images_for_max_pool(patches, batch_size, rows_in, cols_in, channels, rows_out, cols_out, ksize_r, ksize_c,
-                                   stride_h, stride_r, padding):
+
+def patches_to_images_for_max_pool(patches, batch_size, rows_in, cols_in, channels, rows_out, cols_out, ksize_r,
+                                   ksize_c,
+                                   stride_r, stride_h, padding):
     rate_r = 1
     rate_c = 1
 

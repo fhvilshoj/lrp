@@ -214,3 +214,8 @@ def patches_to_images_for_max_pool(patches, batch_size, rows_in, cols_in, channe
     grad_out = array_ops.transpose(grad_out, (2, 0, 1, 3))
 
     return grad_out
+
+# Helper function that uses tensorflow's Print function to print the value of a tensor
+def print_value(input, name):
+    str = '\n --------------     ' + name + ':     -------------- \n'
+    return tf.Print(input, [input], summarize=1000, message=str)

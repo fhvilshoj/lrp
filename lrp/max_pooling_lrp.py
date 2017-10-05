@@ -10,6 +10,8 @@ def max_pooling(tensor, R):
     :return: lower layer relevance
     """
 
+    assert tensor.shape == R.shape, "Tensor and R should have same shape"
+
     # Find the input to the max pooling
     max_pool_input = tensor.op.inputs[0]
 

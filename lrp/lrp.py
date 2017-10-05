@@ -15,7 +15,6 @@ def _lrp(tensor, R):
     # Find the operation that created the tensor
     operation = tensor.op
 
-    # TODO why does this work? Will there not be an operation with an input even if we are in the input layer?
     if not operation.inputs:
         return R
 

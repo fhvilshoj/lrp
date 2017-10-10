@@ -117,5 +117,6 @@ def lstm(tensor, R):
 
     # The while loop
     (t, relevance_xs, relevance_cs, relevance_hs) = tf.while_loop(t_larger_than_zero(t), calculate_relevances, [t, relevance_xs, relevance_cs, relevance_hs])
+    tf.squeeze(relevance_xs.stack())
 
     return relevance_xs

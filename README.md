@@ -4,6 +4,8 @@ This project aims to implement the LRP rules for any [tensorflow](https://www.te
 
 # Status
 ### Alpha rule
-- [ ] Linear layers
-- [ ] Convolutions
+- [x] Linear layers
+- [x] Convolutions
+- [x] Max pooling
+- [x] Nonlinearities
 - [ ] LSTM

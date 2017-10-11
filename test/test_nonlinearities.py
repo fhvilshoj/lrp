@@ -69,7 +69,7 @@ class LinearConvolutionLinearRPTest(unittest.TestCase):
             # --------------------- Calculate relevances -----------------------------
             # Calculate the relevance scores using lrp
 
-            expl = lrp.lrp(pred)
+            expl = lrp.lrp(inp, pred)
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:

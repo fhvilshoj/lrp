@@ -71,7 +71,9 @@ def get_input_bias_from_add(tensor):
 
 # Helper function that traverses computation graph through all nodes
 # to find the path from the output back to the input.
-def get_operations_between_input_and_output(g, input, output):
+def get_operations_between_input_and_output(input, output):
+    g = output.op.graph
+
     # Make a list of indicators telling if we have considered a given node before.
     reached_ops = [False] * (g._last_id + 1)
 

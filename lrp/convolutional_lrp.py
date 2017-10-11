@@ -2,7 +2,7 @@ from lrp import lrp, lrp_util
 import tensorflow as tf
 
 
-def convolutional(tensor, R):
+def convolutional(path, R):
     """
     Convolutional lrp
     :param tensor: the tensor of the upper activation (the output of the convolution)
@@ -13,13 +13,13 @@ def convolutional(tensor, R):
     # Start by assuming the activation tensor is the output
     # of a convolution (i.e. not an addition with a bias)
     # Tensor shape: (upper_layer_height, upper_layer_width, upper_layer_depth)
-    convolution_tensor = tensor
+    tensor = convolution_tensor = path[0].outputs[0]
     positive_bias_tensor = tf.zeros_like((R.shape[-1]), dtype=tf.float32)
     with_bias = False
 
-    # If the activation tensor is the output of an addition (i.e. the above assumption
+    # If the top operation is an addition (i.e. the above assumption
     # does not hold), move through the graph to find the output of the nearest convolution.
-    if tensor.op.type in ['BiasAdd', 'Add']:
+    if path[0].type in ['BiasAdd', 'Add']:
         convolution_tensor = lrp_util.find_first_tensor_from_type(tensor, 'Conv2D')
         bias_tensor = lrp_util.get_input_bias_from_add(tensor)
         positive_bias_tensor = lrp_util.replace_negatives_with_zeros(bias_tensor)
@@ -86,5 +86,11 @@ def convolutional(tensor, R):
     R_new = lrp_util.patches_to_images(R_new, batch, input_height, input_width, input_channels, output_height,
                                        output_width, filter_height, filter_width, strides[1], strides[2], padding)
 
-    # Recursively find the relevance of the next layer in the network
-    return lrp._lrp(lrp_util.find_path_towards_input(convolution_tensor), R_new)
+    # Skip forward in graph according to the use of bias or not
+    skip = 2 if with_bias else 1
+
+    # In case of 1D convolution we need to skip the squeeze operation in
+    # the path towards the input.
+    skip += 1 if path[1].type == 'Squeeze' else 0
+
+    return path[skip:], R_new

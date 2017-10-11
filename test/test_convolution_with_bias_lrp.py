@@ -43,7 +43,7 @@ class ConvolutionBiasLRPTest(unittest.TestCase):
                                     [4., 3., 2]],
                                    [[1., 1., 3],
                                     [1., 0., 4]]]], dtype=tf.float32)
-            expl = lrp._lrp(pred, R_mock)
+            expl = lrp._lrp(inp, pred, R_mock)
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:

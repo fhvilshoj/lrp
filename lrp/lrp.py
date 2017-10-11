@@ -11,6 +11,7 @@ from lrp.lstm_lrp import lstm
 router = {
     'MatMul': linear,
     'Conv2D': convolutional,
+    'TensorArrayGatherV3': lstm,
     'MaxPool': max_pooling,
     'ExpandDims': shaping,
     'Squeeze': shaping,
@@ -19,8 +20,6 @@ router = {
     'Sigmoid': nonlinearities,
     'Tanh': nonlinearities
 }
-# Ignores:
-# Transpose,
 
 
 def _lrp_routing(path, R):

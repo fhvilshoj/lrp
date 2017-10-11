@@ -24,7 +24,8 @@ class MaxPoolLRPTest(unittest.TestCase):
             pred = activation
 
             # Calculate the relevance scores using lrp
-            expl = lrp._lrp(pred, tf.expand_dims(tf.constant([[[10, 20], [100, 1000]]], dtype=tf.float32), -1))
+            R_mock = tf.expand_dims(tf.constant([[[10, 20], [100, 1000]]], dtype=tf.float32), -1)
+            expl = lrp._lrp(inp, pred, R_mock)
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:

@@ -2,14 +2,15 @@ from lrp import lrp, lrp_util
 import tensorflow as tf
 
 # TODO: We do not currently support max pooling where kernels span over the depts dimension (k: [1,1,1,d])
-def max_pooling(tensor, R):
+def max_pooling(path, R):
     """
     Max pooling lrp
     :param tensor: the tensor of the upper activation of the max pooling layer
     :param R: The upper layer relevance
     :return: lower layer relevance
     """
-
+    # Safely select max pool output as tensor
+    tensor = path[0].outputs[0]
     assert tensor.shape == R.shape, "Tensor and R should have same shape"
 
     # Find the input to the max pooling
@@ -51,8 +52,6 @@ def max_pooling(tensor, R):
     R_new = lrp_util.patches_to_images_for_max_pool(relevances, batch, input_height, input_width, input_channels, output_height,
                                        output_width, kernel_size[1], kernel_size[2], strides[1], strides[2], padding)
 
-
-    # Recursively find the relevance of the next layer in the network
-    return lrp._lrp(max_pool_input, R_new)
+    return path[1:], R_new
 
 

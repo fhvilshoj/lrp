@@ -1,4 +1,4 @@
-from lrp import lrp, lrp_util
+from lrp import lrp_util
 import tensorflow as tf
 
 # TODO: We do not currently support max pooling where kernels span over the depts dimension (k: [1,1,1,d])

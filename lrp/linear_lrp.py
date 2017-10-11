@@ -1,6 +1,4 @@
-from lrp import lrp
 import tensorflow as tf
-
 from lrp import lrp_util
 
 

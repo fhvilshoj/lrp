@@ -6,7 +6,8 @@ import unittest
 # Class for testing that inherits from the unittest.TestCase class
 class LinearLRPTest(unittest.TestCase):
 
-    # Test case that builds a simple two layer linear network, finds the relevance and compares them to the results obtained by calculating the same example by hand
+    # Test case that builds a simple two layer linear network, finds the relevance
+    # and compares them to the results obtained by calculating the same example by hand
     def runTest(self):
         # Get a tensorflow graph
         g = tf.Graph()
@@ -51,7 +52,8 @@ class LinearLRPTest(unittest.TestCase):
                 # Add the bias
                 activation = mul + biases
 
-            # Set the prediction to be equal to the activations of the last layer (there is no softmax in this network)
+            # Set the prediction to be equal to the activations of the last
+            # layer (there is no softmax in this network)
             pred = activation
 
             # Calculate the relevance scores using lrp
@@ -71,7 +73,8 @@ class LinearLRPTest(unittest.TestCase):
                 # Check if the explanation has the right shape
                 self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
 
-                # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
+                # Check if the relevance scores are correct (the correct values
+                # are found by calculating the example by hand)
                 self.assertTrue(
                     np.allclose(explanation[0], [0., 0., 2.69, 35.87], rtol=1e-03, atol=1e-03),
                     msg="Should be a good linear explanation")

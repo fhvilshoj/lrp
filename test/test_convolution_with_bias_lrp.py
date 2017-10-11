@@ -2,13 +2,13 @@ import tensorflow as tf
 import numpy as np
 from lrp import lrp
 import unittest
-import os
 
 
 # Class for testing that inherits from the unittest.TestCase class
 class ConvolutionBiasLRPTest(unittest.TestCase):
     # Test case that builds a simple one layer convolution network with bias,
-    # finds the relevance and compares them to the results obtained by calculating the same example by hand
+    # finds the relevance and compares them to the results obtained by
+    # calculating the same example by hand
     def runTest(self):
         # Get a tensorflow graph
         g = tf.Graph()
@@ -35,7 +35,8 @@ class ConvolutionBiasLRPTest(unittest.TestCase):
             # Add bias
             activation = tf.nn.bias_add(activation, bias)
 
-            # Set the prediction to be equal to the activations of the last layer (there is no softmax in this network)
+            # Set the prediction to be equal to the activations of the last layer
+            # (there is no softmax in this network)
             pred = activation
 
             # Calculate the relevance scores using lrp
@@ -65,7 +66,8 @@ class ConvolutionBiasLRPTest(unittest.TestCase):
                 # Check if the explanation has the right shape
                 self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
 
-                # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
+                # Check if the relevance scores are correct (the correct values
+                # are found by calculating the example by hand)
                 self.assertTrue(
                     np.allclose(explanation[0], [[[[1.06, 0],
                                                    [0, 4.49]],

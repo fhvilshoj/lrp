@@ -2,16 +2,13 @@ import tensorflow as tf
 import numpy as np
 from lrp import lrp
 import unittest
-import os
 
 
 # Class for testing that inherits from the unittest.TestCase class
-from lrp.lrp_util import _print
-
-
 class LinearConvolutionLinearRPTest(unittest.TestCase):
     # Test case that builds a FC-Conv-FC network,
-    # finds the relevance and compares them to the results obtained by calculating the same example by hand
+    # finds the relevance and compares them to the results obtained
+    # by calculating the same example by hand
     def runTest(self):
         # Get a tensorflow graph
         g = tf.Graph()
@@ -38,7 +35,8 @@ class LinearConvolutionLinearRPTest(unittest.TestCase):
             filters = tf.constant([[[-3, 3]], [[3, 10]]], dtype=tf.float32)
             bias_2 = tf.constant([-9, 19], dtype=tf.float32)
 
-            # Expand the dimensions of the output from the first layer, since the 1dconv takes rank 3 tensors as input
+            # Expand the dimensions of the output from the first layer,
+            # since the 1dconv takes rank 3 tensors as input
             activation_1 = tf.expand_dims(activation_1, -1)
 
             # Perform the convolution and add bias
@@ -47,7 +45,8 @@ class LinearConvolutionLinearRPTest(unittest.TestCase):
 
             # --------------------- Linear layer -----------------------------
 
-            # Flatten the output from the conv layer so it can serve as input to a linear layer
+            # Flatten the output from the conv layer so it can serve as input
+            # to a linear layer
             activation_2_flattened = tf.reshape(activation_2, (1, 6))
 
             # Setup the linear layer
@@ -63,7 +62,8 @@ class LinearConvolutionLinearRPTest(unittest.TestCase):
             activation_3 = tf.matmul(activation_2_flattened, weights_3, name="MUL3") + bias_3
             activation_3 = tf.nn.tanh(activation_3)
 
-            # Set the prediction to be equal to the activations of the last layer (there is no softmax in this network)
+            # Set the prediction to be equal to the activations of the last layer
+            # (there is no softmax in this network)
             pred = activation_3
 
             # --------------------- Calculate relevances -----------------------------
@@ -77,7 +77,8 @@ class LinearConvolutionLinearRPTest(unittest.TestCase):
                 sess.run(tf.global_variables_initializer())
 
                 # Run the operations of interest and feed an input to the network
-                prediction, explanation = sess.run([pred, expl], feed_dict={inp: [[-1, 3, 55, 0]]})
+                prediction, explanation = sess.run([pred, expl],
+                                                   feed_dict={inp: [[-1, 3, 55, 0]]})
 
 
                 # Check if the predictions has the right shape
@@ -85,10 +86,14 @@ class LinearConvolutionLinearRPTest(unittest.TestCase):
                                  msg="Should be able to do a forward pass")
 
                 # Check if the explanation has the right shape
-                self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
+                self.assertEqual(explanation.shape, inp.shape,
+                                 msg="Should be a wellformed explanation")
 
-                # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
+                # Check if the relevance scores are correct (the correct values are
+                # found by calculating the example by hand)
                 self.assertTrue(
-                    np.allclose(explanation[0], [[0, 0.0424454611, 0.819711264, 0]], rtol=1e-01, atol=1e-01),
+                    np.allclose(explanation[0], [[0, 0.0424454611, 0.819711264, 0]],
+                                rtol=1e-01,
+                                atol=1e-01),
                     msg="Should be a good explanation")
 

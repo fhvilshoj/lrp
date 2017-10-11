@@ -1,6 +1,3 @@
-from lrp import lrp, lrp_util
-import tensorflow as tf
-
 def nonlinearities(path, R):
     """
     Handeling all nonlinearities (Relu, Sigmoid, Tanh) by passing the relevance along

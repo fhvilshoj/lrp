@@ -1,11 +1,10 @@
 import tensorflow as tf
 import numpy as np
 import unittest
-
 from lrp import lrp
 
 
-class   Convolution2LayersLRPTest(unittest.TestCase):
+class Convolution2LayersLRPTest(unittest.TestCase):
     def runTest(self):
         # Construct tensorflow graph
         g = tf.Graph()
@@ -49,7 +48,8 @@ class   Convolution2LayersLRPTest(unittest.TestCase):
                 # Add bias
                 activation = tf.nn.bias_add(activation, bias)
 
-            # Set the prediction to be equal to the activations of the last layer (there is no softmax in this network)
+            # Set the prediction to be equal to the activations of the last layer
+            # (there is no softmax in this network)
             pred = activation
 
             # Calculate the relevance scores using lrp
@@ -79,7 +79,8 @@ class   Convolution2LayersLRPTest(unittest.TestCase):
                 # Check if the explanation has the right shape
                 self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
 
-                # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
+                # Check if the relevance scores are correct (the correct values are
+                # found by calculating the example by hand)
                 self.assertTrue(
                     np.allclose(explanation[0], [[[[1.06, 0],
                                                    [0, 4.49]],

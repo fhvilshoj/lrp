@@ -1,5 +1,3 @@
-import tensorflow as tf
-
 from lrp import lrp_util
 from lrp.convolutional_lrp import convolutional
 from lrp.linear_lrp import linear
@@ -26,7 +24,6 @@ def _lrp_routing(path, R):
     # Find the operation that created the tensor
 
     while path:
-        print(path)
         operation_type = path[0].type
         if operation_type in ['Add', 'BiasAdd']:
             # Check which operation a given addition is associated with
@@ -44,7 +41,8 @@ def _lrp_routing(path, R):
 def _lrp(input, output, R):
     path = lrp_util.get_operations_between_input_and_output(input, output)
 
-    # Recurse on each layer with the relevance for the last layer set to the activation of the last layer (following the LRP convention)
+    # Recurse on each layer with the relevance for the last layer set to the
+    # activation of the last layer (following the LRP convention)
     return _lrp_routing(path, R)
 
 

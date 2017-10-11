@@ -2,12 +2,13 @@ import tensorflow as tf
 import numpy as np
 from lrp import lrp
 import unittest
-import os
 
 
 # Class for testing that inherits from the unittest.TestCase class
 class ConvolutionLRPTest(unittest.TestCase):
-    # Test case that builds a simple one layer convolution network, finds the relevance and compares them to the results obtained by calculating the same example by hand
+    # Test case that builds a simple one layer convolution network,
+    # finds the relevance and compares them to the results obtained
+    # by calculating the same example by hand
     def runTest(self):
         # Get a tensorflow graph
         g = tf.Graph()
@@ -30,7 +31,8 @@ class ConvolutionLRPTest(unittest.TestCase):
             # Perform the convolution
             activation = tf.nn.conv2d(inp, filters, [1, 1, 1, 1], "SAME")
 
-            # Set the prediction to be equal to the activations of the last layer (there is no softmax in this network)
+            # Set the prediction to be equal to the activations of the
+            # last layer (there is no softmax in this network)
             pred = activation
 
             # Calculate the relevance scores using lrp
@@ -52,9 +54,6 @@ class ConvolutionLRPTest(unittest.TestCase):
                                                                      [[2., -1.],
                                                                       [3., 0.]]]]
                                                               })
-                # prediction, explanation = sess.run([pred, expl], feed_dict={inp: [[[[1, -1], [2, 3]],
-                #                                                                    [[0, 2], [-1, 0]]]
-                #                                                                   ]})
 
                 # Check if the predictions has the right shape
                 self.assertEqual(prediction.shape, (1, 2, 2, 3),
@@ -63,7 +62,8 @@ class ConvolutionLRPTest(unittest.TestCase):
                 # Check if the explanation has the right shape
                 self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
 
-                # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
+                # Check if the relevance scores are correct (the correct values are
+                # found by calculating the example by hand)
                 self.assertTrue(
                     np.allclose(explanation[0], [[[[1.37, 0],
                                                    [0, 6.83]],

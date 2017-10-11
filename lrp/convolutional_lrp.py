@@ -1,4 +1,4 @@
-from lrp import lrp, lrp_util
+from lrp import lrp_util
 import tensorflow as tf
 
 

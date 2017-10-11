@@ -37,21 +37,23 @@ class MaxPoolLRPTest(unittest.TestCase):
                                                    feed_dict={inp: [[1, 2, 3, 4],
                                                                     [5, 6, 7, 8],
                                                                     [9, 10, 11, 12],
-                                                                    [13, 14, 15, 16]]
-                                                              })
+                                                                    [13, 14, 15, 16]]})
 
                 # Check if the predictions has the right shape
-                self.assertEqual(prediction.shape, (1, 2, 2, 1), msg="Should be able to do a linear forward pass")
+                self.assertEqual(prediction.shape, (1, 2, 2, 1),
+                                 msg="Should be able to do a linear forward pass")
 
                 # Check if the explanation has the right shape
-                self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
+                self.assertEqual(explanation.shape, inp.shape,
+                                 msg="Should be a wellformed explanation")
 
-                # Check if the relevance scores are correct (the correct values are found by calculating the example by hand)
+                # Check if the relevance scores are correct
+                # (the correct values are found by calculating the example by hand)
                 self.assertTrue(
                     np.allclose(explanation, [[0, 0, 0, 0],
-                                                 [0, 10, 0, 20],
-                                                 [0, 0, 0, 0],
-                                                 [0, 100, 0, 1000]],
+                                              [0, 10, 0, 20],
+                                              [0, 0, 0, 0],
+                                              [0, 100, 0, 1000]],
                                 rtol=1e-03,
                                 atol=1e-03),
                     msg="Should be a good explanation")

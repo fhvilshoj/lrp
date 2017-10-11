@@ -4,13 +4,16 @@ import tensorflow as tf
 from lrp import lrp_util
 
 
-def linear(tensor, R):
+def linear(path, R):
     """
     linear lrp
     :param tensor: tensor should be the activation (i.e. the output of the linear layer before an eventual non-linearity)
     :param R: the tensor containing the relevance from the upper layer
     :return: lower layer relevance (i.e. relevance distributed to the input to the linear layer)
     """
+    # Tensor is the output of the current operation
+    tensor = path[0].outputs[0]
+
     # Start by assuming the activation tensor is the output of a matrix multiplication (i.e. not an addition with a bias)
     # Tensor shape: (1, upper layer size)
     matmultensor = tensor
@@ -50,5 +53,7 @@ def linear(tensor, R):
     # lrp_util._print(zp_sum_with_bias)
     R_new = tf.matmul(R, tf.divide(zp, zp_sum_with_bias))
 
-    # Recursively find the relevance of the next layer in the network
-    return lrp._lrp(lrp_util.find_path_towards_input(matmultensor), R_new)
+    # Skip forward in path according to the use of bias or not (skip an extra if we used bias)
+    skip = 2 if with_bias else 1
+
+    return path[skip:], R_new

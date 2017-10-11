@@ -69,6 +69,64 @@ def get_input_bias_from_add(tensor):
     return bias
 
 
+# Helper function that traverses computation graph through all nodes
+# to find the path from the output back to the input.
+def get_operations_between_input_and_output(g, input, output):
+    # Make a list of indicators telling if we have considered a given node before.
+    reached_ops = [False] * (g._last_id + 1)
+
+    def _MarkReachedOps(from_ops, reached_ops):
+        # Make queue of the elements of the from ops argument. Both
+        # handeling lists and single objects.
+        queue = [from_ops.op] if not isinstance(from_ops, list) else [t.op for t in from_ops]
+
+        # Run until we considered all paths from the input out into
+        # the graph
+        while queue:
+            op = queue.pop(0)
+
+            # Only consider nodes in the graph that we have not seen before
+            if not reached_ops[op._id]:
+                # Remember that we saw the current node
+                reached_ops[op._id] = True
+
+                # Add its consumers to the queue
+                for output in op.outputs:
+                    for consumer in output.consumers():
+                        queue.append(consumer)
+
+    # Find all nodes in graph reachable from the input
+    _MarkReachedOps(input, reached_ops)
+
+    # Make new list of boolean indicators for backwards pass
+    between_ops = [False] * (g._last_id + 1)
+
+    # List used for holding all the nodes in graph that we visit
+    # On the path from output to input. Note that nodes with no
+    # direct path to input might be included when there are while
+    # loops in the graph.
+    between_op_list = []
+    queue = [output.op]
+    while queue:
+        op = queue.pop(0)
+        # We are interested in this operation only if we saw the
+        # node in the pass from input towards output.
+        if reached_ops[op._id]:
+            # This indicates that current node is part of path
+            # between ouput and input, so remember it.
+            between_ops[op._id] = True
+            between_op_list.append(op)
+
+            # Clear the boolean so we won't consider it again.
+            reached_ops[op._id] = False
+
+            #Add inputs to the queue
+            for inp in op.inputs:
+                queue.append(inp.op)
+
+    return between_op_list
+
+
 # Helper function that takes a tensor, finds the operation that created it, and recursively prints the inputs to the operation
 def _print(tensor, index=''):
     print(index + str(tensor.op.type))

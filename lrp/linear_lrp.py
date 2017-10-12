@@ -45,7 +45,7 @@ def linear(path, R):
 
     # Add the sum of the z_ij^+'s and the positive bias (i.e. find the z_j^+'s)
     zp_sum_with_bias = tf.add(zp_sum, bias_positive)
-    zp_sum_with_bias += 1e-12
+    zp_sum_with_bias += lrp_util.EPSILON
 
     # Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
     # lrp_util._print(zp_sum_with_bias)

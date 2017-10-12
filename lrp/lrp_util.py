@@ -4,8 +4,12 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import sparse_ops
 from tensorflow.python.framework import sparse_tensor, ops
 
+EPSILON = 1e-12
 
-# Helper function that takes a tensor, goes back to the operation that created it, and determines which of the operation's inputs lead in the direction of the input to the network (i.e. the output of a previous layer)
+
+# Helper function that takes a tensor, goes back to the operation that created it,
+# and determines which of the operation's inputs lead in the direction of the input
+# to the network (i.e. the output of a previous layer)
 def find_path_towards_input(tensor):
     # Find the inputs of the operation that created the tensor
     inputs = tensor.op.inputs
@@ -16,7 +20,8 @@ def find_path_towards_input(tensor):
     elif (len(inputs) == 1):
         return inputs[0]
 
-    # Run through the inputs until finding an input that is not a variable (accessed with the operation identity) or a constant
+    # Run through the inputs until finding an input that is not a variable
+    # (accessed with the operation identity) or a constant
     for tens in inputs:
         if tens.op.type not in ['Identity', 'Const']:
             return tens

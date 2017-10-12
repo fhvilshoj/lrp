@@ -4,7 +4,7 @@ import numpy as np
 import unittest
 
 
-class LSTM5Units1StackedLRPTest(unittest.TestCase):
+class LSTM5UnitsLRPTest(unittest.TestCase):
     def runTest(self):
         with tf.Graph().as_default():
             lstm_units = 5

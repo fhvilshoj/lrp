@@ -77,6 +77,8 @@ def _handle_while_context(while_context, R, input):
     # ---------------------
     # | Wi | Wg | Wf | Wo |
     # ---------------------
+    # For LSTM implementation details see
+    # https://github.com/tensorflow/tensorflow/blob/r1.3/tensorflow/python/ops/rnn_cell_impl.py#L565
     # where Us are used to weight input and Ws are used for h^(t-1).
     # Similar goes for bias.
     weights_gate_gate = tf.slice(kernel_ref, [0, lstm_units], [kernel_ref.get_shape().as_list()[0], lstm_units])

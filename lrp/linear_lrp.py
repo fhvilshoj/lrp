@@ -12,17 +12,20 @@ def linear(path, R):
     # Tensor is the output of the current operation
     tensor = path[0].outputs[0]
 
-    # Start by assuming the activation tensor is the output of a matrix multiplication (i.e. not an addition with a bias)
+    # Start by assuming the activation tensor is the output of a matrix multiplication
+    # (i.e. not an addition with a bias)
     # Tensor shape: (1, upper layer size)
     matmultensor = tensor
     with_bias = False
 
-    # If the activation tensor is the output of an addition (i.e. the above assumption does not hold), move through the graph to find the output of the nearest matrix multiplication.
+    # If the activation tensor is the output of an addition (i.e. the above assumption does not hold),
+    # move through the graph to find the output of the nearest matrix multiplication.
     if tensor.op.type == 'Add':
         matmultensor = lrp_util.find_first_tensor_from_type(tensor, 'MatMul')
         with_bias = True
 
-    # Find the inputs to the matrix multiplication, transpose the weights and perform elementwise multiplication to find the z_ij's
+    # Find the inputs to the matrix multiplication, transpose the weights and perform elementwise
+    # multiplication to find the z_ij's
     (inp1, inp2) = matmultensor.op.inputs
     inp2 = tf.transpose(inp2)
     zs = tf.multiply(inp1, inp2)

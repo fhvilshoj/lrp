@@ -1,4 +1,5 @@
 import tensorflow as tf
+from lrp import lrp_util
 
 
 def _t_geq_one(t, *_):
@@ -189,9 +190,30 @@ def lstm(path, R):
     return path[idx:], R
 
 
-def _linear_lrp_helper(relevance_to_distribute, input, weights, output):
+def _linear_lrp_helper(relevance_to_distribute, input, weights, output, bias=None):
+    """
+    Simple linear layer used for partial computations of LSTM
+    :param relevance_to_distribute: A tensor of relevances to distribute
+    :param input: The input tensor
+    :param weights: The kernel weights
+    :param output: The output tensor
+    :param bias: Optional tensor with bias
+    :return: Redistributed relevance
+    """
     activations = tf.multiply(tf.transpose(input), weights)
-    fractions = tf.divide(activations, output)
+    if bias is not None:
+        # Number of inputs to divide relevance into
+        input_size = input.get_shape().as_list()[1]
+
+        # Divide the bias (and stabilizer) equaly between the `input_size` inputs
+        bias = (lrp_util.BIAS_DELTA * bias + lrp_util.EPSILON * tf.sign(output)) / input_size
+        activations = activations + bias
+
+    # Add stabilizer to denominator to avoid dividing with 0
+    denominator = output + lrp_util.EPSILON * tf.sign(output)
+    fractions = tf.divide(activations, denominator)
+
+    # Assign relevance
     relevances = tf.matmul(relevance_to_distribute, tf.transpose(fractions))
     return relevances
 
@@ -260,9 +282,9 @@ def _calculate_relevance_form_lstm(R, W_g, b_g, X, H, cell_states, input_gate_ou
         h_t_minus_one = H.read(t - 1)
         x_t = X.read(t - 1)  # Note that X is indexed from 0 where H is from 1
         x_h_concat = tf.concat([x_t, h_t_minus_one], axis=1)
-        gate_gate_before_tanh = tf.matmul(x_h_concat, W_g)
+        gate_gate_before_tanh = tf.matmul(x_h_concat, W_g) + b_g
 
-        rel_x_t_and_h_t_minus_one = _linear_lrp_helper(relevance_g, x_h_concat, W_g, gate_gate_before_tanh)
+        rel_x_t_and_h_t_minus_one = _linear_lrp_helper(relevance_g, x_h_concat, W_g, gate_gate_before_tanh, bias=b_g)
         (rel_xs_t, rel_hs_t_minus_one) = tf.split(rel_x_t_and_h_t_minus_one, [x_depth, units], 1)
 
         rel_xs = rel_xs.write(t, rel_xs_t)

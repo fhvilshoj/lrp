@@ -5,6 +5,7 @@ from tensorflow.python.ops import sparse_ops
 from tensorflow.python.framework import sparse_tensor, ops
 
 EPSILON = 1e-12
+BIAS_DELTA = 1  # (0 if we shouldn't consider bias in epsilon rule) 1 if we should
 
 
 # Helper function that takes a tensor, goes back to the operation that created it,
@@ -127,7 +128,7 @@ def get_operations_between_input_and_output(input, output):
             # Clear the boolean so we won't consider it again.
             reached_ops[op._id] = False
 
-            #Add inputs to the queue
+            # Add inputs to the queue
             for inp in op.inputs:
                 queue.append(inp.op)
 
@@ -281,6 +282,7 @@ def patches_to_images_for_max_pool(patches, batch_size, rows_in, cols_in, channe
     grad_out = array_ops.transpose(grad_out, (2, 0, 1, 3))
 
     return grad_out
+
 
 # Helper function that uses tensorflow's Print function to print the value of a tensor
 def print_value(input, name):

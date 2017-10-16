@@ -22,9 +22,8 @@ router = {
 
 
 def _lrp_routing(path, R):
-    # Find the operation that created the tensor
-
     while path:
+        # Find type of the operation in the front of the path
         operation_type = path[0].type
         if operation_type in ['Add', 'BiasAdd']:
             # Check which operation a given addition is associated with

@@ -151,7 +151,7 @@ def _handle_while_context(while_context, R, input):
         loop_vars=[i, hidden_states, state_cells, input_gate, gate_gate, forget_gate])
 
     # Call lstm lrp with the recorded information
-    R_new = _calculate_relevance_form_lstm(R[0], weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg,
+    R_new = _calculate_relevance_from_lstm(R[0], weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg,
                                            sequence_length)
     return tf.expand_dims(R_new, 0)
 
@@ -218,7 +218,7 @@ def _linear_lrp_helper(relevance_to_distribute, input, weights, output, bias=Non
     return relevances
 
 
-def _calculate_relevance_form_lstm(R, W_g, b_g, X, H, cell_states, input_gate_outputs, gate_gate_outputs,
+def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_outputs, gate_gate_outputs,
                                    forget_gate_outputs, max_timestep):
     """
     Calculated the relevance for an LSTM

@@ -14,18 +14,15 @@ class LSTM5UnitsWithBiasLRPTest(unittest.TestCase):
             np_input = np.reshape(np.arange(-10, 14), (1, 8, 3))
             inp = tf.constant(np_input, dtype=tf.float32)
 
-            # Set seed to ensure equal reaults reach time in test
-            tf.set_random_seed(1337)
-
-            # Create lstm cell
-            stacked_lstm = tf.contrib.rnn.LSTMCell(lstm_units,
+            # Create lstm layer
+            lstm = tf.contrib.rnn.LSTMCell(lstm_units,
                                                    # initializer=tf.constant_initializer(1., dtype=tf.float32),
                                                    forget_bias=0.)
 
             # Put it into Multi RNN Cell
-            stacked_lstm = tf.contrib.rnn.MultiRNNCell([stacked_lstm] * 1)
+            lstm = tf.contrib.rnn.MultiRNNCell([lstm] * 1)
             # Let dynamic rnn setup the control flow (making while loops and stuff)
-            lstm_output, _ = tf.nn.dynamic_rnn(stacked_lstm, inp, dtype=tf.float32)
+            lstm_output, _ = tf.nn.dynamic_rnn(lstm, inp, dtype=tf.float32)
 
             # Construct operation for assigning mock weights
             kernel = next(i for i in tf.global_variables() if i.shape == (8, 20))
@@ -35,7 +32,7 @@ class LSTM5UnitsWithBiasLRPTest(unittest.TestCase):
             bias = next(i for i in tf.global_variables() if i.shape == (20,))
             assign_bias = bias.assign(LSTM_BIAS)
 
-            # Fakt the relevance.
+            # Fake the relevance
             R = tf.ones_like(tf.slice(lstm_output, [0, -1, 0], [1, 1, lstm_units]))
 
             # Get the explanation from the LRP framework.
@@ -46,7 +43,7 @@ class LSTM5UnitsWithBiasLRPTest(unittest.TestCase):
                 # Initialize variables
                 s.run(tf.global_variables_initializer())
 
-                # Assign mock bias
+                # Assign mock kernel and bias
                 s.run([assign_kernel, assign_bias])
 
                 # Calculate relevance
@@ -67,4 +64,4 @@ class LSTM5UnitsWithBiasLRPTest(unittest.TestCase):
                 self.assertEqual(expected_result.shape, relevances.shape,
                                  "Shapes of expected relevance and relevance should be equal")
                 self.assertTrue(np.allclose(relevances, expected_result, rtol=1e-03, atol=1e-03),
-                                "NO LONGER EQUAL RELEVANCES")
+                                "The relevances do not match")

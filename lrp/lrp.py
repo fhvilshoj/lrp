@@ -25,6 +25,7 @@ def _lrp_routing(path, R):
     while path:
         # Find type of the operation in the front of the path
         operation_type = path[0].type
+        print("Found the following operation: ", operation_type)
         if operation_type in ['Add', 'BiasAdd']:
             # Check which operation a given addition is associated with
             # Note that it cannot be lstm because lstm has its own scope
@@ -34,13 +35,13 @@ def _lrp_routing(path, R):
             # Route responsibility to appropriate function
             path, R = router[operation_type](path, R)
         else:
+            print("Router did not know the operation: ", operation_type)
             path = path[1:]
     return R
 
 
 def _lrp(input, output, R):
     path = lrp_util.get_operations_between_input_and_output(input, output)
-
     # Recurse on each layer with the relevance for the last layer set to the
     # activation of the last layer (following the LRP convention)
     return _lrp_routing(path, R)
@@ -50,7 +51,7 @@ def lrp(input, output):
     """
     lrp main function
     :param input: Expecting a tensor containing a single input causing the output
-    :param output: Expecting the output to begin lrp from
+    :param output: Expecting the output tensor to begin lrp from
     :return: Tensor of input size containing a relevance score for each feature of the input
     """
 
@@ -64,6 +65,8 @@ def lrp(input, output):
 # such indexes are provided by the user of the function.
 # Expects class scores as a tensor of shape (batch_size, classes) and optionally a tensor with
 # user chosen indices of shape (batch_size, )
+
+#TODO is it a fair constraint to only accept class scores of shape (batch_size, classes) and reject FX (batch_size, 1, classes)?
 def _find_starting_point_relevances(class_scores, user_chosen_indices=None):
         # Get the shape of the class scores
         batch_size, number_of_classes = class_scores.get_shape().as_list()

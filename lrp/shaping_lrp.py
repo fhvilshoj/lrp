@@ -4,7 +4,7 @@ import tensorflow as tf
 def shaping(path, R):
     # Assert that shape of tensor, R are the same
     tensor = path[0].outputs[0]
-    assert tensor.shape == R.shape
+    assert tensor.shape == R.shape, "Operation: {}".format(path[0].type)
 
     # Reshape R to the same shape as the input to the
     # reshaping operation that created the tensor

@@ -60,15 +60,16 @@ def _handle_while_context(while_context, R, input):
     bias_ref = bias_ref.outputs[0]
 
     # Finding extra bias associated with the forget gate
-    before_output_gate = _find_operation_from_path(while_context, 'Tanh')
-    add_forget_bias_op = _walk_full_graph_by_path(before_output_gate, ['Add', 'Mul', 'Sigmoid', 'Add'])
-    forget_bias = tf.identity(add_forget_bias_op.inputs[1])
+    # TODO We do not handle forget bias
+    # before_output_gate = _find_operation_from_path(while_context, 'Tanh')
+    # add_forget_bias_op = _walk_full_graph_by_path(before_output_gate, ['Add', 'Mul', 'Sigmoid', 'Add'])
+    # forget_bias = tf.identity(add_forget_bias_op.inputs[1])
 
-    # Find the number of LSTM units by dividing 4 bias entries
-    # to each unit (input, gate, forget and output bias)
+    # Find the number of LSTM units by dividing length of bias by 4
+    # (input, gate, forget and output)
     lstm_units = bias_ref.get_shape().as_list()[0] // 4
 
-    # Find the length of the sequence
+    # Find the length of the input sequence
     sequence_length = input.get_shape().as_list()[1]
 
     # Slicing the weights and biases used for calculating gate gate
@@ -87,7 +88,8 @@ def _handle_while_context(while_context, R, input):
 
     # Prepare for forward pass by constructing Tensor Arrays for input,
     # hidden states, state cells, input gate, gate gate, and forget_gate
-    # Nothing fanzy. Just empty TAs with 0's in the first entry.
+    # We do not record output gate since it is not needed for the relevance calculations.
+    # Just empty TAs with 0's in the first entry.
     input_a = tf.TensorArray(tf.float32, size=sequence_length, clear_after_read=False)
     input_a = input_a.split(input[0], [1] * sequence_length)
 
@@ -123,7 +125,7 @@ def _handle_while_context(while_context, R, input):
         # Apply appropriate activation functions
         new_ig = tf.sigmoid(new_ig)
         new_fg = tf.sigmoid(new_fg)  # + forget_bias  TODO: what to do with forget bias
-        new_gg = tf.tanh(new_gg)
+        new_gg = tf.tanh(new_gg)     # TODO: may need dynamic activation function
         new_og = tf.sigmoid(new_og)
 
         # Calculate new state cell
@@ -153,6 +155,7 @@ def _handle_while_context(while_context, R, input):
     # Call lstm lrp with the recorded information
     R_new = _calculate_relevance_from_lstm(R[0], weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg,
                                            sequence_length)
+    # Restore extra dimension removed by R[0] above
     return tf.expand_dims(R_new, 0)
 
 
@@ -166,6 +169,7 @@ def lstm(path, R):
     """
 
     idx = 0
+    # Find scatter since it indicates end of LSTM
     while path[idx].type != 'TensorArrayScatterV3':
         idx += 1
     while_context = path[1:idx]
@@ -175,8 +179,8 @@ def lstm(path, R):
     while path[idx]._id != find_id:
         idx += 1
 
-    # Find input to transpose from path for further handeling
-    # by the router
+    # Find input to transpose from path for further handling
+    # by the router when done with the LSTM
     find_id = path[idx].inputs[0].op._id
     while path[idx]._id != find_id:
         idx += 1
@@ -184,9 +188,11 @@ def lstm(path, R):
     # Extract input tensor for while context
     while_context_input = path[idx].outputs[0]
 
-    # Transfar sub graph to the handler of the while context
+    # Transfer sub graph to the handler of the while context
+    # which distributes the relevance through the LSTM
     R = _handle_while_context(while_context, R, while_context_input)
 
+    # Return with path after while context (i.e. after the LSTM)
     return path[idx:], R
 
 

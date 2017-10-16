@@ -83,7 +83,7 @@ def get_operations_between_input_and_output(input, output):
     # Make a list of indicators telling if we have considered a given node before.
     reached_ops = [False] * (g._last_id + 1)
 
-    def _MarkReachedOps(from_ops, reached_ops):
+    def _markReachedOps(from_ops, reached_ops):
         # Make queue of the elements of the from ops argument. Both
         # handeling lists and single objects.
         queue = [from_ops.op] if not isinstance(from_ops, list) else [t.op for t in from_ops]
@@ -104,7 +104,7 @@ def get_operations_between_input_and_output(input, output):
                         queue.append(consumer)
 
     # Find all nodes in graph reachable from the input
-    _MarkReachedOps(input, reached_ops)
+    _markReachedOps(input, reached_ops)
 
     # Make new list of boolean indicators for backwards pass
     between_ops = [False] * (g._last_id + 1)

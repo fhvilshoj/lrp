@@ -43,6 +43,7 @@ def max_pooling(path, R):
 
     # Find the contribution of each feature in the input to the activations,
     # i.e. the ratio between the z_ijk's and the z_jk's (plus a small stabilizer to avoid division by zero)
+    # TODO We do not take care of two equaly big entries (currently doubles given relevance)
     fraction = zs / (max_elems + lrp_util.EPSILON)
 
     # Find the relevance of each feature

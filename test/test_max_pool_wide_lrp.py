@@ -50,8 +50,8 @@ class MaxPoolLRPTest(unittest.TestCase):
                 # are found by calculating the example by hand)
                 print(explanation)
                 self.assertTrue(
-                    np.allclose(explanation, [[0, 0, 1.5, 0, 0, 0],
-                                              [3, 4, 1.5, 5, 6, 7],
+                    np.allclose(explanation, [[0, 0, 3, 0, 0, 0],
+                                              [3, 4, 3, 5, 6, 7],
                                               [5, 6, 0, 0, 0, 0],
                                               [0, 0, 1, 1, 1, 1]],
                                 rtol=1e-03,

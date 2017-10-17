@@ -27,13 +27,13 @@ def linear(path, R):
     # Find the inputs to the matrix multiplication, transpose the weights and perform elementwise
     # multiplication to find the z_ij's
     (inp1, inp2) = matmultensor.op.inputs
-    inp2 = tf.transpose(inp2)
-    zs = tf.multiply(inp1, inp2)
+    # inp2 = tf.transpose(inp2)
+    zs = tf.expand_dims(inp1, -1) * tf.expand_dims(inp2, 0)
 
     # Replace the negative elements with zeroes to only have the positive z's left (i.e. z_ij^+)
     zp = lrp_util.replace_negatives_with_zeros(zs)
 
-    # Take the sum of each row of z_ij^+'s
+    # Take the sum of each column of z_ij^+'s
     zp_sum = tf.reduce_sum(zp, axis=1, keep_dims=True)
 
     # Find the positive parts of an eventual bias that is added to the results of the matrix multiplication (i.e. b^+).
@@ -41,8 +41,8 @@ def linear(path, R):
     bias_positive = tf.zeros_like(zp_sum)
     if with_bias:
         bias = lrp_util.get_input_bias_from_add(tensor)
-        if tf.rank(bias) != tf.rank(zp_sum):
-            bias = tf.reshape(bias, zp_sum.shape)
+        # if tf.rank(bias) != tf.rank(zp_sum):
+        #     bias = tf.reshape(bias, zp_sum.shape)
         # Replace the negative elements in the bias with zeroes and transpose to the right form
         bias_positive = lrp_util.replace_negatives_with_zeros(bias)
 
@@ -52,7 +52,17 @@ def linear(path, R):
 
     # Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
     # lrp_util._print(zp_sum_with_bias)
-    R_new = tf.matmul(R, tf.divide(zp, zp_sum_with_bias))
+    fractions = tf.divide(zp, zp_sum_with_bias)
+    fractions = tf.transpose(fractions, perm=[0, 2, 1])
+
+    # Expand R to match shape of zp_sum
+    R = tf.expand_dims(R, 1)
+
+    # Multiply relevances with fractions to find relevance per feature in input
+    R_new = tf.matmul(R, fractions)
+
+    # Get R back in shape ;-)
+    R_new = tf.squeeze(R_new, 1)
 
     # Skip forward in path according to the use of bias or not (skip an extra if we used bias)
     skip = 2 if with_bias else 1

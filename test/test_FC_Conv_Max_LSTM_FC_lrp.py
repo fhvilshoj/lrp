@@ -8,7 +8,7 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
     def runTest(self):
         # Build the computational graph
         with tf.Graph().as_default() as g:
-            # Make static input
+            # Make static input shape: (8, 10)
             inp = tf.constant([[-2, -17, 17, 4, 8, -1, 0, -16, -16, 17],
                                [11, 18, -2, -10, -7, 5, -11, 18, 0, -10],
                                [2, -7, -17, -15, 3, 11, -5, -11, 18, 4],
@@ -19,6 +19,7 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
                                [11, 1, 1, 16, 0, 14, 2, 20, -20, 13]], dtype=tf.float32)
 
             # -------------------------------------------- FC 1--------------------------------------------
+            # shape: (10, 6)
             weights_1 = tf.constant([[0.99215692, 0.27058825, 0.34509805, 0.99215692, -0.98823535, 0.322352958],
                                      [0.87843144, -0.17254902, 0.50196081, -0.98823535, 0.98823535, 0.241568646],
                                      [-0.54509807, 0.0627451, 0.64705884, -0.1647058, 0.94117653, 0.18823532],
@@ -31,11 +32,11 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
                                      [0.88235301, 0.84705889, 0.99215692, -0.64705884, 0.98823535, 0.98823535]],
                                     dtype=tf.float32)
 
+            # shape: (6,)
             bias_1 = tf.constant([-1.5, -1, -0.5, 0, 0.5, 1], dtype=tf.float32)
 
+            # shape: (8, 6)
             output_1 = tf.matmul(inp, weights_1) + bias_1
-            output_1 = tf.Print(output_1, [output_1], message="output_1: ", summarize=1000)
-
 
             # -------------------------------------------- Convolution 1 --------------------------------------------
             # Create the filter which has shape [filter_width, in_channels, out_channels]
@@ -59,8 +60,6 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
             # Add an extra dimension to fit the expected input shape of conv1d
             output_1_reshaped = tf.expand_dims(output_1, 0)
             output_2 = tf.nn.conv1d(output_1_reshaped, filter_2, 1, "SAME") + bias_2
-            output_2 = tf.Print(output_2, [output_2], message="output_2: ", summarize=1000)
-
 
             # -------------------------------------------- Max pooling --------------------------------------------
 
@@ -77,8 +76,6 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
 
             # Remove the "height" dimension again
             output_3 = tf.squeeze(pool, 1)
-            output_3 = tf.Print(output_3, [output_3], message="output_3: ", summarize=1000)
-
 
             # -------------------------------------------- Convolution 2--------------------------------------------
 
@@ -97,8 +94,6 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
             bias_4 = tf.constant([0.07450981, 0.14901961, 0.98823535, -0.0509804], dtype=tf.float32)
 
             output_4 = tf.nn.conv1d(output_3, filter_4, 1, "SAME") + bias_4
-            output_4 = tf.Print(output_4, [output_4], message="output_4: ", summarize=1000)
-
 
             # -------------------------------------------- Max pooling --------------------------------------------
 
@@ -115,8 +110,6 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
 
             # Remove the "height" dimension again
             output_5 = tf.squeeze(pool, 1)
-            output_5 = tf.Print(output_5, [output_5], message="output_5: ", summarize=1000)
-
 
             # -------------------------------------------- LSTM --------------------------------------------
             lstm_units = 4
@@ -155,8 +148,6 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
 
             # Use only the last hidden state
             output_6 = tf.slice(output_lstm, [0, 1, 0], [1, 1, 4])
-            output_6 = tf.Print(output_6, [output_6], message="output_6: ", summarize=1000)
-
 
             # Construct operation for assigning mock weights
             kernel = next(i for i in tf.global_variables() if i.shape == (8, 16))
@@ -180,8 +171,6 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
 
             # Perform the matmul
             output_7 = tf.matmul(output_6_reshaped, weights_7) + bias_7
-            output_7 = tf.Print(output_7, [output_7], message="output_7: ", summarize=1000)
-
 
             # -------------------------------------------- Softmax -------------------------------------------
 
@@ -190,7 +179,7 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
             # -------------------------------------------- LRP -------------------------------------------
 
             # Get the explanation from the LRP framework.
-          #  R = lrp.lrp(inp, output_final)
+            R = lrp.lrp(inp, output_final)
 
             # Run the computations
             with tf.Session() as s:
@@ -200,37 +189,36 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
                 # Assign mock bias
                 s.run([assign_kernel, assign_bias])
 
-                out = s.run(output_final)
-                print(out)
-
                 # # Calculate relevance
-                # relevances = s.run(R)
-                #
-                # # Expected result calculated in
-                # # https://docs.google.com/spreadsheets/d/1_bmSEBSWVOkpdlZYEUckgrnUtxhEfnR84LZy1cU5fIw/edit?usp=sharing
-                # expected_result = np.array([[[0, 0.00009805561105, 0.00005414047329, 0.00006195665023, 0.0002238479865,
-                #                               0.00000115545024, 0, 0, 0.00009169002404, 0.0005260735137],
-                #                              [0.0005442203312, 0.0009426821562, 0.00003942595867, 0.00003825591233,
-                #                               0.0001996159965, 0.0002715702849, 0.00000357598169, 0.001143195536, 0, 0],
-                #                              [0.0001969616413, 0.0006704347526, 0.0002918527529, 0, 0.000281341314,
-                #                               0.00002460706276, 0, 0, 0.00004603479328, 0.000009408314461],
-                #                              [0.000304159758, 0.000323865212, 0.0005835943529, 0.001749189186,
-                #                               0.0006260772858, 0.001044452983, 0.001213588422, 0.002556191351,
-                #                               0.00008511880281, 0.0001288592067],
-                #                              [0.003942198954, 0, 0.0008948157171, 0.001034487118, 0.00821824816,
-                #                               0.00795311754, 0.001054496115, 0.004341330156, 0.0006469008048,
-                #                               0.0002727043103],
-                #                              [0.00001670708886, 0.0004522287794, 0, 0.0125221455, 0.00008588814505,
-                #                               0.003642134889, 0.001539205482, 0, 0.002505662528, 0.00006380696649],
-                #                              [0.00461172526, 0.004842762115, 0.002068858186, 0.005723975178,
-                #                               0.00000168020186, 0.009736343488, 0.0001198417775, 0.003214726948,
-                #                               0.0004977156855, 0.0003426242566],
-                #                              [0.03019218, 0.001282057794, 0.0004495161327, 0.02870312857, 0,
-                #                               0.03205014973, 0.003254075662, 0.07376802562, 0.02590262033,
-                #                               0.03669102436]]])
-                #
-                # # Check for shape and actual result
-                # self.assertEqual(expected_result.shape, relevances.shape,
-                #                  "Shapes of expected relevance and relevance should be equal")
-                # self.assertTrue(np.allclose(relevances, expected_result, rtol=1e-03, atol=1e-03),
-                #                 "The relevances do not match")
+                relevances = s.run(R)
+
+                # Expected result calculated in
+                # https://docs.google.com/spreadsheets/d/1_bmSEBSWVOkpdlZYEUckgrnUtxhEfnR84LZy1cU5fIw/edit?usp=sharing
+                expected_result = np.array([[0, 0.00009744890346, 0.00005380548547, 0.00006157330073, 0.0002224629534,
+                                             0.000001148301027, 0, 0, 0.00009112270278, 0.0005228184956],
+                                            [0.0003926704111, 0.000690260643, 0.00002775464123, 0.00002765821888,
+                                             0.0001484110742, 0.0001955332403, 0.000003241945558, 0.0008382231393, 0,
+                                             0],
+                                            [0.0001084081589, 0.0003690088929, 0.0001606364539, 0, 0.0001548509328,
+                                             0.00001354378626, 0, 0, 0.00002533766043, 0.000005178358804],
+                                            [0.0002870030767, 0.0003006917612, 0.0005409557879, 0.001673765604,
+                                             0.0005882002186, 0.0009939816563, 0.001152595479, 0.002409395133,
+                                             0.00007871882761, 0.0001197214162],
+                                            [0.003720715575, 0, 0.0008488224481, 0.001008967078, 0.007691724936,
+                                             0.007605366069, 0.001017835398, 0.00411259372, 0.0005971349689,
+                                             0.000256612695],
+                                            [0, 0.0004449329458, 0, 0.01210797823, 0.00004847106631, 0.003506019562,
+                                             0.001415993078, 0, 0.002416949139, 0.00006304742861],
+                                            [0.005359096108, 0.005972816778, 0.002764248481, 0.007948120325,
+                                             0.0003087310192, 0.01114928751, 0.0001196646517, 0.003871852483,
+                                             0.0004964681915, 0.0003417654898],
+                                            [0.02020125409, 0.0009174208261, 0.000388005489, 0.01936216584, 0,
+                                             0.0243733322, 0.002747249697, 0.05362725729, 0.01680197517,
+                                             0.02779999447]])
+
+                # Check for shape and actual result
+                self.assertEqual(inp.shape, R.shape)
+                self.assertEqual(expected_result.shape, relevances.shape,
+                                 "Shapes of expected relevance and relevance should be equal")
+                self.assertTrue(np.allclose(relevances, expected_result, rtol=1e-03, atol=1e-03),
+                                "The relevances do not match")

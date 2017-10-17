@@ -25,31 +25,34 @@ def max_pooling(path, R):
     (batch, input_height, input_width, input_channels) = max_pool_input.get_shape().as_list()
 
     # Get the shape of the output of the output of the max pool
-    (_, output_height, output_width, _) = tensor.get_shape().as_list()
+    (_, output_height, output_width, output_channels) = tensor.get_shape().as_list()
 
     # Replace the negative elements with zeroes to only have the positive entries left
     max_pool_input = lrp_util.replace_negatives_with_zeros(max_pool_input)
 
     # Extract every patch of the input (i.e. portion of the input that the kernel looks at a
     # time), to get a tensor of shape
-    # (batch, out_height, out_width, kernel_height*kernel_width*input_depth)
+    # (batch, out_height, out_width, kernel_height*kernel_width*input_channels)
     image_patches = tf.extract_image_patches(max_pool_input, kernel_size,
                                              strides, [1, 1, 1, 1], padding)
+    image_patches = tf.reshape(image_patches, [batch, output_height, output_width, kernel_size[1], kernel_size[2], input_channels])
 
     # Find the largest elements in each patch and set all other entries to zero (to find z_ijk+'s)
-    max_elems = tf.reduce_max(image_patches, axis=3, keep_dims=True)
+    max_elems = tf.reduce_max(image_patches, axis=[3, 4], keep_dims=True)
     zs = tf.where(tf.equal(image_patches, max_elems), image_patches, tf.zeros_like(image_patches))
-
 
     # Find the contribution of each feature in the input to the activations,
     # i.e. the ratio between the z_ijk's and the z_jk's (plus a small stabilizer to avoid division by zero)
     fraction = zs / (max_elems + lrp_util.EPSILON)
 
     # Find the relevance of each feature
+    R = tf.reshape(R, [batch, output_height, output_width, 1, 1, output_channels])
+
     relevances = fraction * R
+    relevances = tf.reshape(relevances, (batch, output_height, output_width, kernel_size[1]*kernel_size[2] * input_channels))
 
     # Reconstruct the shape of the input, thereby summing the relevances for each individual pixel
-    R_new = lrp_util.patches_to_images_for_max_pool(relevances, batch, input_height, input_width, input_channels, output_height,
+    R_new = lrp_util.patches_to_images(relevances, batch, input_height, input_width, input_channels, output_height,
                                        output_width, kernel_size[1], kernel_size[2], strides[1], strides[2], padding)
 
     return path[1:], R_new

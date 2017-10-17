@@ -32,7 +32,7 @@ def max_pooling(path, R):
 
     # Extract every patch of the input (i.e. portion of the input that the kernel looks at a
     # time), to get a tensor of shape
-    # (batch, out_height, out_width, kernel_height*kernel_width*kernel_depth)
+    # (batch, out_height, out_width, kernel_height*kernel_width*input_depth)
     image_patches = tf.extract_image_patches(max_pool_input, kernel_size,
                                              strides, [1, 1, 1, 1], padding)
 

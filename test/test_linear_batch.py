@@ -3,7 +3,8 @@ import numpy as np
 import unittest
 from lrp import lrp
 
-
+# Test that the linear layer can handle batches
+# of more than one input.
 class TestLinearBatch(unittest.TestCase):
     def runTest(self):
         with tf.Graph().as_default():
@@ -23,9 +24,8 @@ class TestLinearBatch(unittest.TestCase):
             with tf.Session() as s:
                 act, expl = s.run([activation, explanation])
 
-                print("Activation: \n", act)
-                print("Explanation: \n", expl)
-
-                print(np.sum(act), np.sum(expl))
-
-                self.assertEqual(np.sum(act)-12, np.sum(expl))
+                # We loose 2 * (2 + 4) relevance from bias
+                self.assertEqual(np.sum(act) - 12, np.sum(expl))
+                self.assertTrue(np.allclose(
+                    np.array([[2, 4, 6], [8, 10, 12]]),
+                    expl))

@@ -69,11 +69,11 @@ def lrp(input, output):
 #TODO is it a fair constraint to only accept class scores of shape (batch_size, classes) and reject FX (batch_size, 1, classes)?
 def _find_starting_point_relevances(class_scores, user_chosen_indices=None):
         # Get the shape of the class scores
-        batch_size, number_of_classes = class_scores.get_shape().as_list()
+        number_of_classes = class_scores.get_shape().as_list()[-1]
 
         # If the user has provided the indexes of the classes of interest, use those. If not, find
         # the indexes by finding the class with the largest prediction score for each sample
-        max_score_indices = user_chosen_indices if user_chosen_indices else tf.argmax(class_scores, axis=1)
+        max_score_indices = user_chosen_indices if user_chosen_indices else tf.argmax(class_scores, axis=-1)
 
         # Create a tensor that for each sample has a one at the position of the class of interest and
         # zeros in all other positions

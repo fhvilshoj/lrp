@@ -65,7 +65,7 @@ def replace_negatives_with_zeros(tensor):
 
 
 # Finds the one of the two inputs to an add that is given as a constant or a variable
-def get_input_bias_from_add(tensor):
+def _get_input_bias_from_add(tensor):
     # Find bias tensor by identifying which of the two inputs to the addition are a variable (accessed
     # with the operation identity) or a constant
     if tensor.op.inputs[0].op.type in ['Identity', 'Const']:
@@ -77,7 +77,7 @@ def get_input_bias_from_add(tensor):
 
 # Helper function that traverses computation graph through all nodes
 # to find the path from the output back to the input.
-def get_operations_between_input_and_output(input, output):
+def _get_operations_between_input_and_output(input, output):
     g = output.op.graph
 
     # Make a list of indicators telling if we have considered a given node before.
@@ -131,6 +131,8 @@ def get_operations_between_input_and_output(input, output):
             # Add inputs to the queue
             for inp in op.inputs:
                 queue.append(inp.op)
+
+    between_op_list = rearrange_op_list
 
     return between_op_list
 

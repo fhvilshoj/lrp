@@ -99,7 +99,7 @@ def simple_linear(path, R):
     multensor = tensor
     bias = None
     if tensor.op.type == 'Add':
-        bias = lrp_util.get_input_bias_from_add(tensor)
+        bias = lrp_util._get_input_bias_from_add(tensor)
         multensor = lrp_util.find_first_tensor_from_type(tensor, 'Mul')
 
     # Find the inputs to the matrix multiplication
@@ -134,7 +134,7 @@ def linear(path, R):
     # If the activation tensor is the output of an addition (i.e. the above assumption does not hold),
     # move through the graph to find the output of the nearest matrix multiplication.
     if tensor.op.type == 'Add':
-        bias = lrp_util.get_input_bias_from_add(tensor)
+        bias = lrp_util._get_input_bias_from_add(tensor)
         matmultensor = lrp_util.find_first_tensor_from_type(tensor, 'MatMul')
 
     # Find the inputs to the matrix multiplication

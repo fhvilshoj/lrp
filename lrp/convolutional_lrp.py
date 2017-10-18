@@ -21,7 +21,7 @@ def convolutional(path, R):
     # does not hold), move through the graph to find the output of the nearest convolution.
     if path[0].type in ['BiasAdd', 'Add']:
         convolution_tensor = lrp_util.find_first_tensor_from_type(tensor, 'Conv2D')
-        bias_tensor = lrp_util.get_input_bias_from_add(tensor)
+        bias_tensor = lrp_util._get_input_bias_from_add(tensor)
         positive_bias_tensor = lrp_util.replace_negatives_with_zeros(bias_tensor)
         with_bias = True
 

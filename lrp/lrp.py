@@ -23,9 +23,14 @@ router = {
 
 
 def _lrp_routing(path, R):
+    for p in path:
+        print(p._id, p.type, [i.op._id for i in p.inputs])
+
+    cnt = 0
     while path:
         # Find type of the operation in the front of the path
         operation_type = path[0].type
+        print(cnt, ": ", operation_type)
         if operation_type in ['Add', 'BiasAdd']:
             # Check which operation a given addition is associated with
             # Note that it cannot be lstm because lstm has its own scope
@@ -37,27 +42,9 @@ def _lrp_routing(path, R):
         else:
             print("Router did not know the operation: ", operation_type)
             path = path[1:]
+        cnt += 1
     return R
 
-
-def _lrp(input, output, R):
-    path = lrp_util.get_operations_between_input_and_output(input, output)
-    # Recurse on each layer with the relevance for the last layer set to the
-    # activation of the last layer (following the LRP convention)
-    return _lrp_routing(path, R)
-
-
-def lrp(input, output):
-    """
-    lrp main function
-    :param input: Expecting a tensor containing a single input causing the output
-    :param output: Expecting the output tensor to begin lrp from
-    :return: Tensor of input size containing a relevance score for each feature of the input
-    """
-
-    relevances_to_use_as_starting_point = _find_starting_point_relevances(output)
-
-    return _lrp(input, output, relevances_to_use_as_starting_point)
 
 # Helper function that finds the relevance to be used as a starting point for lrp. For each sample
 # in a batch, the function finds the class of interest by either a) taking
@@ -84,3 +71,23 @@ def _find_starting_point_relevances(class_scores, user_chosen_indices=None):
         relevances_with_only_chosen_class = tf.multiply(max_score_indices_as_one_hot_vectors, class_scores)
 
         return relevances_with_only_chosen_class
+
+
+def _lrp(input, output, R):
+    path = lrp_util._get_operations_between_input_and_output(input, output)
+    # Recurse on each layer with the relevance for the last layer set to the
+    # activation of the last layer (following the LRP convention)
+    return _lrp_routing(path, R)
+
+
+def lrp(input, output):
+    """
+    lrp main function
+    :param input: Expecting a tensor containing a single input causing the output
+    :param output: Expecting the output tensor to begin lrp from
+    :return: Tensor of input size containing a relevance score for each feature of the input
+    """
+
+    relevances_to_use_as_starting_point = _find_starting_point_relevances(output)
+
+    return _lrp(input, output, relevances_to_use_as_starting_point)

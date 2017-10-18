@@ -43,7 +43,7 @@ class LinearLRPTest(unittest.TestCase):
                         [0, 8],
                         [1, 1]]), dtype=tf.float32)
 
-                # Set the bia
+                # Set the bias
                 biases = tf.constant([[-5, 8]], dtype=tf.float32)
 
                 # Multiply the input and the weights

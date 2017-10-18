@@ -88,10 +88,37 @@ def linear_alpha(R, input, weights, bias=None):
     return R_new
 
 
+def simple_linear(path, R):
+    """
+    Used to handle simple multiplications (by transforming them into matrices)
+    :param path: path from output to input (containing Add or Mul at front of path)
+    :param R: the tensor containing the relevance from the upper layer
+    :return: lower layer relevance (i.e. relevance distributed to the input to the linear layer)
+    """
+    tensor = path[0].outputs[0]
+    multensor = tensor
+    bias = None
+    if tensor.op.type == 'Add':
+        bias = lrp_util.get_input_bias_from_add(tensor)
+        multensor = lrp_util.find_first_tensor_from_type(tensor, 'Mul')
+
+    # Find the inputs to the matrix multiplication
+    (input, weights) = multensor.op.inputs
+    weights = tf.diag(weights)
+
+    # Calculate new relevances with the alpha rule
+    R_new = linear_alpha(R, input, weights, bias=bias)
+
+    # Skip forward in path according to the use of bias or not (skip an extra if we used bias)
+    skip = 2 if bias is not None else 1
+
+    return path[skip:], R_new
+
+
 def linear(path, R):
     """
     linear lrp
-    :param tensor: tensor should be the activation (i.e. the output of the linear layer before an eventual non-linearity)
+    :param path: path from output to input (containing Add or MatMul at front of path)
     :param R: the tensor containing the relevance from the upper layer
     :return: lower layer relevance (i.e. relevance distributed to the input to the linear layer)
     """

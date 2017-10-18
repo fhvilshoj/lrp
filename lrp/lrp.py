@@ -1,6 +1,6 @@
 from lrp import lrp_util
 from lrp.convolutional_lrp import convolutional
-from lrp.linear_lrp import linear
+from lrp.linear_lrp import linear, simple_linear
 from lrp.max_pooling_lrp import max_pooling
 from lrp.nonlinearities_lrp import nonlinearities
 from lrp.shaping_lrp import shaping
@@ -9,6 +9,7 @@ import tensorflow as tf
 
 router = {
     'MatMul': linear,
+    'Mul': simple_linear,
     'Conv2D': convolutional,
     'TensorArrayGatherV3': lstm,
     'MaxPool': max_pooling,
@@ -25,7 +26,6 @@ def _lrp_routing(path, R):
     while path:
         # Find type of the operation in the front of the path
         operation_type = path[0].type
-        print("Found the following operation: ", operation_type)
         if operation_type in ['Add', 'BiasAdd']:
             # Check which operation a given addition is associated with
             # Note that it cannot be lstm because lstm has its own scope

@@ -74,6 +74,16 @@ def _get_input_bias_from_add(tensor):
         bias = tensor.op.inputs[1]
     return bias
 
+def sum_relevances(relevances):
+    summed_relevances = relevances[0]
+    print(relevances)
+    if len(relevances) > 1:
+        for i in range(1, len(relevances)):
+            summed_relevances = tf.add(summed_relevances, relevances[i])
+
+    return summed_relevances
+
+
 #
 # def _rearrange_op_list(output, between_ops):
 #     g = output.op.graph
@@ -191,7 +201,7 @@ def get_operations_between_output_and_input(input, output):
             for inp in op.inputs:
                 queue.append(inp.op)
 
-    return between_op_list
+    return between_ops, between_op_list
 
 
 # Helper function that takes a tensor, finds the operation that created it,

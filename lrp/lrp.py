@@ -25,10 +25,14 @@ class _LRPImplementation:
     }
 
     def __init__(self):
+        # Placeholders for input and output
+        self.input = None
+        self.output = None
+
         # Initialize empty structures
 
-        # Relevances are used to hold the tensor for the relevance of each
-        # relevant node in the graph
+        # Relevances are used to hold lists of the relevances comming from the
+        # upper layers
         self.relevances = []
 
         # In path indicators holds booleans indicating whether a node with
@@ -38,41 +42,86 @@ class _LRPImplementation:
         # Path holds the nodes in the path from output to input
         self.path = []
 
+        # Handled operation holds booleans indicating whether the operation in
+        # the path at the same index has been handled already
+        self.handled_operations = []
+
         # Path index indicates which node in the path to consider at this point
         self.path_index = 0
 
     def lrp(self, input, output, R = None):
+        # Remember input and output
+        self.input = input
+        self.output = output
+
         # Find relevance to distribute from the output if the relevance tensor
         # is not already defined
         if R is None:
             R = self._find_starting_point_relevances(output)
 
+        # Fill structures
+        g = output.op.graph
+        self.relevances = [[] for _ in range(g._last_id + 1)]
+        print(output.op._id)
+        self.relevances[output.op._id].append(R)
+        print(self.relevances[output.op._id])
+
         # Find the path between output and input and remember it
-        self.path = lrp_util.get_operations_between_output_and_input(input, output)
+        self.in_path_indicators, self.path = lrp_util.get_operations_between_output_and_input(input, output)
+
+        self.handled_operations = [False] * (g._last_id + 1)
 
         # Return the final relevances
-        return self._lrp_routing(self.path, R)
+        return self._lrp_routing()
 
+    def mark_operation_handled(self, operation):
+        self.handled_operations[operation._id] = True
+
+    def forward_relevance_to_operation(self, relevance, operation):
+        print("Forward: ", relevance, operation._id)
+        self.relevances[operation._id].append(relevance)
+
+    def get_current_operation(self):
+        current_operation = self.path[self.path_index]
+        print("Current operation", current_operation)
+        return current_operation
 
     # Run through the path between output and input and iteratively
     # compute relevances
-    def _lrp_routing(self, path, R):
-        while path:
+    def _lrp_routing(self):
+        while self.path_index < len(self.path):
+            current_operation = self.path[self.path_index]
+
+            # If the operation has already been taken care of, skip it
+            # by jumping to next while iteration
+            if self.handled_operations[current_operation._id]:
+                self.path_index += 1
+                continue
+
             # Find type of the operation in the front of the path
-            operation_type = path[0].type
+            operation_type = current_operation.type
             if operation_type in ['Add', 'BiasAdd']:
                 # Check which operation a given addition is associated with
                 # Note that it cannot be lstm because lstm has its own scope
-                operation_type = lrp_util.addition_associated_with(path[0].outputs[0])
+                operation_type = lrp_util.addition_associated_with(current_operation.outputs[0])
 
             if operation_type in self._router:
                 # Route responsibility to appropriate function
-                path, R = self._router[operation_type](path, R)
+                # Send the recorded relevance for the current operation
+                # along. This saves the confusion of finding relevances
+                # for Add in the concrete implementations
+                self._router[operation_type](self, self.relevances[current_operation._id])
             else:
                 print("Router did not know the operation: ", operation_type)
                 # If we don't know the operation, skip it
-                path = path[1:]
-        return R
+
+            # Go to next operation in path
+            self.path_index += 1
+
+        # Sum the potentially multiple relevances calculated for the input
+        final_input_relevances = lrp_util.sum_relevances(self.relevances[self.input.op._id])
+
+        return final_input_relevances
 
 
     # Helper function that finds the relevance to be used as a starting point for lrp. For each sample

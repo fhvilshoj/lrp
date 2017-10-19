@@ -115,15 +115,15 @@ def simple_linear(path, R):
     return path[skip:], R_new
 
 
-def linear(path, R):
+def linear(router, R):
     """
     linear lrp
     :param path: path from output to input (containing Add or MatMul at front of path)
-    :param R: the tensor containing the relevance from the upper layer
-    :return: lower layer relevance (i.e. relevance distributed to the input to the linear layer)
+    :param R: the list of tensors containing the relevances from the upper layers
     """
-    # Tensor is the output of the current operation
-    tensor = path[0].outputs[0]
+    # Tensor is the output of the current operation (i.e. Add, or MatMul)
+    tensor = router.get_current_operation().outputs[0]
+    R = lrp_util.sum_relevances(R)
 
     # Start by assuming the activation tensor is the output of a matrix multiplication
     # (i.e. not an addition with a bias)
@@ -143,7 +143,10 @@ def linear(path, R):
     # Calculate new relevances with the alpha rule
     R_new = linear_alpha(R, input, weights, bias=bias)
 
-    # Skip forward in path according to the use of bias or not (skip an extra if we used bias)
-    skip = 2 if bias is not None else 1
 
-    return path[skip:], R_new
+    # Mark handled operations
+    router.mark_operation_handled(tensor.op)
+    router.mark_operation_handled(matmultensor.op)
+
+    # Forward relevance
+    router.forward_relevance_to_operation(R_new, input.op)

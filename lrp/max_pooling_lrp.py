@@ -62,7 +62,7 @@ def max_pooling(router, R):
                                        output_width, kernel_size[1], kernel_size[2], strides[1], strides[2], padding)
 
     # Report handled operations
-    router.mark_operation_handled(current_tensor.op)
+    router.mark_operation_handled(current_operation)
 
     # Forward the calculated relevance to the input of the convolution
     router.forward_relevance_to_operation(R_new, max_pool_input.op)

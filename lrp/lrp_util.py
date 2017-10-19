@@ -75,10 +75,11 @@ def _get_input_bias_from_add(tensor):
     return bias
 
 def sum_relevances(relevances):
-    summed_relevances = relevances[0]
+    # relevances are dictionaries with keys producer and relevance
+    summed_relevances = relevances[0]['relevance']
     if len(relevances) > 1:
         for i in range(1, len(relevances)):
-            summed_relevances = tf.add(summed_relevances, relevances[i])
+            summed_relevances = tf.add(summed_relevances, relevances[i]['relevance'])
 
     return summed_relevances
 

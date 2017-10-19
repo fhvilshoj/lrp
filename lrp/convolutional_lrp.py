@@ -98,4 +98,4 @@ def convolutional(router, R):
         router.mark_operation_handled(current_tensor.op.inputs[0].op)
 
     # Forward the calculated relevance to the input of the convolution
-    router.forward_relevance_to_operation(R_new, conv_input.op)
+    router.forward_relevance_to_operation(R_new, convolution_tensor.op, conv_input.op)

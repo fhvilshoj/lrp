@@ -17,4 +17,4 @@ def nonlinearities(router, R):
     router.mark_operation_handled(current_operation)
 
     # Forward the calculated relevance to the input of the convolution
-    router.forward_relevance_to_operation(R, current_operation.inputs[0].op)
+    router.forward_relevance_to_operation(R, current_operation, current_operation.inputs[0].op)

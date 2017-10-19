@@ -119,7 +119,7 @@ def element_wise_linear(router, R):
     router.mark_operation_handled(multensor.op)
 
     # Forward relevance
-    router.forward_relevance_to_operation(R_new, input.op)
+    router.forward_relevance_to_operation(R_new, multensor.op, input.op)
 
 
 def linear(router, R):
@@ -158,4 +158,4 @@ def linear(router, R):
     router.mark_operation_handled(matmultensor.op)
 
     # Forward relevance
-    router.forward_relevance_to_operation(R_new, input.op)
+    router.forward_relevance_to_operation(R_new, matmultensor.op, input.op)

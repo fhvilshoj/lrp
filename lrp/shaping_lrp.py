@@ -15,4 +15,4 @@ def shaping(router, R):
     router.mark_operation_handled(current_operation)
 
     # Forward relevance to the operation of the input to the current operation
-    router.forward_relevance_to_operation(R_reshaped, input_to_current_operation.op)
+    router.forward_relevance_to_operation(R_reshaped, current_operation, input_to_current_operation.op)

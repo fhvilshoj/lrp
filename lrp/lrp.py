@@ -62,9 +62,7 @@ class _LRPImplementation:
         # Fill structures
         g = output.op.graph
         self.relevances = [[] for _ in range(g._last_id + 1)]
-        print(output.op._id)
         self.relevances[output.op._id].append(R)
-        print(self.relevances[output.op._id])
 
         # Find the path between output and input and remember it
         self.in_path_indicators, self.path = lrp_util.get_operations_between_output_and_input(input, output)
@@ -78,12 +76,10 @@ class _LRPImplementation:
         self.handled_operations[operation._id] = True
 
     def forward_relevance_to_operation(self, relevance, operation):
-        print("Forward: ", relevance, operation._id)
         self.relevances[operation._id].append(relevance)
 
     def get_current_operation(self):
         current_operation = self.path[self.path_index]
-        print("Current operation", current_operation)
         return current_operation
 
     # Run through the path between output and input and iteratively

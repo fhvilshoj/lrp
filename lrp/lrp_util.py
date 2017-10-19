@@ -76,7 +76,6 @@ def _get_input_bias_from_add(tensor):
 
 def sum_relevances(relevances):
     summed_relevances = relevances[0]
-    print(relevances)
     if len(relevances) > 1:
         for i in range(1, len(relevances)):
             summed_relevances = tf.add(summed_relevances, relevances[i])

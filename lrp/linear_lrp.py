@@ -88,19 +88,24 @@ def linear_alpha(R, input, weights, bias=None):
     return R_new
 
 
-def simple_linear(path, R):
+def element_wise_linear(router, R):
     """
-    Used to handle simple multiplications (by transforming them into matrices)
-    :param path: path from output to input (containing Add or Mul at front of path)
-    :param R: the tensor containing the relevance from the upper layer
-    :return: lower layer relevance (i.e. relevance distributed to the input to the linear layer)
+    Used to handle element wise multiplications (by transforming them into matrices)
+    :param router: the router object to report changes to
+    :param R: the list of tensors containing the relevances from the upper layers
     """
-    tensor = path[0].outputs[0]
-    multensor = tensor
+    # Tensor is the output of the current operation (i.e. Add, or Mul)
+    current_operation = router.get_current_operation()
+    current_tensor = current_operation.outputs[0]
+
+    # Sum the potentially multiple relevances from the upper layers
+    R = lrp_util.sum_relevances(R)
+
+    multensor = current_tensor
     bias = None
-    if tensor.op.type == 'Add':
-        bias = lrp_util._get_input_bias_from_add(tensor)
-        multensor = lrp_util.find_first_tensor_from_type(tensor, 'Mul')
+    if current_tensor.op.type == 'Add':
+        bias = lrp_util._get_input_bias_from_add(current_tensor)
+        multensor = lrp_util.find_first_tensor_from_type(current_tensor, 'Mul')
 
     # Find the inputs to the matrix multiplication
     (input, weights) = multensor.op.inputs
@@ -109,10 +114,12 @@ def simple_linear(path, R):
     # Calculate new relevances with the alpha rule
     R_new = linear_alpha(R, input, weights, bias=bias)
 
-    # Skip forward in path according to the use of bias or not (skip an extra if we used bias)
-    skip = 2 if bias is not None else 1
+    # Mark handled operations
+    router.mark_operation_handled(current_operation)
+    router.mark_operation_handled(multensor.op)
 
-    return path[skip:], R_new
+    # Forward relevance
+    router.forward_relevance_to_operation(R_new, input.op)
 
 
 def linear(router, R):

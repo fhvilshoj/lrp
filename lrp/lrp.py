@@ -1,6 +1,6 @@
 from lrp import lrp_util
 from lrp.convolutional_lrp import convolutional
-from lrp.linear_lrp import linear, simple_linear
+from lrp.linear_lrp import linear, element_wise_linear
 from lrp.max_pooling_lrp import max_pooling
 from lrp.nonlinearities_lrp import nonlinearities
 from lrp.shaping_lrp import shaping
@@ -12,7 +12,7 @@ class _LRPImplementation:
 
     _router = {
         'MatMul': linear,
-        'Mul': simple_linear,
+        'Mul': element_wise_linear,
         'Conv2D': convolutional,
         'TensorArrayGatherV3': lstm,
         'MaxPool': max_pooling,

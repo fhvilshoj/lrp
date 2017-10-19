@@ -118,11 +118,13 @@ def simple_linear(path, R):
 def linear(router, R):
     """
     linear lrp
-    :param path: path from output to input (containing Add or MatMul at front of path)
+    :param router: the router object to report changes to
     :param R: the list of tensors containing the relevances from the upper layers
     """
     # Tensor is the output of the current operation (i.e. Add, or MatMul)
     tensor = router.get_current_operation().outputs[0]
+
+    # Sum the potentially multiple relevances from the upper layers
     R = lrp_util.sum_relevances(R)
 
     # Start by assuming the activation tensor is the output of a matrix multiplication

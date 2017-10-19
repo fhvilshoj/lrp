@@ -2,26 +2,28 @@ from lrp import lrp_util
 import tensorflow as tf
 
 
-def convolutional(path, R):
+def convolutional(router, R):
     """
     Convolutional lrp
-    :param tensor: the tensor of the upper activation (the output of the convolution)
-    :param R: The upper layer relevance
-    :return: lower layer relevance (i.e. relevance distributed to the input to the convolution)
+    :param router: the router object to report changes to
+    :param R: the list of tensors containing the relevances from the upper layers
     """
+    # Sum the potentially multiple relevances from the upper layers
+    R = lrp_util.sum_relevances(R)
 
     # Start by assuming the activation tensor is the output
     # of a convolution (i.e. not an addition with a bias)
     # Tensor shape: (upper_layer_height, upper_layer_width, upper_layer_depth)
-    tensor = convolution_tensor = path[0].outputs[0]
+    current_operation = router.get_current_operation()
+    current_tensor = convolution_tensor = current_operation.outputs[0]
     positive_bias_tensor = tf.zeros_like((R.shape[-1]), dtype=tf.float32)
     with_bias = False
 
     # If the top operation is an addition (i.e. the above assumption
     # does not hold), move through the graph to find the output of the nearest convolution.
-    if path[0].type in ['BiasAdd', 'Add']:
-        convolution_tensor = lrp_util.find_first_tensor_from_type(tensor, 'Conv2D')
-        bias_tensor = lrp_util._get_input_bias_from_add(tensor)
+    if current_operation.type in ['BiasAdd', 'Add']:
+        convolution_tensor = lrp_util.find_first_tensor_from_type(current_tensor, 'Conv2D')
+        bias_tensor = lrp_util._get_input_bias_from_add(current_tensor)
         positive_bias_tensor = lrp_util.replace_negatives_with_zeros(bias_tensor)
         with_bias = True
 
@@ -86,11 +88,14 @@ def convolutional(path, R):
     R_new = lrp_util.patches_to_images(R_new, batch, input_height, input_width, input_channels, output_height,
                                        output_width, filter_height, filter_width, strides[1], strides[2], padding)
 
-    # Skip forward in graph according to the use of bias or not
-    skip = 2 if with_bias else 1
+    # Report handled operations
+    router.mark_operation_handled(current_tensor.op)
+    router.mark_operation_handled(convolution_tensor.op)
 
     # In case of 1D convolution we need to skip the squeeze operation in
-    # the path towards the input.
-    skip += 1 if path[1].type == 'Squeeze' else 0
+    # the path towards the input
+    if with_bias and current_tensor.op.inputs[0].op.type == 'Squeeze':
+        router.mark_operation_handled(current_tensor.op.inputs[0].op)
 
-    return path[skip:], R_new
+    # Forward the calculated relevance to the input of the convolution
+    router.forward_relevance_to_operation(R_new, conv_input.op)

@@ -1,12 +1,18 @@
 import tensorflow as tf
+import lrp_util
 
+def shaping(router, R):
+    # Sum the potentially multiple relevances from the upper layers
+    R = lrp_util.sum_relevances(R)
 
-def shaping(path, R):
     # Reshape R to the same shape as the input to the
     # reshaping operation that created the tensor
-    # input_to_reshape = reshape_operation.inputs[0]
-    input_to_reshape = path[1].outputs[0]
-    R_reshaped = tf.reshape(R, tf.shape(input_to_reshape))
+    current_operation = router.get_current_operation()
+    input_to_current_operation = current_operation.inputs[0]
+    R_reshaped = tf.reshape(R, tf.shape(input_to_current_operation))
 
-    # Return the reshaped relevances
-    return path[1:], R_reshaped
+    # Tell the router that we handled this operation
+    router.mark_operation_handled(current_operation)
+
+    # Forward relevance to the operation of the input to the current operation
+    router.forward_relevance_to_operation(R_reshaped, input_to_current_operation.op)

@@ -7,7 +7,9 @@ from lrp.shaping_lrp import shaping
 from lrp.lstm_lrp import lstm
 import tensorflow as tf
 
+
 class _LRPImplementation:
+
     _router = {
         'MatMul': linear,
         'Mul': simple_linear,
@@ -23,19 +25,37 @@ class _LRPImplementation:
     }
 
     def __init__(self):
+        # Initialize empty structures
+
+        # Relevances are used to hold the tensor for the relevance of each
+        # relevant node in the graph
         self.relevances = []
+
+        # In path indicators holds booleans indicating whether a node with
+        # the id equal to the index is in the path list.
         self.in_path_indicators = []
+
+        # Path holds the nodes in the path from output to input
         self.path = []
+
+        # Path index indicates which node in the path to consider at this point
         self.path_index = 0
 
     def lrp(self, input, output, R = None):
+        # Find relevance to distribute from the output if the relevance tensor
+        # is not already defined
         if R is None:
             R = self._find_starting_point_relevances(output)
 
-        path = lrp_util.get_operations_between_input_and_output(input, output)
-        return self._lrp_routing(path, R)
+        # Find the path between output and input and remember it
+        self.path = lrp_util.get_operations_between_output_and_input(input, output)
+
+        # Return the final relevances
+        return self._lrp_routing(self.path, R)
 
 
+    # Run through the path between output and input and iteratively
+    # compute relevances
     def _lrp_routing(self, path, R):
         while path:
             # Find type of the operation in the front of the path
@@ -50,6 +70,7 @@ class _LRPImplementation:
                 path, R = self._router[operation_type](path, R)
             else:
                 print("Router did not know the operation: ", operation_type)
+                # If we don't know the operation, skip it
                 path = path[1:]
         return R
 
@@ -81,8 +102,12 @@ class _LRPImplementation:
             return relevances_with_only_chosen_class
 
 
+# The purpose of this method is to have a handle for test cases where
+# the relevence is predefined
 def _lrp(input, output, R = None):
+    # Instantiate a LRP object
     impl = _LRPImplementation()
+    # Return the relevances computed from the object
     return impl.lrp(input, output, R)
 
 

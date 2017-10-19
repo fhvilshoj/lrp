@@ -48,7 +48,6 @@ class MaxPoolLRPTest(unittest.TestCase):
 
                 # Check if the relevance scores are correct (the correct values
                 # are found by calculating the example by hand)
-                print(explanation)
                 self.assertTrue(
                     np.allclose(explanation, [[0, 0, 3, 0, 0, 0],
                                               [3, 4, 3, 5, 6, 7],

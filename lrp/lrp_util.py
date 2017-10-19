@@ -74,10 +74,69 @@ def _get_input_bias_from_add(tensor):
         bias = tensor.op.inputs[1]
     return bias
 
+#
+# def _rearrange_op_list(output, between_ops):
+#     g = output.op.graph
+#
+#     # Make a list of indicators telling if we have considered a given node before.
+#     reached_ops = [False] * (g._last_id + 1)
+#
+#     # Initialize list for holding the ordered operations
+#     between_op_list = []
+#
+#     # Create a queue and push the operation that created the output of the graph
+#     queue = [output.op]
+#
+#     # Work through the queue
+#     while queue:
+#
+#         # Pop the first element of the queue (i.e. the first operation)
+#         op = queue.pop(0)
+#         print("Now looking at: ", op._id, op.type)
+#         # Add the operation to the ordered list of operations
+#         between_op_list.append(op)
+#
+#         # Remember that we have handled the operation
+#         reached_ops[op._id] = True
+#
+#         # Run through the inputs to the current operation
+#         for i in op.inputs:
+#             print("    Looking at input from ", i.op._id, i.op.type, between_ops[i.op._id])
+#             # Check if the input is part of the path between input and output
+#             if between_ops[i.op._id]:
+#
+#                 # Check if all consumers of of the operation that created the input have been handled:
+#                 consumers_handled_already = True
+#                 # Run through all outputs of the operation
+#                 if len(i.op.outputs) > 1:
+#                     print("MULTIPLE OUTPUTS")
+#                 for idx, out in enumerate(i.op.outputs):
+#
+#                     # Stop if any of the consumers of the outputs have not been handled
+#                     for c in out.consumers():
+#                         print("        Comsumer: ", c._id, c.type, " for output ", idx)
+#                         # Check if the consumer is in the path between input and output and check if
+#                         # we have not reached it before
+#                         if between_ops[c._id] and not reached_ops[c._id]:
+#                             print("            THE CONSUMER IS NOT HANDLED SO SKIP THIS INPUT")
+#                             consumers_handled_already = False
+#
+#                     # If we found a consumer not handled we cannot add
+#                     # the operation of the input to the queue quite yet.
+#                     if not consumers_handled_already:
+#                         break
+#
+#                 # If all consumers have been taken care of and we haven't looked at the operation before,
+#                 # add it to the queue
+#                 if consumers_handled_already and not reached_ops[i.op._id]:
+#                     queue.append(i.op)
+#             print("")
+#
+#     return between_op_list
 
 # Helper function that traverses computation graph through all nodes
 # to find the path from the output back to the input.
-def _get_operations_between_input_and_output(input, output):
+def get_operations_between_input_and_output(input, output):
     g = output.op.graph
 
     # Make a list of indicators telling if we have considered a given node before.
@@ -131,8 +190,6 @@ def _get_operations_between_input_and_output(input, output):
             # Add inputs to the queue
             for inp in op.inputs:
                 queue.append(inp.op)
-
-    between_op_list = rearrange_op_list
 
     return between_op_list
 

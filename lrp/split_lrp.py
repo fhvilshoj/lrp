@@ -1,5 +1,4 @@
 import tensorflow as tf
-import lrp_util
 
 
 # When we see a split we want to concatenate the incoming relevances

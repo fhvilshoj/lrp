@@ -64,7 +64,7 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
             # -------------------------------------------- Max pooling --------------------------------------------
 
             # Pooling is defined for 2d, so add dim of 1 (height)
-            output2_reshaped = tf.expand_dims(output_2, 1)
+            output_2_reshaped = tf.expand_dims(output_2, 1)
             # Kernel looks at 1 sample, 1 height, 2 width, and 1 depth
             ksize = [1, 1, 2, 1]
 
@@ -72,7 +72,7 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
             strides = [1, 1, 2, 1]
 
             # Perform the max pooling
-            pool = tf.nn.max_pool(output2_reshaped, ksize, strides, padding='SAME')
+            pool = tf.nn.max_pool(output_2_reshaped, ksize, strides, padding='SAME')
 
             # Remove the "height" dimension again
             output_3 = tf.squeeze(pool, 1)
@@ -98,7 +98,7 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
             # -------------------------------------------- Max pooling --------------------------------------------
 
             # Pooling is defined for 2d, so add dim of 1 (height)
-            output2_reshaped = tf.expand_dims(output_4, 1)
+            output_2_reshaped = tf.expand_dims(output_4, 1)
             # Kernel looks at 1 sample, 1 height, 2 width, and 1 depth
             ksize = [1, 1, 2, 1]
 
@@ -106,7 +106,7 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
             strides = [1, 1, 2, 1]
 
             # Perform the max pooling
-            pool = tf.nn.max_pool(output2_reshaped, ksize, strides, padding='SAME')
+            pool = tf.nn.max_pool(output_2_reshaped, ksize, strides, padding='SAME')
 
             # Remove the "height" dimension again
             output_5 = tf.squeeze(pool, 1)

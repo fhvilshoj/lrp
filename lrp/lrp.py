@@ -131,7 +131,6 @@ class _LRPImplementation:
     # Expects class scores as a tensor of shape (batch_size, classes) and optionally a tensor with
     # user chosen indices of shape (batch_size, )
 
-    #TODO is it a fair constraint to only accept class scores of shape (batch_size, classes) and reject FX (batch_size, 1, classes)?
     def _find_starting_point_relevances(self, predictions, user_chosen_indices=None):
             # Get the shape of the predictions
             predictions_shape = predictions.get_shape().as_list()

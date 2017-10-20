@@ -53,10 +53,10 @@ class Convolution2LayersLRPTest(unittest.TestCase):
             pred = activation
 
             # Calculate the relevance scores using lrp
-            R_mock = tf.constant([[[[3., 2., 1],
-                                    [4., 3., 2]],
-                                   [[1., 1., 3],
-                                    [1., 0., 4]]]], dtype=tf.float32)
+            R_mock = tf.constant([[[[[3., 2., 1.],
+                                     [4., 3., 2.]],
+                                    [[1., 1., 3.],
+                                     [1., 0., 4.]]]]], dtype=tf.float32)
             expl = lrp._lrp(inp, pred, R_mock)
 
             # Run a tensorflow session to evaluate the graph
@@ -76,14 +76,17 @@ class Convolution2LayersLRPTest(unittest.TestCase):
                 self.assertEqual(prediction.shape, (1, 2, 2, 3),
                                  msg="Should be able to do a convolutional forward pass")
 
-                # Check if the explanation has the right shape
-                self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
+                # Check if the explanation has the right shape. Notice that we have to take explanation[0] because
+                # we call the _lrp function rather than the lrp function and that the produced relevances therefore
+                # have a dimension more (for multiple predictions per sample) than the input.
+                self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
+                                 msg="Should be a wellformed explanation")
 
                 # Check if the relevance scores are correct (the correct values are
                 # found by calculating the example by hand)
                 self.assertTrue(
-                    np.allclose(explanation[0], [[[[1.06, 0],
-                                                   [0, 4.49]],
-                                                  [[2.62, 0],
-                                                   [13.19, 0]]]], rtol=1e-01, atol=1e-01),
+                    np.allclose([[[[1.06, 0],
+                                   [0, 4.49]],
+                                  [[2.62, 0],
+                                   [13.19, 0]]]], explanation[0], rtol=1e-01, atol=1e-01),
                     msg="Should be a good convolutional explanation")

@@ -38,10 +38,17 @@ def convolutional(router, R):
     (filter_height, filter_width, input_channels, output_channels) = filters.get_shape().as_list()
 
     # Get shape of the input
-    (batch, input_height, input_width, input_channels) = conv_input.get_shape().as_list()
+    (batch_size, input_height, input_width, input_channels) = conv_input.get_shape().as_list()
 
     # Get the shape of the output of the convolution
     (_, output_height, output_width, _) = convolution_tensor.get_shape().as_list()
+
+    # Reshape the relevances to shape (batch_size * predictions_per_sample, output_height, output_width, output_channels)
+    # instead of (batch_size, predictions_per_sample, output_height, output_width, output_channels) ease the following
+    # lrp calculations
+    relevances_shape = R.get_shape().as_list()
+    predictions_per_sample = relevances_shape[1]
+    R = tf.reshape(R, (batch_size * predictions_per_sample, output_height, output_width, output_channels))
 
     # Extract every patch of the input (i.e. portion of the input that a filter looks at a
     # time), to get a tensor of shape
@@ -52,7 +59,7 @@ def convolutional(router, R):
     # Reshape the extracted patches to get a tensor I of shape
     # (batch, out_height, out_width, filter_height, filter_width, input_channels)
     image_patches = tf.reshape(image_patches,
-                               [batch, output_height, output_width, filter_height, filter_width, input_channels])
+                               [batch_size, output_height, output_width, filter_height, filter_width, input_channels])
 
     # Multiply each patch by each filter to get the z_ijk's in a tensor zs
     zs = tf.multiply(tf.expand_dims(filters, 0), tf.expand_dims(image_patches, -1))
@@ -69,7 +76,7 @@ def convolutional(router, R):
     zp_sum += tf.expand_dims(positive_bias_tensor, 0)
 
     # Reshape the relevance from the upper layer
-    upper_layer_relevance = tf.reshape(R, [batch, input_height, input_width, 1, 1, 1, output_channels])
+    upper_layer_relevance = tf.reshape(R, [batch_size, input_height, input_width, 1, 1, 1, output_channels])
 
     # Find the contribution of each feature in the input to the activations,
     # i.e. the ratio between the z_ijk's and the z_jk's
@@ -82,11 +89,16 @@ def convolutional(router, R):
     R_new = tf.reduce_sum(relevance, 6)
 
     # Reshape the relevance tensor, so each patch becomes a vector
-    R_new = tf.reshape(R_new, [batch, output_height, output_width, filter_height * filter_width * input_channels])
+    R_new = tf.reshape(R_new, [batch_size, output_height, output_width, filter_height * filter_width * input_channels])
 
     # Reconstruct the shape of the input, thereby summing the relevances for each individual pixel
-    R_new = lrp_util.patches_to_images(R_new, batch, input_height, input_width, input_channels, output_height,
+    R_new = lrp_util.patches_to_images(R_new, batch_size, input_height, input_width, input_channels, output_height,
                                        output_width, filter_height, filter_width, strides[1], strides[2], padding)
+
+    # Reshape the calculated relevances to shape
+    # (batch_size, predictions_per_sample, input_height, input_width, input_channels) rather than
+    # (batch_size * predictions_per_sample, input_height, input_width, input_channels)
+    R_new = tf.reshape(R_new, (batch_size, predictions_per_sample, input_height, input_width, input_channels))
 
     # Report handled operations
     router.mark_operation_handled(current_tensor.op)

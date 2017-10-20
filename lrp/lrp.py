@@ -4,6 +4,8 @@ from lrp.linear_lrp import linear, element_wise_linear
 from lrp.max_pooling_lrp import max_pooling
 from lrp.nonlinearities_lrp import nonlinearities
 from lrp.shaping_lrp import shaping
+from lrp.concatenate_lrp import concatenate
+from lrp.split_lrp import split
 from lrp.lstm_lrp import lstm
 import tensorflow as tf
 
@@ -19,6 +21,8 @@ class _LRPImplementation:
         'ExpandDims': shaping,
         'Squeeze': shaping,
         'Reshape': shaping,
+        'ConcatV2': concatenate,
+        'Split': split,
         'Relu': nonlinearities,
         'Sigmoid': nonlinearities,
         'Tanh': nonlinearities

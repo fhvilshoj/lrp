@@ -4,9 +4,10 @@ import unittest
 from lrp import lrp
 from lrp_util import get_operations_between_output_and_input
 
+
 class TestSplitAndConcatenate(unittest.TestCase):
     def runTest(self):
-        with tf.Graph().as_default():
+        with tf.Graph().as_default() as g:
             inp = tf.placeholder(tf.float32, shape=(3, 4))
 
             # Split input to construct path in lrp with two paths from
@@ -20,20 +21,18 @@ class TestSplitAndConcatenate(unittest.TestCase):
             in1 = tf.matmul(in1, w)
 
             # Concatenate the paths again in order to end up with one output.
-            out = tf.concat([in1, in2], 1)
-
-            _, path = get_operations_between_output_and_input(inp, out)
-            print(path)
-            for p in path:
-                print(p._id, p.type)
+            out = tf.concat([in1, in2], 1, 'wtf')
 
             expl = lrp.lrp(inp, out)
 
             # Do some testing
-            # self.assertEqual(in1.shape, (3, 2))
-            # self.assertEqual(inp.shape, out.shape)
-            # self.assertEqual(inp.shape, expl.shape)
+            self.assertEqual(in1.shape, (3, 2))
+            self.assertEqual(inp.shape, out.shape)
+            self.assertEqual(inp.shape, expl.shape)
 
-            # with tf.Session() as s:
-            #     pass
-            pass
+            with tf.Session() as s:
+                explanation = s.run(expl,
+                                    feed_dict={inp: [[1, 1, 0, 1], [0, 0, 0, 0], [1, 0, 0, 0]]})
+
+                self.assertTrue(np.allclose(np.array([[2, 4, 0, 0], [0, 0, 0, 0], [2, 0, 0, 0]]), explanation),
+                                "Relevances should match")

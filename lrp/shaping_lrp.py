@@ -11,6 +11,11 @@ def shaping(router, R):
     input_to_current_operation = current_operation.inputs[0]
     R_reshaped = tf.reshape(R, tf.shape(input_to_current_operation))
 
+    # Check if there has been added an extra dimension (for multiple predictions per sample) in
+    # which case we have to add the dimension again after the reshape
+    if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
+        R_reshaped = tf.expand_dims(R_reshaped, 1)
+
     # Tell the router that we handled this operation
     router.mark_operation_handled(current_operation)
 

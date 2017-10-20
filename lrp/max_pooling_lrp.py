@@ -16,7 +16,6 @@ def max_pooling(router, R):
 
     # max pool output as current tensor
     current_tensor = current_operation.outputs[0]
-    assert current_tensor.shape == R.shape, "Tensor and R should have same shape"
 
     # Find the input to the max pooling
     max_pool_input = current_operation.inputs[0]
@@ -27,10 +26,18 @@ def max_pooling(router, R):
     kernel_size = current_operation.get_attr("ksize")
 
     # Get shape of the input
-    (batch, input_height, input_width, input_channels) = max_pool_input.get_shape().as_list()
+    (batch_size, input_height, input_width, input_channels) = max_pool_input.get_shape().as_list()
 
     # Get the shape of the output of the output of the max pool
     (_, output_height, output_width, output_channels) = current_tensor.get_shape().as_list()
+
+    # Reshape the relevances to shape (batch_size * predictions_per_sample, output_height, output_width, output_channels)
+    # instead of (batch_size, predictions_per_sample, output_height, output_width, output_channels) ease the following
+    # lrp calculations
+    relevances_shape = R.get_shape().as_list()
+    predictions_per_sample = relevances_shape[1]
+    batch_size_times_predictions_per_sample = batch_size * predictions_per_sample
+    R = tf.reshape(R, (batch_size_times_predictions_per_sample, output_height, output_width, output_channels))
 
     # Replace the negative elements with zeroes to only have the positive entries left
     max_pool_input_positive = lrp_util.replace_negatives_with_zeros(max_pool_input)
@@ -40,7 +47,7 @@ def max_pooling(router, R):
     # (batch, out_height, out_width, kernel_height*kernel_width*input_channels)
     image_patches = tf.extract_image_patches(max_pool_input_positive, kernel_size,
                                              strides, [1, 1, 1, 1], padding)
-    image_patches = tf.reshape(image_patches, [batch, output_height, output_width, kernel_size[1], kernel_size[2], input_channels])
+    image_patches = tf.reshape(image_patches, [batch_size, output_height, output_width, kernel_size[1], kernel_size[2], input_channels])
 
     # Find the largest elements in each patch and set all other entries to zero (to find z_ijk+'s)
     max_elems = tf.reduce_max(image_patches, axis=[3, 4], keep_dims=True)
@@ -52,14 +59,21 @@ def max_pooling(router, R):
     fraction = zs / (max_elems + lrp_util.EPSILON)
 
     # Find the relevance of each feature
-    R = tf.reshape(R, [batch, output_height, output_width, 1, 1, output_channels])
+    R = tf.reshape(R, [batch_size_times_predictions_per_sample, output_height, output_width, 1, 1, output_channels])
 
     relevances = fraction * R
-    relevances = tf.reshape(relevances, (batch, output_height, output_width, kernel_size[1]*kernel_size[2] * input_channels))
+    relevances = tf.reshape(relevances, (batch_size_times_predictions_per_sample, output_height, output_width,
+                                         kernel_size[1]*kernel_size[2] * input_channels))
 
     # Reconstruct the shape of the input, thereby summing the relevances for each individual pixel
-    R_new = lrp_util.patches_to_images(relevances, batch, input_height, input_width, input_channels, output_height,
+    R_new = lrp_util.patches_to_images(relevances, batch_size, input_height, input_width, input_channels, output_height,
                                        output_width, kernel_size[1], kernel_size[2], strides[1], strides[2], padding)
+
+    # Reshape the calculated relevances to shape
+    # (batch_size, predictions_per_sample, input_height, input_width, input_channels) rather than
+    # (batch_size * predictions_per_sample, input_height, input_width, input_channels)
+    R_new = tf.reshape(R_new, (batch_size, predictions_per_sample, input_height, input_width, input_channels))
+
 
     # Report handled operations
     router.mark_operation_handled(current_operation)

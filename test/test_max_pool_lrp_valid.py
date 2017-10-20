@@ -13,19 +13,21 @@ class MaxPoolLRPTest(unittest.TestCase):
         # Set the graph as default
         with g.as_default():
             # Create a placeholder for the input
-            inp = tf.placeholder(tf.float32, shape=(4, 4))
-
-            inp_reshaped = tf.reshape(inp, (1, 4, 4, 1))
+            inp = tf.placeholder(tf.float32, shape=(1, 4, 4, 1))
 
             # Create max pooling layer
-            activation = tf.nn.max_pool(inp_reshaped, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            activation = tf.nn.max_pool(inp, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
 
             # Set the prediction to be equal to the activations of the last layer
             pred = activation
 
             # Calculate the relevance scores using lrp
             R_mock = tf.expand_dims(tf.constant([[[10, 20], [100, 1000]]], dtype=tf.float32), -1)
-            expl = lrp._lrp(inp, pred, R_mock)
+
+            # The tf.expand_dims() is necessary because we call _lrp which means that
+            # we bypass the part of the framework that takes care of adding and removing
+            # an extra dimension for multiple predictions per sample
+            expl = lrp._lrp(inp, pred, tf.expand_dims(R_mock, 1))
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:
@@ -34,26 +36,27 @@ class MaxPoolLRPTest(unittest.TestCase):
 
                 # Run the operations of interest and feed an input to the network
                 prediction, explanation = sess.run([pred, expl],
-                                                   feed_dict={inp: [[1, 2, 3, 4],
-                                                                    [5, 6, 7, 8],
-                                                                    [9, 10, 11, 12],
-                                                                    [13, 14, 15, 16]]})
+                                                   feed_dict={inp: [[[[1], [2], [3], [4]],
+                                                                     [[5], [6], [7], [8]],
+                                                                     [[9], [10], [11], [12]],
+                                                                     [[13], [14], [15], [16]]]]})
 
                 # Check if the predictions has the right shape
                 self.assertEqual(prediction.shape, (1, 2, 2, 1),
                                  msg="Should be able to do a linear forward pass")
 
                 # Check if the explanation has the right shape
-                self.assertEqual(explanation.shape, inp.shape,
+                self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
                                  msg="Should be a wellformed explanation")
 
                 # Check if the relevance scores are correct
                 # (the correct values are found by calculating the example by hand)
                 self.assertTrue(
-                    np.allclose(explanation, [[0, 0, 0, 0],
-                                              [0, 10, 0, 20],
-                                              [0, 0, 0, 0],
-                                              [0, 100, 0, 1000]],
+                    np.allclose([[[[[0], [0], [0], [0]],
+                                   [[0], [10], [0], [20]],
+                                   [[0], [0], [0], [0]],
+                                   [[0], [100], [0], [1000]]]]],
+                                explanation,
                                 rtol=1e-03,
                                 atol=1e-03),
                     msg="Should be a good explanation")

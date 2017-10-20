@@ -25,10 +25,6 @@ class TestSplitAndConcatenate(unittest.TestCase):
             expl = lrp.lrp(inp, out)
 
             # Do some testing
-            self.assertEqual(in1.shape, (3, 2))
-            self.assertEqual(inp.shape, out.shape)
-            self.assertEqual(inp.shape, expl.shape)
-
             with tf.Session() as s:
                 explanation = s.run(expl,
                                     feed_dict={inp: [[1, 1, 0, 1], [0, 0, 0, 0], [1, 0, 0, 0]]})
@@ -48,11 +44,6 @@ class TestSplitAndConcatenate(unittest.TestCase):
             out = tf.concat([in1, in2], 1)
 
             expl = lrp.lrp(inp, out)
-
-            # Do some testing
-            self.assertEqual(in1.shape, (3, 2))
-            self.assertEqual(inp.shape, out.shape)
-            self.assertEqual(inp.shape, expl.shape)
 
             with tf.Session() as s:
                 input_values = [[1, 1, 0, 1], [0, 0, 0, 0], [1, 0, 0, 0]]
@@ -77,10 +68,6 @@ class TestSplitAndConcatenate(unittest.TestCase):
             expl = lrp.lrp(inp, out)
 
             # Do some testing
-            self.assertEqual(in1.shape, (3, 2))
-            self.assertEqual(inp.shape, out.shape)
-            self.assertEqual(inp.shape, expl.shape)
-
             with tf.Session() as s:
                 input_values = [[1, 1, 0, 1], [0, 0, 0, 0], [1, 0, 0, 0]]
                 explanation = s.run(expl,

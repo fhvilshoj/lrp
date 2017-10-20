@@ -39,9 +39,9 @@ class FindStartingPointRelevancesTest(unittest.TestCase):
                     five_predictions_per_sample_starting_point_relevances)
 
                 # Create expected starting point relevances
-                expected_starting_point_one_prediction_per_sample = np.array([[[0, 0, 0, 0, 0, 0, 0, 0, 0, 10]],
-                                                                              [[1, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
-                                                                              [[0, 0, 0, 0, 0, 0, 0, 0, 1, 0]]])
+                expected_starting_point_one_prediction_per_sample = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 10],
+                                                                              [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                                              [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]])
 
                 expected_starting_point_five_predictions_per_sample = np.array([[[0, 0, 0, 4],
                                                                                  [0, 0, 0, 8],
@@ -49,6 +49,7 @@ class FindStartingPointRelevancesTest(unittest.TestCase):
                                                                                 [[0, 0, 0, 4],
                                                                                  [1, 0, 0, 0],
                                                                                  [1, 0, 0, 0]]])
+
                 # Compare the calculated relevances with the expected relevances
                 self.assertTrue(np.allclose(expected_starting_point_one_prediction_per_sample,
                                             one_prediction_per_sample_starting_point_rel, rtol=1e-3, atol=1e-3),

@@ -93,7 +93,7 @@ class LinearConvolutionLinearRPTest(unittest.TestCase):
                 # found by calculating the example by hand)
                 self.assertTrue(
                     np.allclose(explanation[0], [[0, 0.0424454611, 0.819711264, 0]],
-                                rtol=1e-01,
-                                atol=1e-01),
+                                rtol=1e-03,
+                                atol=1e-03),
                     msg="Should be a good explanation")
 

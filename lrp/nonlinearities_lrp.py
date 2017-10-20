@@ -11,7 +11,6 @@ def nonlinearities(router, R):
     R = lrp_util.sum_relevances(R)
 
     current_operation = router.get_current_operation()
-    assert current_operation.outputs[0].shape == R.shape, "Tensor and R should have same shape"
 
     # Report handled operations
     router.mark_operation_handled(current_operation)

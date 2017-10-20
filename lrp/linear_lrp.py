@@ -45,9 +45,8 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
 
 # TODO Should this function also take output as an optional input to be consistent with other rules
 def linear_alpha(R, input, weights, bias=None):
-    # Prepare batch and weights for elementwise multiplication
+    # Prepare batch for elementwise multiplication
     input = tf.expand_dims(input, -1)
-    weights = tf.expand_dims(weights, 0)
 
     # Perform elementwise multiplication of input, weights to get z_kij which is the contribution from
     # feature i to neuron j for input k
@@ -76,14 +75,9 @@ def linear_alpha(R, input, weights, bias=None):
     # Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
     fractions = tf.transpose(fractions, perm=[0, 2, 1])
 
-    # Expand R to match shape of zp_sum
-    R = tf.expand_dims(R, 1)
 
     # Multiply relevances with fractions to find relevance per feature in input
     R_new = tf.matmul(R, fractions)
-
-    # Get R back in shape ;-)
-    R_new = tf.squeeze(R_new, 1)
 
     return R_new
 

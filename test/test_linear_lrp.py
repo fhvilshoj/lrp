@@ -3,9 +3,9 @@ import numpy as np
 from lrp import lrp
 import unittest
 
+
 # Class for testing that inherits from the unittest.TestCase class
 class LinearLRPTest(unittest.TestCase):
-
     # Test case that builds a simple two layer linear network, finds the relevance
     # and compares them to the results obtained by calculating the same example by hand
     def runTest(self):
@@ -57,7 +57,10 @@ class LinearLRPTest(unittest.TestCase):
             pred = activation
 
             # Calculate the relevance scores using lrp
-            expl = lrp._lrp(inp, pred, pred)
+            # The tf.expand_dims() is necessary because we call _lrp which means that
+            # we bypass the part of the framework that takes care of adding and removing
+            # an extra dimension for multiple predictions per sample
+            expl = lrp._lrp(inp, pred, tf.expand_dims(pred, 1))
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:
@@ -71,10 +74,11 @@ class LinearLRPTest(unittest.TestCase):
                 self.assertEqual(prediction.shape, (1, 2), msg="Should be able to do a linear forward pass")
 
                 # Check if the explanation has the right shape
-                self.assertEqual(explanation.shape, inp.shape, msg="Should be a wellformed explanation")
+                self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
+                                 msg="Should be a wellformed explanation")
 
                 # Check if the relevance scores are correct (the correct values
                 # are found by calculating the example by hand)
                 self.assertTrue(
-                    np.allclose(explanation[0], [0., 0., 2.69, 35.87], rtol=1e-03, atol=1e-03),
+                    np.allclose([[0., 0., 2.69, 35.87]], explanation[0], rtol=1e-03, atol=1e-03),
                     msg="Should be a good linear explanation")

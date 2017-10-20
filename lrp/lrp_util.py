@@ -74,6 +74,7 @@ def _get_input_bias_from_add(tensor):
         bias = tensor.op.inputs[1]
     return bias
 
+
 def sum_relevances(relevances):
     # relevances are dictionaries with keys producer and relevance
     summed_relevances = relevances[0]['relevance']

@@ -48,7 +48,10 @@ def split(router, R):
         # Iterate over all the inputs of the producer operation to
         # find all those corresponding to outputs of the current split
         # operation and append the relevance to the appropriate lists
-        # in `relevances_to_sum`
+        # in `relevances_to_sum`. We take advantage of the fact that
+        # operations store the relevances they forward in the same order
+        # as the order of their input (e.g. the relevance belonging
+        # to the first input is stored first)
         for input in producer_operation.inputs:
             # Sanity check to make sure we do not get out of bounds
             # and to improve speed a bit by early exit

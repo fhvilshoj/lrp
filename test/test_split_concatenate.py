@@ -2,7 +2,6 @@ import tensorflow as tf
 import numpy as np
 import unittest
 from lrp import lrp
-from lrp_util import get_operations_between_output_and_input
 
 
 class TestSplitAndConcatenate(unittest.TestCase):

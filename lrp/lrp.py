@@ -132,13 +132,31 @@ class _LRPImplementation:
     # user chosen indices of shape (batch_size, )
 
     #TODO is it a fair constraint to only accept class scores of shape (batch_size, classes) and reject FX (batch_size, 1, classes)?
-    def _find_starting_point_relevances(self, class_scores, user_chosen_indices=None):
-            # Get the shape of the class scores
-            number_of_classes = class_scores.get_shape().as_list()[-1]
+    def _find_starting_point_relevances(self, predictions, user_chosen_indices=None):
+            # Get the shape of the predictions
+            predictions_shape = predictions.get_shape().as_list()
 
-            # If the user has provided the indexes of the classes of interest, use those. If not, find
+            # Initialize variables for the batch_size, the number of predictions per sample in the batch, and
+            # the number of classes
+            batch_size = None
+            predictions_per_sample = None
+            number_of_classes = None
+
+            # Check if the predictions have the shape (batch_size, predictions_per_sample, number_of_classes) or
+            # (batch_size, number_of_classes). In the case of the latter, add the predictions_per_sample dimension
+            if len(predictions_shape) == 3:
+                batch_size, predictions_per_sample, number_of_classes = predictions_shape
+            elif len(predictions_shape) == 2:
+                predictions = tf.expand_dims(predictions, 1)
+                batch_size, predictions_per_sample, number_of_classes = predictions.get_shape().as_list()
+            else:
+                raise ValueError("Only accepts outputs of shape (batch_size, predictions_per_sample, number_of_classes) "
+                                 "or (batch_size, number_of_classes) but got shape: " + predictions_shape)
+
+
+            # If the user has provided the indexes of the number_of_classes of interest, use those. If not, find
             # the indexes by finding the class with the largest prediction score for each sample
-            max_score_indices = user_chosen_indices if user_chosen_indices else tf.argmax(class_scores, axis=-1)
+            max_score_indices = user_chosen_indices if user_chosen_indices else tf.argmax(predictions, axis=2)
 
             # Create a tensor that for each sample has a one at the position of the class of interest and
             # zeros in all other positions
@@ -146,7 +164,7 @@ class _LRPImplementation:
 
             # Create and return the relevance tensor, where all relevances except the one for the class of interest
             # for each sample have been set to zero
-            relevances_with_only_chosen_class = tf.multiply(max_score_indices_as_one_hot_vectors, class_scores)
+            relevances_with_only_chosen_class = tf.multiply(predictions, max_score_indices_as_one_hot_vectors)
 
             return relevances_with_only_chosen_class
 

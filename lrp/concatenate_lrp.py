@@ -26,6 +26,11 @@ def concatenate(router, R):
         # Find and add the size of the input in the "axis" dimension
         split_sizes.append(shape[axis])
 
+    # Check if there has been added an extra dimension (for multiple predictions per sample) in
+    # which case the axis to split over has to be adjusted accordingly
+    if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
+        axis += 1
+
     # Split the relevances over the "axis" dimension according to the found split sizes
     R_splitted = tf.split(R, split_sizes, axis)
 

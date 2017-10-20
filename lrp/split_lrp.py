@@ -6,7 +6,7 @@ def split(router, R):
     # Get the current split operation
     current_operation = router.get_current_operation()
 
-    # Put all the revieced relevances in a single dictionary for fast lookup
+    # Put all the received relevances in a single dictionary for fast lookup
     relevances_from_ops = dict()
     for r in R:
         # We put all the relevances in arrays to be able to hold multiple
@@ -24,7 +24,14 @@ def split(router, R):
     # sure that we end up with relevance of the right shape
     relevances_to_sum = []
     for output in current_operation.outputs:
-        relevances_to_sum.append([tf.zeros_like(output)])
+        # Check if there has been added an extra dimension (for multiple predictions per sample) in
+        # which case the shape of the zero relevances has to be adjusted accordingly
+        if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
+            shape = tf.expand_dims(output, 1)
+        else:
+            shape = output.shape
+
+        relevances_to_sum.append([tf.zeros_like(shape)])
 
 
     ### This section distributes relevances to the correct output of the split operation
@@ -68,8 +75,6 @@ def split(router, R):
                 # Update relevance index
                 relevance_idx += 1
 
-    # Find axis to concatenate on
-    axis = current_operation.inputs[0]
 
     # Sum relevances for each output
     relevances_to_concatenate = []
@@ -82,6 +87,14 @@ def split(router, R):
             # Accumulate the sum
             relevance_sum += relevance
         relevances_to_concatenate.append(relevance_sum)
+
+    # Find axis to concatenate on
+    axis = current_operation.inputs[0]
+
+    # Check if there has been added an extra dimension (for multiple predictions per sample) in
+    # which case the axis to concatenate over has to be adjusted accordingly
+    if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
+        axis += 1
 
     # Concatenate relevances
     R_concatenated = tf.concat(relevances_to_concatenate, axis)

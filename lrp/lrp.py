@@ -53,6 +53,9 @@ class _LRPImplementation:
         # Path index indicates which node in the path to consider at this point
         self.path_index = 0
 
+        # Remember if there has been added an dimension to the starting point relevances
+        self.added_dimension_for_multiple_predictions_per_sample = False
+
     def lrp(self, input, output, R = None):
         # Remember input and output
         self.input = input
@@ -85,6 +88,9 @@ class _LRPImplementation:
     def get_current_operation(self):
         current_operation = self.path[self.path_index]
         return current_operation
+
+    def did_add_extra_dimension_for_multiple_predictions_per_sample(self):
+        return self.added_dimension_for_multiple_predictions_per_sample
 
     # Run through the path between output and input and iteratively
     # compute relevances
@@ -121,6 +127,11 @@ class _LRPImplementation:
         # Sum the potentially multiple relevances calculated for the input
         final_input_relevances = lrp_util.sum_relevances(self.relevances[self.input.op._id])
 
+        # If there was added an extra dimension to the starting point relevances,
+        # remove it again before returning the calculated relevances
+        if self.added_dimension_for_multiple_predictions_per_sample:
+            final_input_relevances = tf.squeeze(final_input_relevances, 1)
+
         return final_input_relevances
 
 
@@ -135,12 +146,6 @@ class _LRPImplementation:
             # Get the shape of the predictions
             predictions_shape = predictions.get_shape().as_list()
 
-            # Initialize variables for the batch_size, the number of predictions per sample in the batch, and
-            # the number of classes
-            batch_size = None
-            predictions_per_sample = None
-            number_of_classes = None
-
             # Check if the predictions have the shape (batch_size, predictions_per_sample, number_of_classes) or
             # (batch_size, number_of_classes). In the case of the latter, add the predictions_per_sample dimension
             if len(predictions_shape) == 3:
@@ -148,6 +153,8 @@ class _LRPImplementation:
             elif len(predictions_shape) == 2:
                 predictions = tf.expand_dims(predictions, 1)
                 batch_size, predictions_per_sample, number_of_classes = predictions.get_shape().as_list()
+                # Remember that there has been added an extra dimension, so it can be removed again later
+                self.added_dimension_for_multiple_predictions_per_sample = True
             else:
                 raise ValueError("Only accepts outputs of shape (batch_size, predictions_per_sample, number_of_classes) "
                                  "or (batch_size, number_of_classes) but got shape: " + predictions_shape)

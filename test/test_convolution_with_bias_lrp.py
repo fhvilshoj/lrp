@@ -68,9 +68,10 @@ class ConvolutionBiasLRPTest(unittest.TestCase):
                                  msg="Should be a wellformed explanation")
 
 
-                # TODO: Why does the test fail if rtol=1e-03 and atol=1e-03?
                 # Check if the relevance scores are correct (the correct values
-                # are found by calculating the example by hand)
+                # are found by calculating the example by hand which is why
+                # rtol and atol have to be =1e-01 rather than 1e-03 as in most of the
+                # other test cases)
                 self.assertTrue(
                     np.allclose(explanation[0], [[[[[1.06, 0],
                                                     [0, 4.49]],

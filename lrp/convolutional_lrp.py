@@ -1,5 +1,6 @@
 from lrp import lrp_util
 import tensorflow as tf
+from constants import EPSILON
 
 
 def convolutional(router, R):
@@ -71,7 +72,7 @@ def convolutional(router, R):
     zp_sum = tf.reduce_sum(zp, [3, 4, 5], keep_dims=True)
 
     # Add stabilizer to the sum to avoid dividing by 0
-    zp_sum += lrp_util.EPSILON * tf.ones_like(zp_sum)
+    zp_sum += EPSILON * tf.ones_like(zp_sum)
 
     zp_sum += tf.expand_dims(positive_bias_tensor, 0)
 

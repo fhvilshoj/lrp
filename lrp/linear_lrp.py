@@ -1,6 +1,6 @@
 import tensorflow as tf
 from lrp import lrp_util
-
+from constants import BIAS_DELTA, EPSILON
 
 def linear_epsilon(R, input, weights, bias=None, output=None):
     """
@@ -29,11 +29,11 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
         input_features = input.get_shape().as_list()[1]
 
         # Divide the bias (and stabilizer) equaly between the `input_features`
-        bias = (lrp_util.BIAS_DELTA * bias + lrp_util.EPSILON * tf.sign(output)) / input_features
+        bias = (BIAS_DELTA * bias + EPSILON * tf.sign(output)) / input_features
         zs = zs + bias
 
     # Add stabilizer to denominator to avoid dividing with 0
-    denominator = output + lrp_util.EPSILON * tf.sign(output)
+    denominator = output + EPSILON * tf.sign(output)
 
     # Find the relative contribution from feature i to neuron j for input k
     fractions = tf.divide(zs, denominator)
@@ -67,7 +67,7 @@ def linear_alpha(R, input, weights, bias=None):
         zp_sum = tf.add(zp_sum, bias_positive)
 
     # Add stabilizer to the denominator
-    zp_sum += lrp_util.EPSILON
+    zp_sum += EPSILON
 
     # Find the relative contribution from feature i to neuron j for input k
     fractions = tf.divide(zp, zp_sum)
@@ -124,7 +124,6 @@ def linear(router, R):
     """
     # Tensor is the output of the current operation (i.e. Add, or MatMul)
     tensor = router.get_current_operation().outputs[0]
-
     # Sum the potentially multiple relevances from the upper layers
     R = lrp_util.sum_relevances(R)
 

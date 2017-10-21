@@ -1,5 +1,6 @@
 from lrp import lrp_util
 import tensorflow as tf
+from constants import EPSILON
 
 # TODO: We do not currently support max pooling where kernels span over the depts dimension (k: [1,1,1,d])
 def max_pooling(router, R):
@@ -56,7 +57,7 @@ def max_pooling(router, R):
     # Find the contribution of each feature in the input to the activations,
     # i.e. the ratio between the z_ijk's and the z_jk's (plus a small stabilizer to avoid division by zero)
     # TODO We do not take care of two equaly big entries (currently doubles given relevance)
-    fraction = zs / (max_elems + lrp_util.EPSILON)
+    fraction = zs / (max_elems + EPSILON)
 
     # Find the relevance of each feature
     R = tf.reshape(R, [batch_size_times_predictions_per_sample, output_height, output_width, 1, 1, output_channels])

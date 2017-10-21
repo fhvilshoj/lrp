@@ -1,4 +1,5 @@
 import tensorflow as tf
+from constants import *
 
 
 # When we see a split we want to concatenate the incoming relevances
@@ -11,14 +12,14 @@ def split(router, R):
     for r in R:
         # We put all the relevances in arrays to be able to hold multiple
         # relevances from the same producer
-        if not r['producer'] in relevances_from_ops:
+        if not r[RELEVANCE_PRODUCER] in relevances_from_ops:
             # When we haven't seen any relevance from the producer yet we add
             # the given relevance to an empty array and put it in the dictionary
-            relevances_from_ops[r['producer']] = [r['relevance']]
+            relevances_from_ops[r[RELEVANCE_PRODUCER]] = [r[RELEVANCE]]
         else:
             # When we saw relevance from the producer before we look op the list
             # and append the new relevance to the end of the list
-            relevances_from_ops[r['producer']].append(r['relevance'])
+            relevances_from_ops[r[RELEVANCE_PRODUCER]].append(r[RELEVANCE])
 
     # Fill the relevances for each output with zeros to make
     # sure that we end up with relevance of the right shape

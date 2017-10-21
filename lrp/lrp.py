@@ -33,8 +33,7 @@ class _LRPImplementation:
         self.input = None
         self.output = None
 
-        # Initialize empty structures
-
+        # Initialize empty structures one by one.
         # Relevances are used to hold lists of the relevances comming from the
         # upper layers
         self.relevances = []
@@ -43,15 +42,19 @@ class _LRPImplementation:
         # the id equal to the index is in the path list.
         self.in_path_indicators = []
 
-        # Path holds the nodes in the path from output to input
-        self.path = []
+        # Path holds the nodes in the path from output to input, divided into contexts. Each context is either
+        # all operations belonging to a LSTM or a part of the computational graph that isn't a LSTM
+        self.contexts = []
 
         # Handled operation holds booleans indicating whether the operation in
         # the path at the same index has been handled already
         self.handled_operations = []
 
-        # Path index indicates which node in the path to consider at this point
-        self.path_index = 0
+        # Context index indicates which context to consider at this point
+        self.current_context_index = 0
+
+        # Path index indicates which operation in the context to consider at this point
+        self.current_path_index = 0
 
         # Remember if there has been added an dimension to the starting point relevances
         self.added_dimension_for_multiple_predictions_per_sample = False
@@ -72,7 +75,7 @@ class _LRPImplementation:
         self.relevances[output.op._id].append({'producer': output.op._id, 'relevance': R})
 
         # Find the path between output and input and remember it
-        self.in_path_indicators, self.path = lrp_util.get_operations_between_output_and_input(input, output)
+        self.in_path_indicators, self.contexts = lrp_util.get_operations_between_output_and_input(input, output)
 
         self.handled_operations = [False] * (g._last_id + 1)
 
@@ -86,7 +89,8 @@ class _LRPImplementation:
         self.relevances[relevance_receiver._id].append({'producer': relevance_producer._id, 'relevance': relevance})
 
     def get_current_operation(self):
-        current_operation = self.path[self.path_index]
+        # Get the current operation
+        current_operation = self.contexts[self.current_context_index][self.current_path_index]
         return current_operation
 
     def did_add_extra_dimension_for_multiple_predictions_per_sample(self):
@@ -95,34 +99,39 @@ class _LRPImplementation:
     # Run through the path between output and input and iteratively
     # compute relevances
     def _lrp_routing(self):
-        while self.path_index < len(self.path):
-            current_operation = self.path[self.path_index]
+        while self.current_context_index < len(self.contexts):
+            current_path = self.contexts[self.current_context_index]
+            while self.current_path_index < len(current_path):
+                current_operation = current_path[self.current_path_index]
 
-            # If the operation has already been taken care of, skip it
-            # by jumping to next while iteration
-            if self.handled_operations[current_operation._id]:
-                self.path_index += 1
-                continue
+                # If the operation has already been taken care of, skip it
+                # by jumping to next while iteration
+                if self.handled_operations[current_operation._id]:
+                    self.current_path_index += 1
+                    continue
 
-            # Find type of the operation in the front of the path
-            operation_type = current_operation.type
-            if operation_type in ['Add', 'BiasAdd']:
-                # Check which operation a given addition is associated with
-                # Note that it cannot be lstm because lstm has its own scope
-                operation_type = lrp_util.addition_associated_with(current_operation.outputs[0])
+                # Find type of the operation in the front of the path
+                operation_type = current_operation.type
+                if operation_type in ['Add', 'BiasAdd']:
+                    # Check which operation a given addition is associated with
+                    # Note that it cannot be lstm because lstm has its own scope
+                    operation_type = lrp_util.addition_associated_with(current_operation.outputs[0])
 
-            if operation_type in self._router:
-                # Route responsibility to appropriate function
-                # Send the recorded relevance for the current operation
-                # along. This saves the confusion of finding relevances
-                # for Add in the concrete implementations
-                self._router[operation_type](self, self.relevances[current_operation._id])
-            else:
-                print("Router did not know the operation: ", operation_type)
-                # If we don't know the operation, skip it
+                if operation_type in self._router:
+                    # Route responsibility to appropriate function
+                    # Send the recorded relevance for the current operation
+                    # along. This saves the confusion of finding relevances
+                    # for Add in the concrete implementations
+                    self._router[operation_type](self, self.relevances[current_operation._id])
+                else:
+                    print("Router did not know the operation: ", operation_type)
+                    # If we don't know the operation, skip it
 
-            # Go to next operation in path
-            self.path_index += 1
+                # Go to next operation in path
+                self.current_path_index += 1
+
+            self.current_context_index += 1
+
 
         # Sum the potentially multiple relevances calculated for the input
         final_input_relevances = lrp_util.sum_relevances(self.relevances[self.input.op._id])

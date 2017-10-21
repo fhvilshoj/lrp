@@ -75,6 +75,10 @@ def _get_input_bias_from_add(tensor):
     return bias
 
 
+def _logical_or(l1, l2):
+    return [t[0] or t[1] for t in zip(l1, l2)]
+
+
 def sum_relevances(relevances):
     # relevances are dictionaries with keys producer and relevance
     summed_relevances = relevances[0]['relevance']
@@ -85,14 +89,85 @@ def sum_relevances(relevances):
     return summed_relevances
 
 
+def _find_operations_in_LSTM(first_operation_in_LSTM, between_ops):
+    # Create new sub-path that contains all operations belonging to the LSTM
+    LSTM_path = []
+
+    # Create a variable for remembering the start of the LSTM
+    start_of_LSTM = None
+
+    # Create a new queue that holds operations in the LSTM that have not been handled yet
+    # and add the first operation in the LSTM as the starting element
+    operations_to_be_handled = [first_operation_in_LSTM]
+
+    # Create an array of flags that indicate if we have looked at a operation before during
+    # our LSTM traversal (to avoid getting stuck in loops)
+    g = first_operation_in_LSTM.graph
+
+    # Make a list of indicators telling if we have considered a given node before.
+    reached_ops = [False] * (g._last_id + 1)
+
+    # Keep processing operations from the queue of operations in the LSTM that have not been handled yet
+    # as long as there are elements in the queue
+    while operations_to_be_handled:
+        # Pop the front element
+        current_operation = operations_to_be_handled.pop(0)
+
+        # Mark the operation as reached
+        reached_ops[current_operation._id] = True
+
+        # Add the operation to the list of operations that are part of the LSTM
+        LSTM_path.append(current_operation)
+
+        # Check if the operation is a transpose that has a TensorArrayScatter as consumer
+        # in which case it indicates the end of the LSTM
+        if current_operation.type == "Transpose":
+            is_start_of_LSTM = False
+            for output in current_operation.outputs:
+                for consumer in output.consumers():
+                    if "TensorArrayScatter" in consumer.type:
+                        is_start_of_LSTM = True
+                        break
+            if is_start_of_LSTM:
+                # Remember the transpose operation that is the start of the LSTM
+                start_of_LSTM = current_operation
+                # Move on to the next operation in the queue (we do not want to add the inputs of the current
+                # operation to the queue because they are not part of the LSTM)
+                continue
+
+        # Push all non-visited input operations that are part of the overall path from the input to the output
+        # to the queue of operations in the LSTM that have not been handled yet
+        for input in current_operation.inputs:
+            input_operation = input.op
+            if between_ops[input_operation._id] and not reached_ops[input_operation._id]:
+                operations_to_be_handled.append(input_operation)
+
+    # Find the next operation to consider after the LSTM (i.e. the operation that produced the input to the LSTM)
+    # If we did not find the beginning of the LSTM, raise an error
+    if not start_of_LSTM:
+        raise ValueError("Did not find the beginning op the LSTM")
+    operation_before_LSTM = start_of_LSTM.inputs[0].op
+
+    # Return the list of operations in the LSTM and the next operation to consider after the LSTM (i.e.
+    # the operation that produced the input to the LSTM)
+    return LSTM_path, operation_before_LSTM, reached_ops
+
+
+
+# Add the operation right after the LSTM to the queue of operations to take care of and begin
+# a new sub-path (the sub-path that is before the LSTM in the original computational graph)
+
 def _rearrange_op_list(output, between_ops):
     g = output.op.graph
 
     # Make a list of indicators telling if we have considered a given node before.
     reached_ops = [False] * (g._last_id + 1)
 
-    # Initialize list for holding the ordered operations
+    # Initialize list for holding the ordered operations in lists of sub-paths
     between_op_list = []
+
+    # Current subpath to append operations to
+    current_sub_path = []
 
     # Create a queue and push the operation that created the output of the graph
     queue = [output.op]
@@ -102,8 +177,37 @@ def _rearrange_op_list(output, between_ops):
 
         # Pop the first element of the queue (i.e. the first operation)
         op = queue.pop(0)
+
+        # Check if the operation is a transpose
+        if op.type == 'Transpose':
+            # If the operation is a transpose, check if it has a TensorArrayGather operation as input
+            has_ta_gather_input = False
+            for input in op.inputs:
+                if "TensorArrayGather" in input.op.type:
+                    has_ta_gather_input = True
+                    break
+
+            # if so, this is the start of a LSTM, so we are at the end of the current sub-path
+            if has_ta_gather_input:
+                # Close current sub path
+                between_op_list.append(current_sub_path)
+
+                # Pass the responsibility of handling the LSTM to the appropriate handler
+                LSTM_path, operation_before_LSTM, reached_ops_from_LSTM = _find_operations_in_LSTM(op, between_ops)
+                # Merge current reached ops with those found in the LSTM handler
+                reached_ops = _logical_or(reached_ops, reached_ops_from_LSTM)
+                # Append the new LSTM sub path to the list of sub paths
+                between_op_list.append(LSTM_path)
+                # Add the other side of the LSTM to the queue
+                queue.append(operation_before_LSTM)
+                # Open new sub path
+                current_sub_path = []
+
+                # Skip to next operation in the queue
+                continue
+
         # Add the operation to the ordered list of operations
-        between_op_list.append(op)
+        current_sub_path.append(op)
 
         # Remember that we have handled the operation
         reached_ops[op._id] = True
@@ -134,6 +238,8 @@ def _rearrange_op_list(output, between_ops):
                 if consumers_handled_already and not reached_ops[i.op._id]:
                     queue.append(i.op)
 
+    # Append the last sub path to the final list of sub paths
+    between_op_list.append(current_sub_path)
     return between_op_list
 
 # Helper function that traverses computation graph through all nodes

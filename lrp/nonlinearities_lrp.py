@@ -10,6 +10,7 @@ def nonlinearities(router, R):
     # Sum the potentially multiple relevances from the upper layers
     R = lrp_util.sum_relevances(R)
 
+    # Get the current operation
     current_operation = router.get_current_operation()
 
     # Report handled operations

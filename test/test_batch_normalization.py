@@ -39,8 +39,8 @@ class TestBatchNormalization(unittest.TestCase):
                 s.run([assign_beta, assign_gamma, assign_mean, assign_variance])
 
                 expected_relevances = np.array(
-                    [[[0, 0.8921994513, 0, 1, 0.5576246571],
-                     [0, 0.8921994513, 0, 1, -0.5576246571]]])
+                    [[[0, 0.8921994513, 0, 1, 0.5576246571]],
+                     [[0, 0.8921994513, 0, 1, -0.5576246571]]])
                 relevances = s.run(explanation, feed_dict={inp: [[1, 2, 3, 4, 5],
                                                                  [1, 2, 3, 4, 4]]})
                 self.assertTrue(np.allclose(expected_relevances, relevances, rtol=1e-03, atol=1e-03),

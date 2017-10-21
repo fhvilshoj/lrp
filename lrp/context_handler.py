@@ -4,8 +4,8 @@ class ContextHandler:
         self.context = None
 
     # Forward to real router
-    def forward_relevance_to_operation(self, r, ir, oR):
-        self.router.forward_relevance_to_operation(r, ir, oR)
+    def forward_relevance_to_operation(self, relevance, relevance_producer, relevance_receiver):
+        self.router.forward_relevance_to_operation(relevance, relevance_producer, relevance_receiver)
 
     # Forward to real router
     def mark_operation_handled(self, operation):

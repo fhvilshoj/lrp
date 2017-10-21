@@ -13,6 +13,7 @@ from constants import *
 
 
 class StandardContextHandler(ContextHandler):
+    # Known operations to the standard context handler
     _router = {
         'MatMul': linear,
         'Mul': element_wise_linear,
@@ -34,12 +35,15 @@ class StandardContextHandler(ContextHandler):
         self.current_path_index = 0
 
     def get_current_operation(self):
+        # return the operation at the current path index of the context path
         return self.context[CONTEXT_PATH][self.current_path_index]
 
     def handle_context(self, context):
-        # Get the current path
+        # Reset current path index if the handler was used before
         self.current_path_index = 0
+        # Remember the new context
         self.context = context
+        # Extract the current path
         current_path = context[CONTEXT_PATH]
 
         # Run through the operations in the path

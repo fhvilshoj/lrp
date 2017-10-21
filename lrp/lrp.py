@@ -1,8 +1,6 @@
 from lrp import lrp_util
-from lrp.lstm_lrp import lstm
 import tensorflow as tf
-from lstm_context_handler import LSTMContextHandler
-from standard_context_handler import StandardContextHandler
+from context_handler_switch import ContextHandlerSwitch
 from constants import *
 
 
@@ -90,19 +88,14 @@ class _LRPImplementation:
     # Run through the path between output and input and iteratively
     # compute relevances
     def _lrp_routing(self):
-        LSTM_handler = LSTMContextHandler(self)
-        Standard_handler = StandardContextHandler(self)
-        while self.current_context_index < len(self.contexts):
-            # Get the current context
-            current_context = self.contexts[self.current_context_index]
-            # Get the current path
-            current_path = current_context["path"]
+        # Create context handler switch which is used to forward the responsibility of the
+        # different types of contexts to the appropriate handlers
+        context_switch = ContextHandlerSwitch(self)
 
-            if current_context[CONTEXT_TYPE] == LSTM_CONTEXT_TYPE:
-                LSTM_handler.handle_context(current_context)
-            else:
-                Standard_handler.handle_context(current_context)
-            self.current_context_index += 1
+        # Handle each context separately by routing the context through the context switch
+        for current_context in self.contexts:
+               context_switch.handle_context(current_context)
+
         # Sum the potentially multiple relevances calculated for the input
         final_input_relevances = lrp_util.sum_relevances(self.relevances[self.input.op._id])
 

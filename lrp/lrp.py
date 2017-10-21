@@ -72,15 +72,6 @@ class _LRPImplementation:
     def get_relevance_for_operation(self, operation):
         return self.relevances[operation._id]
 
-    def get_current_operation(self):
-        # Get the current context
-        current_context = self.contexts[self.current_context_index]
-        # Get the current path
-        current_path = current_context["path"]
-        # Get the current operation
-        current_operation = current_path[self.current_path_index]
-        # Return the current operation
-        return current_operation
 
     def did_add_extra_dimension_for_multiple_predictions_per_sample(self):
         return self.added_dimension_for_multiple_predictions_per_sample

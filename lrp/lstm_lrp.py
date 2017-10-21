@@ -225,9 +225,9 @@ def lstm(router, context, R):
         router.mark_operation_handled(op)
 
     # Forward the relevances to the lower layers
-    router.forward_relevance_to_operation(relevance=R_new,
-                                          relevance_producer=transpose_operation,
-                                          relevance_receiver=input_operation)
+    router.forward_relevance_to_operation(R_new,
+                                          transpose_operation,
+                                          input_operation)
 
 
 def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_outputs, gate_gate_outputs,

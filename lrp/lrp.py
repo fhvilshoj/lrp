@@ -89,8 +89,13 @@ class _LRPImplementation:
         self.relevances[relevance_receiver._id].append({'producer': relevance_producer._id, 'relevance': relevance})
 
     def get_current_operation(self):
+        # Get the current context
+        current_context = self.contexts[self.current_context_index]
+        # Get the current path
+        current_path = current_context["path"]
         # Get the current operation
-        current_operation = self.contexts[self.current_context_index][self.current_path_index]
+        current_operation = current_path[self.current_path_index]
+        # Return the current operation
         return current_operation
 
     def did_add_extra_dimension_for_multiple_predictions_per_sample(self):
@@ -100,7 +105,11 @@ class _LRPImplementation:
     # compute relevances
     def _lrp_routing(self):
         while self.current_context_index < len(self.contexts):
-            current_path = self.contexts[self.current_context_index]
+            # Get the current context
+            current_context = self.contexts[self.current_context_index]
+            # Get the current path
+            current_path = current_context["path"]
+            # Run through the operations in the path
             while self.current_path_index < len(current_path):
                 current_operation = current_path[self.current_path_index]
 

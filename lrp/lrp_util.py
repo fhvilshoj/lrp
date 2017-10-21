@@ -90,7 +90,7 @@ def sum_relevances(relevances):
 
 
 def _find_operations_in_LSTM(first_operation_in_LSTM, between_ops):
-    # Create new sub-path that contains all operations belonging to the LSTM
+    # Create new path that contains all operations belonging to the LSTM
     LSTM_path = []
 
     # Create a variable for remembering the start of the LSTM
@@ -155,7 +155,7 @@ def _find_operations_in_LSTM(first_operation_in_LSTM, between_ops):
 
 
 # Add the operation right after the LSTM to the queue of operations to take care of and begin
-# a new sub-path (the sub-path that is before the LSTM in the original computational graph)
+# a new path (the path that is before the LSTM in the original computational graph)
 
 def _rearrange_op_list(output, between_ops):
     g = output.op.graph
@@ -163,11 +163,11 @@ def _rearrange_op_list(output, between_ops):
     # Make a list of indicators telling if we have considered a given node before.
     reached_ops = [False] * (g._last_id + 1)
 
-    # Initialize list for holding the ordered operations in lists of sub-paths
-    between_op_list = []
+    # Initialize list for holding the contexts
+    context_list = []
 
-    # Current subpath to append operations to
-    current_sub_path = []
+    # Current path to append operations to
+    current_path = []
 
     # Create a queue and push the operation that created the output of the graph
     queue = [output.op]
@@ -187,27 +187,33 @@ def _rearrange_op_list(output, between_ops):
                     has_ta_gather_input = True
                     break
 
-            # if so, this is the start of a LSTM, so we are at the end of the current sub-path
+            # If the operation has a TensorArrayGather operation as input, this is the start of a LSTM, so
+            # we are at the end of the current path
             if has_ta_gather_input:
-                # Close current sub path
-                between_op_list.append(current_sub_path)
+                # Close current path, add it to the current context and append the context to the list of
+                # contexts
+                context_list.append({"path": current_path, "context_type": "non-LSTM"})
 
                 # Pass the responsibility of handling the LSTM to the appropriate handler
                 LSTM_path, operation_before_LSTM, reached_ops_from_LSTM = _find_operations_in_LSTM(op, between_ops)
+
                 # Merge current reached ops with those found in the LSTM handler
                 reached_ops = _logical_or(reached_ops, reached_ops_from_LSTM)
-                # Append the new LSTM sub path to the list of sub paths
-                between_op_list.append(LSTM_path)
+
+                # Append the new LSTM context to the list of contexts
+                context_list.append({"path": LSTM_path, "context_type": "LSTM"})
+
                 # Add the other side of the LSTM to the queue
                 queue.append(operation_before_LSTM)
-                # Open new sub path
-                current_sub_path = []
+
+                # Open new path
+                current_path = []
 
                 # Skip to next operation in the queue
                 continue
 
         # Add the operation to the ordered list of operations
-        current_sub_path.append(op)
+        current_path.append(op)
 
         # Remember that we have handled the operation
         reached_ops[op._id] = True
@@ -238,9 +244,9 @@ def _rearrange_op_list(output, between_ops):
                 if consumers_handled_already and not reached_ops[i.op._id]:
                     queue.append(i.op)
 
-    # Append the last sub path to the final list of sub paths
-    between_op_list.append(current_sub_path)
-    return between_op_list
+    # Append the last context to the final list of contexts
+    context_list.append({"path": current_path, "context_type": "non-LSTM"})
+    return context_list
 
 # Helper function that traverses computation graph through all nodes
 # to find the path from the output back to the input.

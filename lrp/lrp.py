@@ -28,12 +28,6 @@ class _LRPImplementation:
         # the path at the same index has been handled already
         self.handled_operations = []
 
-        # Context index indicates which context to consider at this point
-        self.current_context_index = 0
-
-        # Path index indicates which operation in the context to consider at this point
-        self.current_path_index = 0
-
         # Remember if there has been added an dimension to the starting point relevances
         self.added_dimension_for_multiple_predictions_per_sample = False
 

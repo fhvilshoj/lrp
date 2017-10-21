@@ -4,9 +4,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import sparse_ops
 from tensorflow.python.framework import sparse_tensor, ops
 
-EPSILON = 1e-12
-BIAS_DELTA = 1  # (0 if we shouldn't consider bias in epsilon rule) 1 if we should
-
+from constants import *
 
 # Helper function that takes a tensor, goes back to the operation that created it,
 # and determines which of the operation's inputs lead in the direction of the input
@@ -81,10 +79,10 @@ def _logical_or(l1, l2):
 
 def sum_relevances(relevances):
     # relevances are dictionaries with keys producer and relevance
-    summed_relevances = relevances[0]['relevance']
+    summed_relevances = relevances[0][RELEVANCE]
     if len(relevances) > 1:
         for i in range(1, len(relevances)):
-            summed_relevances = tf.add(summed_relevances, relevances[i]['relevance'])
+            summed_relevances = tf.add(summed_relevances, relevances[i][RELEVANCE])
 
     return summed_relevances
 
@@ -146,11 +144,10 @@ def _find_operations_in_LSTM(first_operation_in_LSTM, between_ops):
     # If we did not find the beginning of the LSTM, raise an error
     if not start_of_LSTM:
         raise ValueError("Did not find the beginning op the LSTM")
-    operation_before_LSTM = start_of_LSTM.inputs[0].op
 
-    # Return the list of operations in the LSTM and the next operation to consider after the LSTM (i.e.
-    # the operation that produced the input to the LSTM)
-    return LSTM_path, operation_before_LSTM, reached_ops
+    # Return the list of operations in the LSTM, the transpose that starts the LSTM, and the indicators
+    # of which operations we reached in this LSTM
+    return LSTM_path, start_of_LSTM, reached_ops
 
 
 
@@ -192,16 +189,23 @@ def _rearrange_op_list(output, between_ops):
             if has_ta_gather_input:
                 # Close current path, add it to the current context and append the context to the list of
                 # contexts
-                context_list.append({"path": current_path, "context_type": "non-LSTM"})
+                context_list.append({CONTEXT_PATH: current_path, CONTEXT_TYPE: NON_LSTM_CONTEXT_TYPE})
 
                 # Pass the responsibility of handling the LSTM to the appropriate handler
-                LSTM_path, operation_before_LSTM, reached_ops_from_LSTM = _find_operations_in_LSTM(op, between_ops)
+                LSTM_path, start_of_LSTM, reached_ops_from_LSTM = _find_operations_in_LSTM(op, between_ops)
+
+                # Extract the operation responsible for input to the LSTM
+                operation_before_LSTM = start_of_LSTM.inputs[0].op
 
                 # Merge current reached ops with those found in the LSTM handler
                 reached_ops = _logical_or(reached_ops, reached_ops_from_LSTM)
 
                 # Append the new LSTM context to the list of contexts
-                context_list.append({"path": LSTM_path, "context_type": "LSTM"})
+                context_list.append({CONTEXT_PATH: LSTM_path,
+                                     CONTEXT_TYPE: LSTM_CONTEXT_TYPE,
+                                     EXTRA_CONTEXT_INFORMATION:
+                                         {LSTM_BEGIN_TRANSPOSE_OPERATION: start_of_LSTM,
+                                          LSTM_INPUT_OPERATION: operation_before_LSTM}})
 
                 # Add the other side of the LSTM to the queue
                 queue.append(operation_before_LSTM)
@@ -245,7 +249,7 @@ def _rearrange_op_list(output, between_ops):
                     queue.append(i.op)
 
     # Append the last context to the final list of contexts
-    context_list.append({"path": current_path, "context_type": "non-LSTM"})
+    context_list.append({CONTEXT_PATH: current_path, CONTEXT_TYPE: NON_LSTM_CONTEXT_TYPE})
     return context_list
 
 # Helper function that traverses computation graph through all nodes

@@ -1,6 +1,7 @@
 import tensorflow as tf
 from lrp.linear_lrp import linear_epsilon
 from lrp import lrp_util
+from constants import *
 
 
 def _t_geq_one(t, *_):
@@ -40,19 +41,47 @@ def _walk_full_graph_by_path(start, path):
                 break
     return o
 
+# Find the BiasAdd in the LSTM, since this is a good starting point for getting all the information
+# about the LSTM we need
+def _find_bias_add_operation_from_path(path):
+    # Looking for an operation which is a BiasAdd where the input is a MatMul
+    # and one of the consumers of the BiasAdd is a Split
+    for op in path:
+        # Check if the current operation in the path is a BiasAdd
+        # If not skip to next operation
+        if 'BiasAdd' in op.type:
+            # Check if the operation has a Split operation as consumer
+            has_split_consumer = False
+            for consumer in op.outputs[0].consumers():
+                if 'Split' in consumer.type:
+                    has_split_consumer = True
+                    break
 
-def _handle_while_context(while_context, R, input):
+            # Check if the operation has a MatMul as input
+            has_matmul_input = False
+            for input in op.inputs:
+                if 'MatMul' in input.op.type:
+                    has_matmul_input = True
+                    break
+
+            if has_split_consumer and has_matmul_input:
+                # We have found the operation we were looking for
+                return op
+
+    # If none of the operations complied to the constraints we are in trouble
+    raise ValueError("Cannot find LSTM in LSTM Context")
+
+def _handle_LSTM(path, R, LSTM_input):
     """
     Finds weights and bias and does forward pass inclusive recordings
     of activations
-    :param while_context: sub path of the output to input path.
+    :param path: path with all the operations belonging to the LSTM.
     :param R: Relevance for upper layer
-    :param input: the tensor which is input to the while context
-    :return: The relevances for the lower level (of same shape as input)
+    :param LSTM_input: the tensor which is input to the LSTM
     """
 
     # Find kernel, bias and additional forget bias
-    bias_add_op = _find_operation_from_path(while_context, 'BiasAdd')
+    bias_add_op = _find_bias_add_operation_from_path(path)
     kernel_ref = _walk_full_graph_by_path(bias_add_op, ['MatMul', 'Enter', 'Identity', 'VariableV2'])
     bias_ref = _walk_full_graph_by_path(bias_add_op, ['Enter', 'Identity', 'VariableV2'])
 
@@ -67,11 +96,11 @@ def _handle_while_context(while_context, R, input):
     # forget_bias = tf.identity(add_forget_bias_op.inputs[1])
 
     # Find the number of LSTM units by dividing length of bias by 4
-    # (input, gate, forget and output)
+    # (LSTM_input, gate, forget and output)
     lstm_units = bias_ref.get_shape().as_list()[0] // 4
 
-    # Find the length of the input sequence
-    sequence_length = input.get_shape().as_list()[1]
+    # Find the length of the LSTM_input sequence
+    sequence_length = LSTM_input.get_shape().as_list()[1]
 
     # Slicing the weights and biases used for calculating gate gate
     # output (Ug and Wg). The kernel matrix has the following regions:
@@ -82,17 +111,17 @@ def _handle_while_context(while_context, R, input):
     # ---------------------
     # For LSTM implementation details see
     # https://github.com/tensorflow/tensorflow/blob/r1.3/tensorflow/python/ops/rnn_cell_impl.py#L565
-    # where Us are used to weight input and Ws are used for h^(t-1).
-    # Similar goes for bias.
+    # where Us are used to weight LSTM_input and Ws are used for h^(t-1).
+    # The same goes for bias.
     weights_gate_gate = tf.slice(kernel_ref, [0, lstm_units], [kernel_ref.get_shape().as_list()[0], lstm_units])
     bias_gate_gate = tf.slice(bias_ref, [lstm_units], [lstm_units])
 
-    # Prepare for forward pass by constructing Tensor Arrays for input,
-    # hidden states, state cells, input gate, gate gate, and forget_gate
+    # Prepare for forward pass by constructing Tensor Arrays for LSTM_input,
+    # hidden states, state cells, LSTM_input gate, gate gate, and forget_gate
     # We do not record output gate since it is not needed for the relevance calculations.
     # Just empty TAs with 0's in the first entry.
     input_a = tf.TensorArray(tf.float32, size=sequence_length, clear_after_read=False)
-    input_a = input_a.split(input[0], [1] * sequence_length)
+    input_a = input_a.split(LSTM_input[0], [1] * sequence_length)
 
     def get_ta_with_0_at_idx_zero(clear_after_read=True):
         ta = tf.TensorArray(tf.float32, size=sequence_length + 1, clear_after_read=clear_after_read)
@@ -108,12 +137,12 @@ def _handle_while_context(while_context, R, input):
     # in order to record the outputs of the different
     # states and gates.
     def _body(t, hs, sc, ig, gg, fg):
-        # Read state input from the previous time step
+        # Read LSTM_input for time t (NOT time t-1!!) and hidden state, cell state for time t - 1
         i = input_a.read(t - 1)
         h = hs.read(t - 1)
         s = sc.read(t - 1)
 
-        # Concatenate input and previous hidden state to
+        # Concatenate LSTM_input and previous hidden state to
         # be able to multiply with kernel.
         tm = tf.concat([i, h], 1)
 
@@ -160,7 +189,7 @@ def _handle_while_context(while_context, R, input):
     return tf.expand_dims(R_new, 0)
 
 
-def lstm(path, R):
+def lstm(router, context, R):
     """
     Finds the while context and forwards it along with the
     relevance and the input tensor for the while context.
@@ -168,33 +197,37 @@ def lstm(path, R):
     :param R: The upper layer relevance
     :return: The lower layer relevance and the path from just after the while context
     """
+    # Sum the potentially multiple relevances from the upper layers
+    R = lrp_util.sum_relevances(R)
 
-    idx = 0
-    # Find scatter since it indicates end of LSTM
-    while path[idx].type != 'TensorArrayScatterV3':
-        idx += 1
-    while_context = path[1:idx]
+    # Get the path containing all operations in the LSTM
+    path = context[CONTEXT_PATH]
 
-    # Find the transpose operation in the very beginning
-    find_id = path[idx].inputs[2].op._id
-    while path[idx]._id != find_id:
-        idx += 1
+    # Get the extra information related to the LSTM context
+    extra_context_information = context[EXTRA_CONTEXT_INFORMATION]
 
-    # Find input to transpose from path for further handling
-    # by the router when done with the LSTM
-    find_id = path[idx].inputs[0].op._id
-    while path[idx]._id != find_id:
-        idx += 1
+    # Get the transpose operation that marks the beginning of the LSTM
+    transpose_operation = extra_context_information[LSTM_BEGIN_TRANSPOSE_OPERATION]
 
-    # Extract input tensor for while context
-    while_context_input = path[idx].outputs[0]
+    # Get the operation that produces the input to the LSTM (i.e. the operation right before
+    # the transpose that marks the start of the LSTM)
+    input_operation = extra_context_information[LSTM_INPUT_OPERATION]
 
-    # Transfer sub graph to the handler of the while context
-    # which distributes the relevance through the LSTM
-    R = _handle_while_context(while_context, R, while_context_input)
+    # Get the tensor that is the input to the LSTM (i.e. the input to the transpose operation
+    # that marks the start of the LSTM)
+    LSTM_input = transpose_operation.inputs[0]
 
-    # Return with path after while context (i.e. after the LSTM)
-    return path[idx:], R
+   # Calculate the relevances to distribute to the lower layers
+    R_new = _handle_LSTM(path, R, LSTM_input)
+
+    # Mark all operations belonging to the LSTM as "handled"
+    for op in path:
+        router.mark_operation_handled(op)
+
+    # Forward the relevances to the lower layers
+    router.forward_relevance_to_operation(relevance=R_new,
+                                          relevance_producer=transpose_operation,
+                                          relevance_receiver=input_operation)
 
 
 def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_outputs, gate_gate_outputs,

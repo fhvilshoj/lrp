@@ -34,6 +34,7 @@ class LSTMContextHandler(ContextHandler):
         # that marks the start of the LSTM)
         LSTM_input = transpose_operation.inputs[0]
 
+        # TODO this call should be done in the LSTM. Not in the context handler.
         # Calculate the relevances to distribute to the lower layers
         R_new = lstm(path, R, LSTM_input)
 

@@ -100,7 +100,7 @@ def lstm(path, R, LSTM_input):
     lstm_units = bias_ref.get_shape().as_list()[0] // 4
 
     # Find the length of the LSTM_input sequence
-    sequence_length = LSTM_input.get_shape().as_list()[1]
+    batch_size, sequence_length, input_depth = LSTM_input.get_shape().as_list()
 
     # Slicing the weights and biases used for calculating gate gate
     # output (Ug and Wg). The kernel matrix has the following regions:
@@ -123,15 +123,15 @@ def lstm(path, R, LSTM_input):
     input_a = tf.TensorArray(tf.float32, size=sequence_length, clear_after_read=False)
     input_a = input_a.split(LSTM_input[0], [1] * sequence_length)
 
-    def get_ta_with_0_at_idx_zero(clear_after_read=True):
+    def create_ta_with_0_at_idx_zero(clear_after_read=True):
         ta = tf.TensorArray(tf.float32, size=sequence_length + 1, clear_after_read=clear_after_read)
-        return ta.write(0, tf.constant(0., shape=(1, lstm_units)))
+        return ta.write(0, tf.constant(0., shape=(batch_size, lstm_units)))
 
-    hidden_states = get_ta_with_0_at_idx_zero(False)
-    state_cells = get_ta_with_0_at_idx_zero(False)
-    input_gate = get_ta_with_0_at_idx_zero()
-    gate_gate = get_ta_with_0_at_idx_zero()
-    forget_gate = get_ta_with_0_at_idx_zero()
+    hidden_states = create_ta_with_0_at_idx_zero(False)
+    state_cells = create_ta_with_0_at_idx_zero(False)
+    input_gate = create_ta_with_0_at_idx_zero()
+    gate_gate = create_ta_with_0_at_idx_zero()
+    forget_gate = create_ta_with_0_at_idx_zero()
 
     # While body for recalculating forward pass of lstm
     # in order to record the outputs of the different
@@ -187,17 +187,6 @@ def lstm(path, R, LSTM_input):
                                            sequence_length)
     # Restore extra dimension removed by R[0] above
     return tf.expand_dims(R_new, 0)
-
-
-# def lstm(router, context, R):
-#     """
-#     Finds the while context and forwards it along with the
-#     relevance and the input tensor for the while context.
-#     :param path: the par from current operation to the input
-#     :param R: The upper layer relevance
-#     :return: The lower layer relevance and the path from just after the while context
-#     """
-#
 
 
 def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_outputs, gate_gate_outputs,

@@ -20,43 +20,60 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
         if bias is not None:
             output += bias
 
+    # Prepare batch for elementwise multiplication
+    input = tf.expand_dims(input, -1)
+
     # Find Z_kij's
-    zs = tf.multiply(tf.transpose(input), weights)
+    zs = tf.multiply(input, weights)
 
     # When bias is given divide it equally among the i's to avoid relevance loss
     if bias is not None:
         # Number of input features to divide relevance among
-        input_features = input.get_shape().as_list()[1]
+        input_features = input.get_shape().as_list()[2]
 
         # Divide the bias (and stabilizer) equaly between the `input_features`
-        bias = (BIAS_DELTA * bias + EPSILON * tf.sign(output)) / input_features
+        bias = tf.expand_dims((BIAS_DELTA * bias + EPSILON * tf.sign(output)) / input_features, -2)
         zs = zs + bias
 
     # Add stabilizer to denominator to avoid dividing with 0
     denominator = output + EPSILON * tf.sign(output)
+    denominator = tf.expand_dims(denominator, -2)
 
     # Find the relative contribution from feature i to neuron j for input k
     fractions = tf.divide(zs, denominator)
 
+    #
+    fractions = tf.transpose(fractions, [0, 1, 3, 2])
+
+    R = tf.expand_dims(R, 2)
+
     # Assign relevance
-    R_new = tf.matmul(R, tf.transpose(fractions))
+    R_new = tf.matmul(R, fractions)
+
+    R_new = tf.squeeze(R_new, 2)
     return R_new
 
 
-# TODO Should this function also take output as an optional input to be consistent with other rules
+# TODO Should this function also take output as an optional input to be consistent with other rules?
 def linear_alpha(R, input, weights, bias=None):
+
+
+    print("input shape:", input.shape)
     # Prepare batch for elementwise multiplication
     input = tf.expand_dims(input, -1)
+    print("input shape after expand:", input.shape)
 
     # Perform elementwise multiplication of input, weights to get z_kij which is the contribution from
     # feature i to neuron j for input k
     zs = input * weights
+    print("zs shape:", zs.shape)
 
     # Replace the negative elements with zeroes to only have the positive z's left (i.e. z_kij^+)
     zp = lrp_util.replace_negatives_with_zeros(zs)
 
     # Take the sum of each column of z_kij^+'s
     zp_sum = tf.reduce_sum(zp, axis=1, keep_dims=True)
+    print("zp_sum shape:", zp_sum.shape)
 
     # Find and add the positive parts of an eventual bias (i.e. find and add the b^+s).
     if bias is not None:
@@ -71,13 +88,16 @@ def linear_alpha(R, input, weights, bias=None):
 
     # Find the relative contribution from feature i to neuron j for input k
     fractions = tf.divide(zp, zp_sum)
+    print("fractions shape:", fractions.shape)
 
-    # Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
+    # Prepare the fractions for the matmul below
     fractions = tf.transpose(fractions, perm=[0, 2, 1])
-
+    print("fractions shape after:", fractions.shape)
 
     # Multiply relevances with fractions to find relevance per feature in input
+    # In other words: Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
     R_new = tf.matmul(R, fractions)
+    print("R_new shape:", R_new.shape)
 
     return R_new
 

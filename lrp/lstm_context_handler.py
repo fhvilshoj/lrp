@@ -34,14 +34,15 @@ class LSTMContextHandler(ContextHandler):
         # that marks the start of the LSTM)
         LSTM_input = transpose_operation.inputs[0]
 
-        # TODO this call should be done in the LSTM. Not in the context handler.
         # Calculate the relevances to distribute to the lower layers
         R_new = lstm(path, R, LSTM_input)
 
+        # TODO this call should be done in the LSTM. Not in the context handler.
         # Mark all operations belonging to the LSTM as "handled"
         for op in path:
             self.router.mark_operation_handled(op)
 
+        # TODO this call should be done in the LSTM. Not in the context handler.
         # Forward the relevances to the lower layers
         self.router.forward_relevance_to_operation(R_new,
                                                    transpose_operation,

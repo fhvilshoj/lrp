@@ -89,6 +89,12 @@ def lstm(path, R, LSTM_input):
     kernel_ref = kernel_ref.outputs[0]
     bias_ref = bias_ref.outputs[0]
 
+    # Expand the dimension of the kernel to be able to multiply it with the input || hidden state vector
+    # below. The shape of the kernel is (input_depth + hidden_state_depth, units) is before the expand_dims
+    # and (1, input_depth + hidden_state_depth, units) after the expand_dims
+
+    kernel_ref = tf.expand_dims(kernel_ref, 0)
+
     # Finding extra bias associated with the forget gate
     # TODO We do not handle forget bias
     # before_output_gate = _find_operation_from_path(while_context, 'Tanh')
@@ -113,7 +119,7 @@ def lstm(path, R, LSTM_input):
     # https://github.com/tensorflow/tensorflow/blob/r1.3/tensorflow/python/ops/rnn_cell_impl.py#L565
     # where Us are used to weight LSTM_input and Ws are used for h^(t-1).
     # The same goes for bias.
-    weights_gate_gate = tf.slice(kernel_ref, [0, lstm_units], [kernel_ref.get_shape().as_list()[0], lstm_units])
+    weights_gate_gate = tf.slice(kernel_ref, [0, 0, lstm_units], [1, kernel_ref.get_shape().as_list()[1], lstm_units])
     bias_gate_gate = tf.slice(bias_ref, [lstm_units], [lstm_units])
 
     # Prepare for forward pass by constructing Tensor Arrays for LSTM_input,
@@ -121,11 +127,16 @@ def lstm(path, R, LSTM_input):
     # We do not record output gate since it is not needed for the relevance calculations.
     # Just empty TAs with 0's in the first entry.
     input_a = tf.TensorArray(tf.float32, size=sequence_length, clear_after_read=False)
-    input_a = input_a.split(LSTM_input[0], [1] * sequence_length)
+    # LSTM_input: ( batch_size, time, depth )
+    LSTM_input = tf.transpose(LSTM_input, [1, 0, 2])
 
+    # LSTM_input: ( time, batch_size, depth )
+    input_a = input_a.split(LSTM_input, [1] * sequence_length)
+
+    # input_a: TensorArray containing sizes: (1, batch_size, depth)
     def create_ta_with_0_at_idx_zero(clear_after_read=True):
         ta = tf.TensorArray(tf.float32, size=sequence_length + 1, clear_after_read=clear_after_read)
-        return ta.write(0, tf.constant(0., shape=(batch_size, lstm_units)))
+        return ta.write(0, tf.constant(0., shape=(1, batch_size, lstm_units)))
 
     hidden_states = create_ta_with_0_at_idx_zero(False)
     state_cells = create_ta_with_0_at_idx_zero(False)
@@ -144,13 +155,13 @@ def lstm(path, R, LSTM_input):
 
         # Concatenate LSTM_input and previous hidden state to
         # be able to multiply with kernel.
-        tm = tf.concat([i, h], 1)
+        tm = tf.concat([i, h], 2)
 
         # Multiply tm with kernel and add bias.
         before_activation_functions = tf.nn.bias_add(tf.matmul(tm, kernel_ref), bias_ref)
 
         # Split result into the four regions mentioned above.
-        new_ig, new_gg, new_fg, new_og = tf.split(before_activation_functions, 4, axis=1)
+        new_ig, new_gg, new_fg, new_og = tf.split(before_activation_functions, 4, axis=2)
 
         # Apply appropriate activation functions
         new_ig = tf.sigmoid(new_ig)
@@ -162,20 +173,20 @@ def lstm(path, R, LSTM_input):
         new_state_cell = tf.add(tf.multiply(new_gg, new_ig),
                                 tf.multiply(new_fg, s))
 
-        # Calculate new hidden state from new cell state and output gate.
+        # Calculate new hidden state from new cell state and output gate
         new_hidden_state = tf.multiply(tf.tanh(new_state_cell), new_og)
 
-        # Store all the information that we need.
+        # Store all the information that we need
         hs = hs.write(t, new_hidden_state)
         sc = sc.write(t, new_state_cell)
         ig = ig.write(t, new_ig)
         gg = gg.write(t, new_gg)
         fg = fg.write(t, new_fg)
 
-        # Carry on.
+        # Carry on
         return tf.add(t, 1), hs, sc, ig, gg, fg
 
-    # Do the while loop.
+    # Do the while loop
     i = tf.constant(1)
     time, hs, sc, ig, gg, fg = tf.while_loop(
         cond=lambda i, *_: tf.less_equal(i, sequence_length),
@@ -183,10 +194,20 @@ def lstm(path, R, LSTM_input):
         loop_vars=[i, hidden_states, state_cells, input_gate, gate_gate, forget_gate])
 
     # Call lstm lrp with the recorded information
-    R_new = _calculate_relevance_from_lstm(R[0], weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg,
+    # R has shape (batch_size, predictions_pr_sample, units)
+    # Transpose it to have shape (predictions_pr_sample, batch_size, units)
+    R = tf.transpose(R, [1, 0, 2])
+
+    # TODO Update to for loop
+    # R_tmp has shape (1, batch_size, units)
+    R_tmp = tf.expand_dims(R[0], 0)
+
+    R_new = _calculate_relevance_from_lstm(R_tmp, weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg,
                                            sequence_length)
-    # Restore extra dimension removed by R[0] above
-    return tf.expand_dims(R_new, 0)
+
+    R_new = tf.transpose(R_new, [1, 0, 2])
+
+    return R_new
 
 
 def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_outputs, gate_gate_outputs,
@@ -197,15 +218,23 @@ def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_ou
     :param R: The upper layer relevance
     :return: lower layer relevance
     """
+    # Find batch size (X holds tensors of size (1, batch_size, input depth)
+    _, batch_size, _ = X.read(0).get_shape().as_list()
 
-    (tmp, units) = W_g.get_shape().as_list()
+    # Find the shape of the weights used for gate gate
+    _, tmp, units = W_g.get_shape().as_list()
+
+
+    # We know that the height of the weights (tmp) is input_depth + number of lstm units
+    # since the number of units is equal to the depth of h
     x_depth = tmp - units
 
     # Initialize relevances for X[t]
     relevance_xs = tf.TensorArray(tf.float32, max_timestep + 1, clear_after_read=False)
-    relevance_xs = relevance_xs.write(0, tf.zeros((1, x_depth)))
+    relevance_xs = relevance_xs.write(0, tf.zeros((1, batch_size, x_depth)))
 
     # Initialize relevances for the hidden states
+    # R shape is (1, batch_size, units)
     R_shape = R.get_shape().as_list()
     relevance_hs = tf.TensorArray(tf.float32, (max_timestep + 1), clear_after_read=False)
 
@@ -235,6 +264,11 @@ def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_ou
         gate_gate_t = gate_gate_outputs.read(t)
 
         from_old_cell_state = tf.multiply(forget_gate_t, cell_states.read(t - 1))
+        print("rel_cs_t shape:", rel_cs_t.shape)
+        print("from_old_cell_state shape:", from_old_cell_state.shape)
+        print("Weights shape: ", tf.eye(units).shape)
+        print("cell_states_t shape:", cell_states_t.shape)
+
         rel_cs_t_minus_one = linear_epsilon(rel_cs_t, from_old_cell_state, tf.eye(units), output=cell_states_t)
 
         # The relevance of the gate gate in time t is found using lrp for linear
@@ -252,10 +286,10 @@ def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_ou
         # input = (x[t] h[t-1]), weights = W, output = (x[t] h[t-1]) * W.
         h_t_minus_one = H.read(t - 1)
         x_t = X.read(t - 1)  # Note that X is indexed from 0 where H is from 1
-        x_h_concat = tf.concat([x_t, h_t_minus_one], axis=1)
+        x_h_concat = tf.concat([x_t, h_t_minus_one], axis=2)
 
         rel_x_t_and_h_t_minus_one = linear_epsilon(relevance_g, x_h_concat, W_g, bias=b_g)
-        (rel_xs_t, rel_hs_t_minus_one) = tf.split(rel_x_t_and_h_t_minus_one, [x_depth, units], 1)
+        (rel_xs_t, rel_hs_t_minus_one) = tf.split(rel_x_t_and_h_t_minus_one, [x_depth, units], 2)
 
         rel_xs = rel_xs.write(t, rel_xs_t)
         rel_hs = rel_hs.write(t - 1, rel_hs_t_minus_one)
@@ -275,6 +309,6 @@ def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_ou
     R_new = tf.squeeze(R_new, axis=[1])
 
     # Remove the first zero row from the tensor
-    R_new = tf.slice(R_new, [1, 0], [-1, -1])
+    R_new = tf.slice(R_new, [1, 0, 0], [-1, -1, -1])
 
     return R_new

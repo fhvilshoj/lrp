@@ -17,7 +17,7 @@ class LSTM5UnitsLRPTest(unittest.TestCase):
             # Create lstm layer
             lstm = tf.contrib.rnn.LSTMCell(lstm_units, forget_bias=0.)
             # Put it into Multi RNN Cell
-            lstm = tf.contrib.rnn.MultiRNNCell([lstm] * 1)
+            lstm = tf.contrib.rnn.MultiRNNCell([lstm])
             # Let dynamic rnn setup the control flow (making while loops and stuff)
             lstm_output, _ = tf.nn.dynamic_rnn(lstm, inp, dtype=tf.float32)
 

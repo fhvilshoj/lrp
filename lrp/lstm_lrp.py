@@ -264,11 +264,6 @@ def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_ou
         gate_gate_t = gate_gate_outputs.read(t)
 
         from_old_cell_state = tf.multiply(forget_gate_t, cell_states.read(t - 1))
-        print("rel_cs_t shape:", rel_cs_t.shape)
-        print("from_old_cell_state shape:", from_old_cell_state.shape)
-        print("Weights shape: ", tf.eye(units).shape)
-        print("cell_states_t shape:", cell_states_t.shape)
-
         rel_cs_t_minus_one = linear_epsilon(rel_cs_t, from_old_cell_state, tf.eye(units), output=cell_states_t)
 
         # The relevance of the gate gate in time t is found using lrp for linear

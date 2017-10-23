@@ -5,13 +5,13 @@ from constants import BIAS_DELTA, EPSILON
 def linear_epsilon(R, input, weights, bias=None, output=None):
     """
     Simple linear layer used for partial computations of LSTM
-    :param R: A tensor of relevance to distribute
-    :param input: The input tensor
-    :param weights: The kernel weights
-    :param output: Optional output tensor.
+    :param R: tensor of relevance to distribute. Shape: (batch_size, output_width)
+    :param input: The input tensor. Shape: (batch_size, input_width)
+    :param weights: The kernel weights. Shape: (input_width, output_width)
+    :param output: Optional output tensor. Shape: (batch_size, output_width)
            If none output is calculated as input times weights plus bias.
-    :param bias: Optional tensor with bias
-    :return: Redistributed relevance
+    :param bias: Optional tensor with bias. Shape: (output_width) or (batch_size, output_width)
+    :return: Redistributed relevance. Shape: (batch_size, input_width)
     """
     # If no output tensor given; construct one by multiplying input and weights
     if output is None:
@@ -20,10 +20,10 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
         if bias is not None:
             output += bias
 
-    # Prepare batch for elementwise multiplication
+    # Prepare batch for elementwise multiplication. New input shape: (batch_size, input_width, 1)
     input = tf.expand_dims(input, -1)
 
-    # Find Z_kij's
+    # Find Z_kij's. Shape: (batch, input_width, output_width)
     zs = tf.multiply(input, weights)
 
     # When bias is given divide it equally among the i's to avoid relevance loss
@@ -31,25 +31,50 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
         # Number of input features to divide relevance among
         input_features = input.get_shape().as_list()[1]
 
-        # Divide the bias (and stabilizer) equaly between the `input_features`
-        bias = tf.expand_dims((BIAS_DELTA * bias + EPSILON * tf.sign(output)) / input_features, -2)
-        zs = zs + bias
+        # Find the bias to divide equally among the rows (This includes the stabilizer: epsilon)
+        # Shape: (output_width) or (batch, output_width)
+        bias_to_divide = (BIAS_DELTA * bias + EPSILON * tf.sign(output))
+
+        # Divide the bias (and stabilizer) equally between the `input_features` (rows of zs)
+        # Shape: (output_width) or (batch, output_width)
+        bias_per_feature = bias_to_divide / input_features
+
+        # Expand the second to last dimension to be able to add the bias through the rows of zs
+        # Shape: (1, output_width) or (batch, 1, output_width)
+        bias_per_feature = tf.expand_dims(bias_per_feature, -2)
+
+        # Add bias through rows of zs
+        # Shape: (batch, input_width, output_width)
+        zs = zs + bias_per_feature
 
     # Add stabilizer to denominator to avoid dividing with 0
+    # Shape: (batch, output_width)
     denominator = output + EPSILON * tf.sign(output)
+
+    # Expand the second to last dimension to be able to divide the denominator through the rows of zs
+    # Shape after expand_dims: (batch, 1, output_width)
     denominator = tf.expand_dims(denominator, -2)
 
     # Find the relative contribution from feature i to neuron j for input k
+    # Shape: (batch, input_width, output_width)
     fractions = tf.divide(zs, denominator)
 
-    #
+    # Transpose the fractions to be able to do matrix multiplication with R
+    # Shape after transpose: (batch_size, output_width, input_width)
     fractions = tf.transpose(fractions, [0, 2, 1])
+
+    # Expand the second to last dimension to be able to do matrix multiplication with fractions
+    # Shape after expand_dims: (batch_size, 1, output_width)
     R = tf.expand_dims(R, -2)
 
-    # Assign relevance
+    # Calculate relevance by doing matrix multiplication of R and fractions
+    # R_new shape: (batch_size, 1, input_width)
     R_new = tf.matmul(R, fractions)
 
+    # Remove the extra dimension added to R above
+    # Final shape: (batch_size, input_width)
     R_new = tf.squeeze(R_new, -2)
+
     return R_new
 
 

@@ -71,7 +71,7 @@ def _find_bias_add_operation_from_path(path):
     # If none of the operations complied to the constraints we are in trouble
     raise ValueError("Cannot find LSTM in LSTM Context")
 
-def _handle_LSTM(path, R, LSTM_input):
+def lstm(path, R, LSTM_input):
     """
     Finds weights and bias and does forward pass inclusive recordings
     of activations
@@ -189,45 +189,15 @@ def _handle_LSTM(path, R, LSTM_input):
     return tf.expand_dims(R_new, 0)
 
 
-def lstm(router, context, R):
-    """
-    Finds the while context and forwards it along with the
-    relevance and the input tensor for the while context.
-    :param path: the par from current operation to the input
-    :param R: The upper layer relevance
-    :return: The lower layer relevance and the path from just after the while context
-    """
-    # Sum the potentially multiple relevances from the upper layers
-    R = lrp_util.sum_relevances(R)
-
-    # Get the path containing all operations in the LSTM
-    path = context[CONTEXT_PATH]
-
-    # Get the extra information related to the LSTM context
-    extra_context_information = context[EXTRA_CONTEXT_INFORMATION]
-
-    # Get the transpose operation that marks the beginning of the LSTM
-    transpose_operation = extra_context_information[LSTM_BEGIN_TRANSPOSE_OPERATION]
-
-    # Get the operation that produces the input to the LSTM (i.e. the operation right before
-    # the transpose that marks the start of the LSTM)
-    input_operation = extra_context_information[LSTM_INPUT_OPERATION]
-
-    # Get the tensor that is the input to the LSTM (i.e. the input to the transpose operation
-    # that marks the start of the LSTM)
-    LSTM_input = transpose_operation.inputs[0]
-
-   # Calculate the relevances to distribute to the lower layers
-    R_new = _handle_LSTM(path, R, LSTM_input)
-
-    # Mark all operations belonging to the LSTM as "handled"
-    for op in path:
-        router.mark_operation_handled(op)
-
-    # Forward the relevances to the lower layers
-    router.forward_relevance_to_operation(R_new,
-                                          transpose_operation,
-                                          input_operation)
+# def lstm(router, context, R):
+#     """
+#     Finds the while context and forwards it along with the
+#     relevance and the input tensor for the while context.
+#     :param path: the par from current operation to the input
+#     :param R: The upper layer relevance
+#     :return: The lower layer relevance and the path from just after the while context
+#     """
+#
 
 
 def _calculate_relevance_from_lstm(R, W_g, b_g, X, H, cell_states, input_gate_outputs, gate_gate_outputs,

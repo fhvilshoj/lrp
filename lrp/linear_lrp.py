@@ -29,7 +29,7 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
     # When bias is given divide it equally among the i's to avoid relevance loss
     if bias is not None:
         # Number of input features to divide relevance among
-        input_features = input.get_shape().as_list()[2]
+        input_features = input.get_shape().as_list()[1]
 
         # Divide the bias (and stabilizer) equaly between the `input_features`
         bias = tf.expand_dims((BIAS_DELTA * bias + EPSILON * tf.sign(output)) / input_features, -2)
@@ -43,14 +43,13 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
     fractions = tf.divide(zs, denominator)
 
     #
-    fractions = tf.transpose(fractions, [0, 1, 3, 2])
-
-    R = tf.expand_dims(R, 2)
+    fractions = tf.transpose(fractions, [0, 2, 1])
+    R = tf.expand_dims(R, -2)
 
     # Assign relevance
     R_new = tf.matmul(R, fractions)
 
-    R_new = tf.squeeze(R_new, 2)
+    R_new = tf.squeeze(R_new, -2)
     return R_new
 
 

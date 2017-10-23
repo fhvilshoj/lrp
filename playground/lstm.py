@@ -14,8 +14,6 @@ with tf.Graph().as_default() as g:
     cell.add_variable('b', (12,), initializer=tf.constant_initializer(0.))
 
     output = tf.nn.dynamic_rnn(cell, inp, dtype=tf.float32)
-    print(output)
-
 
     known_operations = ['MatMul', 'Conv2D', 'ExpandDims', 'Squeeze', 'Reshape', 'MaxPool', 'Relu', 'Sigmoid', 'Tanh']
 

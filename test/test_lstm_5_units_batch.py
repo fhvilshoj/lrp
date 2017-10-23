@@ -42,7 +42,6 @@ class LSTM5UnitsLRPTest(unittest.TestCase):
 
                 # Calculate relevance
                 relevances = s.run(R)
-                print(relevances)
                 # Expected result calculated in
                 # https://docs.google.com/spreadsheets/d/1_bmSEBSWVOkpdlZYEUckgrnUtxhEfnR84LZy1cU5fIw/edit?usp=sharing
                 expected_result = np.array([[[0.04114789, 0.07254411, 0.13169597],

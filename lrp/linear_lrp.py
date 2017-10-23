@@ -56,23 +56,18 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
 # TODO Should this function also take output as an optional input to be consistent with other rules?
 def linear_alpha(R, input, weights, bias=None):
 
-
-    print("input shape:", input.shape)
     # Prepare batch for elementwise multiplication
     input = tf.expand_dims(input, -1)
-    print("input shape after expand:", input.shape)
 
     # Perform elementwise multiplication of input, weights to get z_kij which is the contribution from
     # feature i to neuron j for input k
     zs = input * weights
-    print("zs shape:", zs.shape)
 
     # Replace the negative elements with zeroes to only have the positive z's left (i.e. z_kij^+)
     zp = lrp_util.replace_negatives_with_zeros(zs)
 
     # Take the sum of each column of z_kij^+'s
     zp_sum = tf.reduce_sum(zp, axis=1, keep_dims=True)
-    print("zp_sum shape:", zp_sum.shape)
 
     # Find and add the positive parts of an eventual bias (i.e. find and add the b^+s).
     if bias is not None:
@@ -87,16 +82,13 @@ def linear_alpha(R, input, weights, bias=None):
 
     # Find the relative contribution from feature i to neuron j for input k
     fractions = tf.divide(zp, zp_sum)
-    print("fractions shape:", fractions.shape)
 
     # Prepare the fractions for the matmul below
     fractions = tf.transpose(fractions, perm=[0, 2, 1])
-    print("fractions shape after:", fractions.shape)
 
     # Multiply relevances with fractions to find relevance per feature in input
     # In other words: Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
     R_new = tf.matmul(R, fractions)
-    print("R_new shape:", R_new.shape)
 
     return R_new
 

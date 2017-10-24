@@ -62,6 +62,7 @@ class TestLSTMMultiplePredictionsPerSample(unittest.TestCase):
 
             # Get the explanation from the LRP framework
             R = lrp.lrp(inp, lstm_output)
+            R_sum = tf.reduce_sum(R, [2, 3])
 
             with tf.Session() as s:
                 # Initialize variables
@@ -70,15 +71,30 @@ class TestLSTMMultiplePredictionsPerSample(unittest.TestCase):
                 # Assign mock weights and mock bias
                 s.run([assign_kernel, assign_bias])
 
-                # Calculate the output of the lstm
-                output = s.run(lstm_output)
-
-                print(output)
-
                 # Calculate the relevances
                 explanation = s.run(R)
 
-                print(explanation)
+                # Create array with expected relevances
+                expected_explanation = np.array(
+                    [[[[-0.00000000329187, -0.00000000579639, -0.00000000344224, -0.00000000256858],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0]],
+                      [[0.01917747822, 0.02132167498, 0.009472542897, 0.004885821672],
+                       [-0.05303456479, 0.02658300098, 0.1649355033, 0.3430433395],
+                       [0, 0, 0, 0]],
+                      [[0.01775032921, 0.01975440857, 0.008784149807, 0.004537977098],
+                       [-0.05051601016, 0.02468158083, 0.1500054205, 0.3081801763],
+                       [0.04747183272, 0.1265003211, 0.1284724633, 0.1745462303]]],
+                     [[[0.09064830212495, 0.21548798884060, 0.19743329647079, 0.24977081145921],
+                       [0.00000000000000, 0.00000000000000, 0.00000000000000, 0.00000000000000],
+                       [0.00000000000000, 0.00000000000000, 0.00000000000000, 0.00000000000000]],
+                      [[0.05894237044, 0.1393483447, 0.127375767, 0.1608060994],
+                       [0.06054255911, 0.1387999706, 0.1224546803, 0.1504080344],
+                       [0, 0, 0, 0]],
+                      [[0.04103863682, 0.09681307209, 0.08841408434, 0.1115271072],
+                       [0.04215389263, 0.09642979223, 0.0849954929, 0.1043121762],
+                       [0.04310312299, 0.09707452916, 0.08397782613, 0.1014948822]]]]
+                )
 
-
-                self.assertTrue(True)
+                self.assertTrue(np.allclose(expected_explanation, explanation, rtol=1e-3, atol=1e-3),
+                                "The eplanation should match the expected explanation")

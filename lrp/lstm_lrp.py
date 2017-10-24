@@ -204,9 +204,12 @@ def lstm(path, R, LSTM_input):
     R = tf.transpose(R, [1, 0, 2])
 
     # Create a variable that indicates the starting time step to begin the backpropagation of relevance
-    # through the LSTM from and set it to predictions per sample which equals the greatest time step
-    # to use as a starting point
-    starting_point = tf.constant(predictions_per_sample - 1, dtype=tf.int32)
+    # through the LSTM from and set it to the sequence length, since we always want to start from the last
+    # hidden state output by the LSTM
+    starting_point = tf.constant(sequence_length, dtype=tf.int32)
+
+    # Create the stop point that tells us when to stop iterating through the LSTM
+    stop_point = sequence_length - predictions_per_sample
 
     # Create a tensorarray that has length = predictions_per_sample and holds elements of shape
     # (batch_size, input_max_time_steps, input_depth)
@@ -217,31 +220,56 @@ def lstm(path, R, LSTM_input):
 
     # Create the body of the while loop
     def _iterate_over_starting_points(start_point, R_old_ta, R_new_ta_loop):
-        # Get the predictions that belong to this starting point and expand the first dimension todo: why?
+        # Get the predictions that belong to this entering point into the LSTM (subtract one bc the relevances for
+        # timestep t are stored in index t-1)
         # R_for_current_starting_point has shape (1, batch_size, units)
-        R_for_current_starting_point = R_old_ta.read(starting_point)
+        R_for_current_starting_point = R_old_ta.read(start_point - stop_point - 1)
 
         # Calculate the relevances for the current starting point
         R_new_for_current_starting_point = _calculate_relevance_from_lstm(R_for_current_starting_point,
                                                                           weights_gate_gate, bias_gate_gate, input_a,
                                                                           hs, sc, ig, gg, fg, start_point)
 
-        # Transpose the relevances to get them in the correct shape again
+        # Transpose the relevances to get them in the correct shape, which is (batch_size, start_point, input_depth)
         R_new_for_current_starting_point = tf.transpose(R_new_for_current_starting_point, [1, 0, 2])
 
-        # Store the calculated relevances
-        R_new_ta_loop = R_new_ta_loop.write(start_point, R_new_for_current_starting_point)
+        # Add zeros after the calculated relevances to ensure that the returned relevances have the same shape
+        # axis 0: no padding
+        a0 = tf.stack([0, 0])
+        # axis 1: missing zeros
+        a1 = tf.stack([0, sequence_length - start_point])
+        # axis 2: no padding
+        a2 = tf.stack([0, 0])
+
+        # Generate the final padding argument
+        padding = tf.stack([a0, a1, a2])
+
+        # Add the zeros to get shape (batch_size, input_sequence_length, input_depth)
+        R_new_for_current_starting_point = tf.pad(R_new_for_current_starting_point, padding)
+
+        # Store the calculated relevances (the subtraction of one is bc the
+        # relevances for timestep t are stored in index t-1)
+        R_new_ta_loop = R_new_ta_loop.write(start_point - stop_point - 1, R_new_for_current_starting_point)
 
         # Return the next starting point and the updated tensorarray that holds the calculated relevances
         return tf.add(start_point, -1), R_old_ta, R_new_ta_loop
 
     # Run the while loop
     _, _, R_new = tf.while_loop(
-        cond=lambda start_point, *_: tf.greater_equal(start_point, 0),
+        cond=lambda start_point, *_: tf.greater(start_point, stop_point),
         body=_iterate_over_starting_points,
         loop_vars=[starting_point, R_ta, R_new_ta])
 
+    # Stack the calculated relevances to get tensor of shape
+    # (input_sequence_length, batch_size, input_sequence_length, input_depth)
     R_new = R_new.stack()
+
+    # Reshape the calculated relevances to shape (batch_size, input_sequence_length, input_sequence_length, input_depth)
+    R_new = tf.transpose(R_new, [1, 0, 2, 3])
+
+    print(predictions_per_sample)
+    if predictions_per_sample == 1:
+        R_new = tf.squeeze(R_new, 1)
 
     return R_new
 

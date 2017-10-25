@@ -18,16 +18,11 @@ class MaxPoolLRPTest(unittest.TestCase):
             # Create max pooling layer
             activation = tf.nn.max_pool(inp, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
 
-            # Set the prediction to be equal to the activations of the last layer
-            pred = activation
+            # Reshape predictions to (batch_size, pred. pr. sample, classes)
+            pred = tf.reshape(activation, (1, 4, 1))
 
-            # Calculate the relevance scores using lrp
-            R_mock = tf.expand_dims(tf.constant([[[10, 20], [100, 1000]]], dtype=tf.float32), -1)
-
-            # The tf.expand_dims() is necessary because we call _lrp which means that
-            # we bypass the part of the framework that takes care of adding and removing
-            # an extra dimension for multiple predictions per sample
-            expl = lrp._lrp(inp, pred, tf.expand_dims(R_mock, 1))
+            # Get the explanation tensor
+            expl = lrp.lrp(inp, pred)
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:
@@ -42,20 +37,39 @@ class MaxPoolLRPTest(unittest.TestCase):
                                                                      [[13], [14], [15], [16]]]]})
 
                 # Check if the predictions has the right shape
-                self.assertEqual(prediction.shape, (1, 2, 2, 1),
+                self.assertEqual(prediction.shape, (1, 4, 1),
                                  msg="Should be able to do a linear forward pass")
 
                 # Check if the explanation has the right shape
-                self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
+                self.assertEqual((1, 4, 4, 4, 1), explanation.shape,
                                  msg="Should be a wellformed explanation")
+
+                # Expected output has shape
+                # (batch_size, pred. pr. sample, input_size ...)
+                expected = np.array([[[[[0], [0], [0], [0]],
+                                       [[0], [6], [0], [0]],
+                                       [[0], [0], [0], [0]],
+                                       [[0], [0], [0], [0]]],
+
+                                      [[[0], [0], [0], [0]],
+                                       [[0], [0], [0], [8]],
+                                       [[0], [0], [0], [0]],
+                                       [[0], [0], [0], [0]]],
+
+                                      [[[0], [0], [0], [0]],
+                                       [[0], [0], [0], [0]],
+                                       [[0], [0], [0], [0]],
+                                       [[0], [14], [0], [0]]],
+
+                                      [[[0], [0], [0], [0]],
+                                       [[0], [0], [0], [0]],
+                                       [[0], [0], [0], [0]],
+                                       [[0], [0], [0], [16]]]]])
 
                 # Check if the relevance scores are correct
                 # (the correct values are found by calculating the example by hand)
                 self.assertTrue(
-                    np.allclose([[[[[0], [0], [0], [0]],
-                                   [[0], [10], [0], [20]],
-                                   [[0], [0], [0], [0]],
-                                   [[0], [100], [0], [1000]]]]],
+                    np.allclose(expected,
                                 explanation,
                                 rtol=1e-03,
                                 atol=1e-03),

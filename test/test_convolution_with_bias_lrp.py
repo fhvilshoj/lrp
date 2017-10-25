@@ -35,16 +35,12 @@ class ConvolutionBiasLRPTest(unittest.TestCase):
             # Add bias
             activation = tf.nn.bias_add(activation, bias)
 
-            # Set the prediction to be equal to the activations of the last layer
-            # (there is no softmax in this network)
-            pred = activation
+            # Reshape predictions to (batch_size, pred. pr. sample, classes) to fit the required input shape of
+            # the framework
+            pred = tf.reshape(activation, (1, 2, 6))
 
             # Calculate the relevance scores using lrp
-            R_mock = tf.constant([[[[[3., 2., 1],
-                                     [4., 3., 2]],
-                                    [[1., 1., 3],
-                                     [1., 0., 4]]]]], dtype=tf.float32)
-            expl = lrp._lrp(inp, pred, R_mock)
+            expl = lrp.lrp(inp, pred)
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:
@@ -59,22 +55,19 @@ class ConvolutionBiasLRPTest(unittest.TestCase):
                                                                       [3., 0.]]]]
                                                               })
 
-                # Check if the predictions has the right shape
-                self.assertEqual(prediction.shape, (1, 2, 2, 3),
-                                 msg="Should be able to do a convolutional forward pass")
-
-                # Check if the explanation has the right shape
-                self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
-                                 msg="Should be a wellformed explanation")
-
-
-                # Check if the relevance scores are correct (the correct values
-                # are found by calculating the example by hand which is why
-                # rtol and atol have to be =1e-01 rather than 1e-03 as in most of the
-                # other test cases)
+                # Check if the relevance scores are correct
                 self.assertTrue(
-                    np.allclose(explanation[0], [[[[[1.06, 0],
-                                                    [0, 4.49]],
-                                                   [[2.62, 0],
-                                                    [13.19, 0]]]]], rtol=1e-01, atol=1e-01),
-                    msg="Should be a good convolutional explanation")
+                    np.allclose([[[[[1.692307692, 0],
+                                    [0, 1.692307692]],
+
+                                   [[1.692307692, 0],
+                                    [5.076923077, 0]]],
+
+
+                                  [[[0, 0],
+                                    [0, 0]],
+
+                                   [[3.636363636, 0],
+                                    [5.454545455, 0]]]]], explanation,
+                                rtol=1e-03, atol=1e-03),
+                    msg="The calculated relevances do not match the expected relevances")

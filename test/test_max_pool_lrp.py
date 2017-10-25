@@ -60,10 +60,52 @@ class MaxPoolLRPTest(unittest.TestCase):
                 self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
                                  msg="Should be a wellformed explanation")
 
+                expected = np.array([[[[[0], [0]],
+                                       [[0], [4]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [4]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [6]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [6]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[10], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]]]])
+
                 # Check if the relevance scores are correct (the correct values
                 # are found by calculating the example by hand)
                 self.assertTrue(
-                    np.allclose([[[[[0], [0]], [[0], [8]], [[0], [12]], [[0], [0]], [[0], [0]], [[10], [0]]]]],
+                    np.allclose(expected,
                                 explanation,
                                 rtol=1e-03,
                                 atol=1e-03),

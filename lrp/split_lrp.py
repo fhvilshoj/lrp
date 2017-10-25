@@ -5,7 +5,14 @@ from constants import *
 # When we see a split we want to concatenate the incoming relevances
 def split(router, R):
     # Get the current split operation
+    # Shape of current_operation: (batch_size, ...)
     current_operation = router.get_current_operation()
+
+    # Get the shape of one of the relevances
+    relevances_shape = tf.shape(R[0][RELEVANCE])
+
+    # Find the size of the batch_size and predictions_per_sample dimensions
+    batch_size_and_predictions_per_sample = relevances_shape[:2]
 
     # Put all the received relevances in a single dictionary for fast lookup
     relevances_from_ops = dict()
@@ -25,15 +32,13 @@ def split(router, R):
     # sure that we end up with relevance of the right shape
     relevances_to_sum = []
     for output in current_operation.outputs:
-        # Find the shape of the output and adjust it, since we in the lrp router have added either one extra
-        # dimension for predictions_per_sample (if the starting point relevances had shape
-        # (batch_size, predictions_per_sample, classes)) or two dimensions for predictions_per_sample
-        # (if the starting point relevances had shape (batch_size, predictions_per_sample, classes)) to the relevances
-        shape = tf.expand_dims(output, 1)
-        if router.starting_point_relevances_did_not_have_predictions_per_sample_dimension():
-            shape = tf.expand_dims(shape, 1)
+        # Find the shape of the output (except the batch_size which we already know from above)
+        output_shape_without_batch_size = tf.slice(tf.shape(output), [1], [-1])
 
-        relevances_to_sum.append([tf.zeros_like(shape)])
+        # Concatenate the dimensions to get the new shape of the relevances
+        relevances_new_shape = tf.concat([batch_size_and_predictions_per_sample, output_shape_without_batch_size], 0)
+
+        relevances_to_sum.append([tf.zeros(relevances_new_shape)])
 
 
     ### This section distributes relevances to the correct output of the split operation
@@ -93,14 +98,9 @@ def split(router, R):
     # Find axis to concatenate on
     axis = current_operation.inputs[0]
 
-    # Adjust the axis to concatenate over, since we in the lrp router have added either one extra dimension for
-    # predictions_per_sample (if the starting point relevances had shape (batch_size, predictions_per_sample, classes))
-    # or two dimensions for predictions_per_sample (if the starting point relevances had shape
-    # (batch_size, predictions_per_sample, classes)) to the relevances
-    if router.starting_point_relevances_did_not_have_predictions_per_sample_dimension():
-        axis += 2
-    else:
-        axis += 1
+    # Adjust the axis to concatenate over, since we in the lrp router have added one extra dimension for
+    # predictions_per_sample
+    axis += 1
 
     # Concatenate relevances
     R_concatenated = tf.concat(relevances_to_concatenate, axis)

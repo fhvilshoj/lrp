@@ -6,7 +6,6 @@ def slicing(router, R):
     # Sum the relevances
     R = lrp_util.sum_relevances(R)
 
-    R = tf.Print(R, [R], message="R: ", summarize=1000)
     # Get the current operation
     current_operation = router.get_current_operation()
 
@@ -34,7 +33,10 @@ def slicing(router, R):
     # For each axis, insert 'starting_point' zeros before the relevances and
     # 'size_of_split'-('starting_point' + 'size_of_split') zeros after the relevances
     padding = tf.transpose(tf.stack([starting_point, end_zeros]))
-    batch_and_sample_padding = tf.zeros((free_dimensions, 2), dtype=tf.int32)
+
+    # Never use any padding for the first two dimensions, since these are always batch_size, predictions_per_sample
+    # and should stay constant all the way through the framework
+    batch_and_sample_padding = tf.zeros((2, 2), dtype=tf.int32)
     padding = tf.concat([batch_and_sample_padding, padding], axis=0)
 
     R_new = tf.pad(R, padding)

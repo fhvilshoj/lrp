@@ -52,8 +52,7 @@ class ConvolutionLRPTest(unittest.TestCase):
                                                               })
 
 
-                # Check if the relevance scores are correct (the correct values are
-                # found by calculating the example by hand)
+                # Check if the relevance scores are correct
                 self.assertTrue(
                     np.allclose([[[[[1.666666667, 0],
                                     [0, 1.666666667]],

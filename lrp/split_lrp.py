@@ -25,12 +25,13 @@ def split(router, R):
     # sure that we end up with relevance of the right shape
     relevances_to_sum = []
     for output in current_operation.outputs:
-        # Check if there has been added an extra dimension (for multiple predictions per sample) in
-        # which case the shape of the zero relevances has to be adjusted accordingly
+        # Find the shape of the output and adjust it, since we in the lrp router have added either one extra
+        # dimension for predictions_per_sample (if the starting point relevances had shape
+        # (batch_size, predictions_per_sample, classes)) or two dimensions for predictions_per_sample
+        # (if the starting point relevances had shape (batch_size, predictions_per_sample, classes)) to the relevances
+        shape = tf.expand_dims(output, 1)
         if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
-            shape = tf.expand_dims(output, 1)
-        else:
-            shape = output.shape
+            shape = tf.expand_dims(shape, 1)
 
         relevances_to_sum.append([tf.zeros_like(shape)])
 
@@ -92,9 +93,13 @@ def split(router, R):
     # Find axis to concatenate on
     axis = current_operation.inputs[0]
 
-    # Check if there has been added an extra dimension (for multiple predictions per sample) in
-    # which case the axis to concatenate over has to be adjusted accordingly
+    # Adjust the axis to concatenate over, since we in the lrp router have added either one extra dimension for
+    # predictions_per_sample (if the starting point relevances had shape (batch_size, predictions_per_sample, classes))
+    # or two dimensions for predictions_per_sample (if the starting point relevances had shape
+    # (batch_size, predictions_per_sample, classes)) to the relevances
     if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
+        axis += 2
+    else:
         axis += 1
 
     # Concatenate relevances

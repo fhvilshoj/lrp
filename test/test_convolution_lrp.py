@@ -31,16 +31,12 @@ class ConvolutionLRPTest(unittest.TestCase):
             # Perform the convolution
             activation = tf.nn.conv2d(inp, filters, [1, 1, 1, 1], "SAME")
 
-            # Set the prediction to be equal to the activations of the
-            # last layer (there is no softmax in this network)
-            pred = activation
+            # Reshape predictions to (batch_size, pred. pr. sample, classes) to fit the required input shape of
+            # the framework
+            pred = tf.reshape(activation, (1, 2, 6))
 
             # Calculate the relevance scores using lrp
-            R_mock = tf.constant([[[[[3., 2., 1],
-                                     [4., 3., 2]],
-                                    [[1., 1., 3],
-                                     [1., 0., 4]]]]], dtype=tf.float32)
-            expl = lrp._lrp(inp, pred, R_mock)
+            expl = lrp.lrp(inp, pred)
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:
@@ -55,19 +51,20 @@ class ConvolutionLRPTest(unittest.TestCase):
                                                                       [3., 0.]]]]
                                                               })
 
-                # Check if the predictions has the right shape
-                self.assertEqual(prediction.shape, (1, 2, 2, 3),
-                                 msg="Should be able to do a convolutional forward pass")
-
-                # Check if the explanation has the right shape
-                self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
-                                 msg="Should be a wellformed explanation")
 
                 # Check if the relevance scores are correct (the correct values are
                 # found by calculating the example by hand)
                 self.assertTrue(
-                    np.allclose([[[[[1.37, 0],
-                                   [0, 6.83]],
-                                  [[2.75, 0],
-                                   [14.05, 0]]]]], explanation[0], rtol=1e-01, atol=1e-01),
+                    np.allclose([[[[[1.666666667, 0],
+                                    [0, 1.666666667]],
+
+                                   [[1.666666667, 0],
+                                    [5, 0]]],
+
+
+                                  [[[0, 0],
+                                    [0, 0]],
+
+                                   [[3.6, 0],
+                                    [5.4, 0]]]]], explanation, rtol=1e-03, atol=1e-03),
                     msg="Should be a good convolutional explanation")

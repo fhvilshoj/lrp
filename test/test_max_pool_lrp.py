@@ -18,14 +18,11 @@ class MaxPoolLRPTest(unittest.TestCase):
             # Create max pooling layer
             activation = tf.nn.max_pool(inp, [1, 2, 2, 1], [1, 2, 1, 1], "SAME")
 
-            # Set the prediction to be equal to the activations of the last layer
-            pred = activation
+            # Reshape predictions to (batch_size, pred. pr. sample, classes)
+            pred = tf.reshape(activation, (1, 6, 1))
 
-            # Calculate the relevance scores using lrp
-            # The tf.expand_dims() is necessary because we call _lrp which means that
-            # we bypass the part of the framework that takes care of adding and removing
-            # an extra dimension for multiple predictions per sample
-            expl = lrp._lrp(inp, pred, tf.expand_dims(pred, 1))
+            # Get the explanation tensor
+            expl = lrp.lrp(inp, pred)
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:
@@ -53,17 +50,61 @@ class MaxPoolLRPTest(unittest.TestCase):
                                                                       [0]]]]})
 
                 # Check if the predictions has the right shape
-                self.assertEqual(prediction.shape, (1, 3, 2, 1),
+                self.assertEqual(prediction.shape, (1, 6, 1),
                                  msg="Should be able to do a linear forward pass")
 
                 # Check if the explanation has the right shape
-                self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
+                self.assertEqual((1, 6, 6, 2, 1), explanation.shape,
                                  msg="Should be a wellformed explanation")
+
+                # Shape: (1, 6, 6, 2, 1)
+                # i.e, (batch_size, pred. pr. sample, input_sizes ...)
+                expected = np.array([[[[[0], [0]],
+                                       [[0], [4]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [4]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [6]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [6]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[10], [0]]],
+
+                                      [[[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]],
+                                       [[0], [0]]]]])
 
                 # Check if the relevance scores are correct (the correct values
                 # are found by calculating the example by hand)
                 self.assertTrue(
-                    np.allclose([[[[[0], [0]], [[0], [8]], [[0], [12]], [[0], [0]], [[0], [0]], [[10], [0]]]]],
+                    np.allclose(expected,
                                 explanation,
                                 rtol=1e-03,
                                 atol=1e-03),

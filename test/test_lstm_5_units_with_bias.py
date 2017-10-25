@@ -33,11 +33,11 @@ class LSTM5UnitsWithBiasLRPTest(unittest.TestCase):
             assign_bias = bias.assign(LSTM_BIAS)
 
             # Fake the relevance
-            R = tf.ones_like(tf.slice(lstm_output, [0, -1, 0], [1, 1, lstm_units]))
+            output = tf.squeeze(tf.slice(lstm_output, [0, 7, 0], [1, 1, lstm_units]), 1)
 
             # Get the explanation from the LRP framework.
             # TODO The output of the lstm is not quite right.
-            R = lrp._lrp(inp, lstm_output, R)
+            R = lrp.lrp(inp, output)
 
             with tf.Session() as s:
                 # Initialize variables
@@ -51,14 +51,14 @@ class LSTM5UnitsWithBiasLRPTest(unittest.TestCase):
 
                 # Expected result calculated in
                 # https://docs.google.com/spreadsheets/d/1_bmSEBSWVOkpdlZYEUckgrnUtxhEfnR84LZy1cU5fIw/edit?usp=sharing
-                expected_result = np.array([[[-3.863966, -4.055491, 0.059204],
-                                             [-3.547705, -4.202078, -1.405731],
-                                             [-2.133164, -1.981917, -0.768870],
-                                             [-0.377051, -0.018967, -0.201945],
-                                             [0.780807, -0.580487, -1.465316],
-                                             [2.728909, -2.918414, -2.193734],
-                                             [24.634636, -78.773084, 33.587597],
-                                             [-73.446891, 445.763106, -320.116405]]])
+                expected_result = np.array([[[0.163075, 0.036412, -0.107258],
+                                             [0.158804, 0.021996, -0.090554],
+                                             [0.102691, 0.013007, -0.037685],
+                                             [0.030479, 0.005401, 0.029605],
+                                             [-0.057824, 0.011063, 0.130999],
+                                             [-0.200446, 0.02317, 0.312361],
+                                             [-0.327078, -0.200649, 0.655012],
+                                             [-0.624182, 0.185695, 0.660877]]])
 
                 # Check for shape and actual result
                 self.assertEqual(expected_result.shape, relevances.shape,

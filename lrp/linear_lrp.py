@@ -63,12 +63,15 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
     # Shape after transpose: (batch_size, output_width, input_width)
     fractions = tf.transpose(fractions, [0, 2, 1])
 
+    # Expand the dimensions of fractions to be able to broadcast them over all predictions_per_sample of R
+    fractions = tf.expand_dims(fractions, 1)
+
     # Expand the second to last dimension to be able to do matrix multiplication with fractions
     # Shape after expand_dims: (batch_size, 1, output_width)
     R = tf.expand_dims(R, -2)
 
     # Calculate relevance by doing matrix multiplication of R and fractions
-    # R_new shape: (batch_size, 1, input_width)
+    # R_new shape: (batch_size, predictions_per_sample, 1, input_width)
     R_new = tf.matmul(R, fractions)
 
     # Remove the extra dimension added to R above

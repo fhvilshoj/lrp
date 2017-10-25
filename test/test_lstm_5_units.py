@@ -26,11 +26,11 @@ class LSTM5UnitsLRPTest(unittest.TestCase):
             assign_kernel = kernel.assign(LSTM_WEIGHTS)
 
             # Fake the relevance
-            R = tf.ones_like(tf.slice(lstm_output, [0, -1, 0], [1, 1, lstm_units]))
+            output = tf.squeeze(tf.slice(lstm_output, [0, 7, 0], [1, 1, lstm_units]), 1)
 
             # Get the explanation from the LRP framework.
             # TODO The output of the lstm is not quite right.
-            R = lrp._lrp(inp, lstm_output, R)
+            explanation = lrp.lrp(inp, output)
 
             with tf.Session() as s:
                 # Initialize variables
@@ -40,18 +40,19 @@ class LSTM5UnitsLRPTest(unittest.TestCase):
                 s.run(assign_kernel)
 
                 # Calculate relevance
-                relevances = s.run(R)
+                relevances = s.run(explanation)
 
                 # Expected result calculated in
                 # https://docs.google.com/spreadsheets/d/1_bmSEBSWVOkpdlZYEUckgrnUtxhEfnR84LZy1cU5fIw/edit?usp=sharing
-                expected_result = np.array([[[0.04114789, 0.07254411, 0.13169597],
-                                             [0.17604621, 0.1747233, 0.19547687],
-                                             [0.37701777, 0.42817616, 0.29883289],
-                                             [0.18942904, 0., -0.38005733],
-                                             [-0.13430591, -0.19828944, -0.08908054],
-                                             [-0.30317006, 0.22794639, 0.16859262],
-                                             [-0.12844698, -1.49989772, 1.67834044],
-                                             [-3.57829499, 13.87882996, -6.72725677]]])
+                expected_result = np.array([[[-0.001298088358, 0.01145384055, 0.0006777067672],
+                                            [0.02191306626, 0.008657823488, -0.01480988454],
+                                            [0.05461008726, 0.0005180473113, -0.02527708783],
+                                            [0.02971554238, 0.0, 0.02727937854],
+                                            [-0.08685950242, 0.02556374875, 0.1572219068],
+                                            [-0.2561188815, 0.06659819392, 0.3236008156],
+                                            [-0.4212428569, 0.1028748125, 0.4771196328],
+                                            [-0.569597743, 0.1599460364, 0.5879939284]]]
+                                           )
 
                 # Check for shape and actual result
                 self.assertEqual(expected_result.shape, relevances.shape,

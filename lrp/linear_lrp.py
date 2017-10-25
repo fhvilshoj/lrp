@@ -111,6 +111,12 @@ def linear_alpha(R, input, weights, bias=None):
     # Prepare the fractions for the matmul below
     fractions = tf.transpose(fractions, perm=[0, 2, 1])
 
+    # Add an extra dimension since we in the lrp router have added either one extra dimension for
+    # predictions_per_sample (if the starting point relevances had shape (batch_size, predictions_per_sample, classes))
+    # or two dimensions for predictions_per_sample (if the starting point relevances had shape
+    # (batch_size, predictions_per_sample, classes)) to the relevances
+    fractions = tf.expand_dims(fractions, 1)
+
     # Multiply relevances with fractions to find relevance per feature in input
     # In other words: Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
     R_new = tf.matmul(R, fractions)

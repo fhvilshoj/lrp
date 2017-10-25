@@ -55,7 +55,7 @@ class TestSplitAndConcatenate(unittest.TestCase):
                                 "Relevances should match")
 
     def test_multiple_output_uses_mixed_input(self):
-        with tf.Graph().as_default() as g:
+        with tf.Graph().as_default():
             inp = tf.placeholder(tf.float32, shape=(3, 4))
 
             # Split input to construct path in lrp with two paths from

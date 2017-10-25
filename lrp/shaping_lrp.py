@@ -5,16 +5,31 @@ def shaping(router, R):
     # Sum the potentially multiple relevances from the upper layers
     R = lrp_util.sum_relevances(R)
 
-    # Reshape R to the same shape as the input to the
-    # reshaping operation that created the tensor
+    # Get the current operation (i.e. the shaping operation we are currently taking care of)
     current_operation = router.get_current_operation()
-    input_to_current_operation = current_operation.inputs[0]
-    R_reshaped = tf.reshape(R, tf.shape(input_to_current_operation))
 
-    # Check if there has been added an extra dimension (for multiple predictions per sample) in
-    # which case we have to add the dimension again after the reshape
-    if router.starting_point_relevances_did_not_have_predictions_per_sample_dimension():
-        R_reshaped = tf.expand_dims(R_reshaped, 1)
+    # Get the input to the shaping operation
+    input_to_current_operation = current_operation.inputs[0]
+
+    # Get the shape of the input to the shaping operation
+    input_shape = tf.shape(input_to_current_operation)
+
+    # Get the shape of the relevances
+    relevances_shape = R.get_shape().as_list()
+
+    # Find the size of the batch_size and predictions_per_sample dimensions
+    batch_size_and_predictions_per_sample = relevances_shape[:2]
+
+    # Find the shape of the input (except the batch_size which we already know from above)
+    input_shape_without_batch_size = tf.slice(input_shape, [1], [-1])
+
+    # Concatenate the dimensions to get the new shape of the relevances
+    relevances_new_shape = tf.concat([batch_size_and_predictions_per_sample, input_shape_without_batch_size], 0)
+
+    # Reshape R to the same shape as the input to the reshaping operation that created the tensor
+    # but leave the two first dimensions untouched since they are batch_size, predictions_per_sample
+    # which stay constant all the way through the framework
+    R_reshaped = tf.reshape(R, relevances_new_shape)
 
     # Tell the router that we handled this operation
     router.mark_operation_handled(current_operation)

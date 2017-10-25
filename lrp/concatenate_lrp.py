@@ -5,6 +5,7 @@ import lrp_util
 # When we see a concatenate we want to split the incoming relevances accordingly
 def concatenate(router, R):
     # Sum the potentially multiple relevances from the upper layers
+    # Shape: (batch_size, ...)
     R = lrp_util.sum_relevances(R)
 
     # Get the current concatenate operation
@@ -26,14 +27,9 @@ def concatenate(router, R):
         # Find and add the size of the input in the "axis" dimension
         split_sizes.append(shape[axis])
 
-    # Adjust the axis to split over, since we in the lrp router have added either one extra dimension for
-    # predictions_per_sample (if the starting point relevances had shape (batch_size, predictions_per_sample, classes))
-    # or two dimensions for predictions_per_sample (if the starting point relevances had shape
-    # (batch_size, predictions_per_sample, classes)) to the relevances
-    if router.starting_point_relevances_did_not_have_predictions_per_sample_dimension():
-        axis += 2
-    else:
-        axis += 1
+    # Adjust the axis to split over, since we in the lrp router have one extra dimension for
+    # predictions_per_sample
+    axis += 1
 
     # Split the relevances over the "axis" dimension according to the found split sizes
     R_splitted = tf.split(R, split_sizes, axis)

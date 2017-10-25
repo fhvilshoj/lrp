@@ -1,6 +1,3 @@
-import time
-
-
 import tensorflow as tf
 import unittest
 from lrp import lrp
@@ -29,19 +26,19 @@ class TestBatchNormalization(unittest.TestCase):
             v = tf.constant([0.2, 0.2, 0.2, 0.2, 0.2], dtype=tf.float32)
             assign_variance = tf.assign(variance, v)
 
-            # The tf.expand_dims() is necessary because we call _lrp which means that
-            # we bypass the part of the framework that takes care of adding and removing
-            # an extra dimension for multiple predictions per sample
-            explanation = lrp._lrp(inp, x, tf.expand_dims(x, 1))
+            # Get the explanation
+            explanation = lrp.lrp(inp, x)
 
             with tf.Session() as s:
                 s.run(tf.global_variables_initializer())
                 s.run([assign_beta, assign_gamma, assign_mean, assign_variance])
 
                 expected_relevances = np.array(
-                    [[[0, 0.8921994513, 0, 1, 0.5576246571]],
-                     [[0, 0.8921994513, 0, 1, -0.5576246571]]])
-                relevances = s.run(explanation, feed_dict={inp: [[1, 2, 3, 4, 5],
-                                                                 [1, 2, 3, 4, 4]]})
+                    [[0, 0, 0, 1, 0],
+                     [0, 0.8921994513, 0, 0, 0]])
+                relevances = s.run(explanation, feed_dict={inp: [[1, 0, 3, 4, 5],
+                                                                 [1, 2, 3, 0, 4]]})
+
+                print(relevances)
                 self.assertTrue(np.allclose(expected_relevances, relevances, rtol=1e-03, atol=1e-03),
                                 msg="The relevances do not match the expected")

@@ -10,6 +10,7 @@ from lrp.concatenate_lrp import concatenate
 from lrp.split_lrp import split
 
 from constants import *
+from print_lrp import printing
 from slicing_lrp import slicing
 
 
@@ -29,7 +30,8 @@ class StandardContextHandler(ContextHandler):
         'Sigmoid': nonlinearities,
         'Tanh': nonlinearities,
         'Softmax': softmax,
-        'Slice': slicing
+        'Slice': slicing,
+        'Print': printing
     }
 
     def __init__(self, router):

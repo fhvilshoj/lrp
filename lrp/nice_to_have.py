@@ -16,7 +16,7 @@ def brackets(arr, default_element):
     else:
         for _ in range(arr[0]-1):
             res += default_element + ", "
-            res += default_element
+        res += default_element
     res += "]"
     return res
 

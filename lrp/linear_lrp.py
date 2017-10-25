@@ -82,16 +82,21 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
 def linear_alpha(R, input, weights, bias=None):
 
     # Prepare batch for elementwise multiplication
+    # Shape of input: (batch_size, input_width)
+    # Shape of input after expand_dims: (batch_size, input_width, 1)
     input = tf.expand_dims(input, -1)
 
     # Perform elementwise multiplication of input, weights to get z_kij which is the contribution from
     # feature i to neuron j for input k
+    # Shape of zs: (batch_size, input_width, output_width)
     zs = input * weights
 
     # Replace the negative elements with zeroes to only have the positive z's left (i.e. z_kij^+)
+    # Shape of zp: (batch_size, input_width, output_width)
     zp = lrp_util.replace_negatives_with_zeros(zs)
 
     # Take the sum of each column of z_kij^+'s
+    # Shape of zp_sum: (batch_size, 1, output_width)
     zp_sum = tf.reduce_sum(zp, axis=1, keep_dims=True)
 
     # Find and add the positive parts of an eventual bias (i.e. find and add the b^+s).
@@ -106,19 +111,18 @@ def linear_alpha(R, input, weights, bias=None):
     zp_sum += EPSILON
 
     # Find the relative contribution from feature i to neuron j for input k
+    # Shape of fractions: (batch_size, input_width, output_width)
     fractions = tf.divide(zp, zp_sum)
 
     # Prepare the fractions for the matmul below
+    # Shape of fractions after transpose: (batch_size, output_width, input_width)
     fractions = tf.transpose(fractions, perm=[0, 2, 1])
-
-    # Add an extra dimension since we in the lrp router have added either one extra dimension for
-    # predictions_per_sample (if the starting point relevances had shape (batch_size, predictions_per_sample, classes))
-    # or two dimensions for predictions_per_sample (if the starting point relevances had shape
-    # (batch_size, predictions_per_sample, classes)) to the relevances
-    fractions = tf.expand_dims(fractions, 1)
 
     # Multiply relevances with fractions to find relevance per feature in input
     # In other words: Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
+    # Shape of R: (batch_size, predictions_per_sample, out_width)
+    # Shape of fractions: (batch_size, output_width, input_width)
+
     R_new = tf.matmul(R, fractions)
 
     return R_new

@@ -39,6 +39,5 @@ class TestBatchNormalization(unittest.TestCase):
                 relevances = s.run(explanation, feed_dict={inp: [[1, 0, 3, 4, 5],
                                                                  [1, 2, 3, 0, 4]]})
 
-                print(relevances)
                 self.assertTrue(np.allclose(expected_relevances, relevances, rtol=1e-03, atol=1e-03),
                                 msg="The relevances do not match the expected")

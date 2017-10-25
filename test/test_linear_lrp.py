@@ -57,9 +57,6 @@ class LinearLRPTest(unittest.TestCase):
             pred = activation
 
             # Calculate the relevance scores using lrp
-            # The tf.expand_dims() is necessary because we call _lrp which means that
-            # we bypass the part of the framework that takes care of adding and removing
-            # an extra dimension for multiple predictions per sample
             expl = lrp.lrp(inp, pred)
 
             # Run a tensorflow session to evaluate the graph

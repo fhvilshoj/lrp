@@ -40,7 +40,7 @@ class TestSplitAndConcatenate(unittest.TestCase):
             # input to output.
             in1, in2 = tf.split(inp, 2, 1)
 
-            # Concatenate the paths again in order to end up with one output.
+            # Concatenate the paths again in order to end up with one output
             out = tf.concat([in1, in2], 1)
 
             expl = lrp.lrp(inp, out)
@@ -62,7 +62,7 @@ class TestSplitAndConcatenate(unittest.TestCase):
             # input to output.
             in1, in2 = tf.split(inp, 2, 1)
 
-            # Concatenate the paths again in MIXED order to end up with one output.
+            # Concatenate the paths again in MIXED order to end up with one output
             out = tf.concat([in2, in1], 1)
 
             expl = lrp.lrp(inp, out)

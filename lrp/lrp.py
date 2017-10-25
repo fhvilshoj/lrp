@@ -29,7 +29,7 @@ class _LRPImplementation:
         self.handled_operations = []
 
         # Remember if there has been added an dimension to the starting point relevances
-        self.starting_point_relevances_did_not_have_predictions_per_sample_dimension = False
+        self.starting_point_relevances_had_predictions_per_sample_dimension = True
 
     def lrp(self, input, output, R = None):
         # Remember input and output
@@ -66,9 +66,9 @@ class _LRPImplementation:
     def get_relevance_for_operation(self, operation):
         return self.relevances[operation._id]
 
-
+    # todo: Remove!!!!
     def starting_point_relevances_did_not_have_predictions_per_sample_dimension(self):
-        return self.starting_point_relevances_did_not_have_predictions_per_sample_dimension
+        return False
 
     # Run through the path between output and input and iteratively
     # compute relevances
@@ -84,10 +84,9 @@ class _LRPImplementation:
         # Sum the potentially multiple relevances calculated for the input
         final_input_relevances = lrp_util.sum_relevances(self.relevances[self.input.op._id])
 
-        # If the starting point relevances where shape (batch_size, classes), remove the extra two
-        # predictions_per_sample dimensions that where added to the starting point relevances
-        if self.starting_point_relevances_did_not_have_predictions_per_sample_dimension:
-            final_input_relevances = tf.squeeze(final_input_relevances, 1)
+        # If the starting point relevances were shape (batch_size, classes), remove the extra
+        # predictions_per_sample dimension that was added to the starting point relevances
+        if not self.starting_point_relevances_had_predictions_per_sample_dimension:
             final_input_relevances = tf.squeeze(final_input_relevances, 1)
 
         return final_input_relevances
@@ -104,23 +103,26 @@ class _LRPImplementation:
             # Get the shape of the predictions
             predictions_shape = predictions.get_shape().as_list()
 
+            has_pred_per_sample_dim = True
+
             # Check if the predictions have the shape (batch_size, predictions_per_sample, number_of_classes) or
-            # (batch_size, number_of_classes). In the case of the latter, add the predictions_per_sample dimension
+            # (batch_size, number_of_classes). In the case of the latter, set the predictions_per_sample dimension
+            # equal to one
             if len(predictions_shape) == 3:
                 batch_size, predictions_per_sample, number_of_classes = predictions_shape
             elif len(predictions_shape) == 2:
-                predictions = tf.expand_dims(predictions, 1)
-                batch_size, predictions_per_sample, number_of_classes = predictions.get_shape().as_list()
+                predictions_per_sample = 1
                 # Remember that there has been added an extra dimension, so it can be removed again later
-                self.starting_point_relevances_did_not_have_predictions_per_sample_dimension = True
+                self.starting_point_relevances_had_predictions_per_sample_dimension = False
+                batch_size, number_of_classes = predictions.get_shape().as_list()
             else:
                 raise ValueError("Only accepts outputs of shape (batch_size, predictions_per_sample, number_of_classes) "
-                                 "or (batch_size, number_of_classes) but got shape: " + predictions_shape)
+                                 "or (batch_size, number_of_classes)")
 
 
             # If the user has provided the indexes of the number_of_classes of interest, use those. If not, find
             # the indexes by finding the class with the largest prediction score for each sample
-            max_score_indices = user_chosen_indices if user_chosen_indices else tf.argmax(predictions, axis=2)
+            max_score_indices = user_chosen_indices if user_chosen_indices else tf.argmax(predictions, axis=-1)
 
             # Create a tensor that for each sample has a one at the position of the class of interest and
             # zeros in all other positions
@@ -136,18 +138,22 @@ class _LRPImplementation:
             relevances_with_only_chosen_class = tf.expand_dims(relevances_with_only_chosen_class, 0)
 
             # Stack 'predictions_per_sample' identical copies of the starting relevances on top of each other
-            stacked_relevances = tf.tile(relevances_with_only_chosen_class, [predictions_per_sample, 1, 1, 1])
+            if self.starting_point_relevances_had_predictions_per_sample_dimension:
+                stacked_relevances = tf.tile(relevances_with_only_chosen_class, [predictions_per_sample, 1, 1, 1])
+                # Create a tensor of shape (predictions_per_sample, 1, predictions_per_sample, 1) that has ones in position
+                # [i, 1, i, 1] and zeros everywhere else
+                selections = tf.expand_dims(tf.expand_dims(tf.eye(predictions_per_sample), -1), 1)
 
-            # Create a tensor of shape (predictions_per_sample, 1, predictions_per_sample, 1) that has ones in position
-            # [i, 1, i, 1] and zeros everywhere else
-            selections = tf.expand_dims(tf.expand_dims(tf.eye(predictions_per_sample), -1), 1)
+                # For each prediction per sample, "select" the associated relevance and set all other relevances to zero
+                relevances_new = tf.multiply(selections, stacked_relevances)
 
-            # For each prediction per sample, "select" the associated relevance and set all other relevances to zero
-            relevances_new = tf.multiply(selections, stacked_relevances)
-
-            # Transpose the starting point relevances to get the final shape
-            # (batch_size, predictions_per_sample, predictions_per_sample, classes)
-            relevances_new = tf.transpose(relevances_new, [1, 0, 2, 3])
+                # Transpose the starting point relevances to get the final shape
+                # (batch_size, predictions_per_sample, predictions_per_sample, classes)
+                relevances_new = tf.transpose(relevances_new, [1, 0, 2, 3])
+            else:
+                # Transpose the starting point relevances to get the final shape
+                # (batch_size, predictions_per_sample=1, classes)
+                relevances_new = tf.transpose(relevances_with_only_chosen_class, [1, 0, 2])
 
             return relevances_new
 

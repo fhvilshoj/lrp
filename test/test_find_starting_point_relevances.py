@@ -19,10 +19,10 @@ class FindStartingPointRelevancesTest(unittest.TestCase):
             five_predictions_per_sample = tf.constant([[[1, 2, 3, 4],
                                                         [5, 6, 7, 8],
                                                         [-1, -1, -1, -1]],
+
                                                        [[-1, 2, 3, 4],
                                                         [1, 1, 1, 1],
                                                         [1, 1, 1, 1]]], dtype=tf.float32)
-
 
             # Find the starting point relevances by calling lrp (a bit hacky but the function we want to test,
             # _find_starting_point_relevances, is not accessible directly)
@@ -38,17 +38,37 @@ class FindStartingPointRelevancesTest(unittest.TestCase):
                 five_predictions_per_sample_starting_point_rel = s.run(
                     five_predictions_per_sample_starting_point_relevances)
 
-                # Create expected starting point relevances
+                # Create expected starting point relevances with shape (batch_size, number_of_classes)
                 expected_starting_point_one_prediction_per_sample = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 10],
                                                                               [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                                                                               [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]])
 
-                expected_starting_point_five_predictions_per_sample = np.array([[[0, 0, 0, 4],
-                                                                                 [0, 0, 0, 8],
-                                                                                 [-1, 0, 0, 0]],
-                                                                                [[0, 0, 0, 4],
-                                                                                 [1, 0, 0, 0],
-                                                                                 [1, 0, 0, 0]]])
+                # Create expected starting point relevances with
+                # shape (batch_size, prediction_per_sample, input_height, input_width)
+                expected_starting_point_five_predictions_per_sample = np.array([[[[0, 0, 0, 4],
+                                                                                  [0, 0, 0, 0],
+                                                                                  [0, 0, 0, 0]],
+
+                                                                                 [[0, 0, 0, 0],
+                                                                                  [0, 0, 0, 8],
+                                                                                  [0, 0, 0, 0]],
+
+                                                                                 [[0, 0, 0, 0],
+                                                                                  [0, 0, 0, 0],
+                                                                                  [-1, 0, 0, 0]]],
+
+                                                                                [[[0, 0, 0, 4],
+                                                                                  [0, 0, 0, 0],
+                                                                                  [0, 0, 0, 0]],
+
+                                                                                 [[0, 0, 0, 0],
+                                                                                  [1, 0, 0, 0],
+                                                                                  [0, 0, 0, 0]],
+
+                                                                                 [[0, 0, 0, 0],
+                                                                                  [0, 0, 0, 0],
+                                                                                  [1, 0, 0, 0]]]]
+                                                                               )
 
                 # Compare the calculated relevances with the expected relevances
                 self.assertTrue(np.allclose(expected_starting_point_one_prediction_per_sample,

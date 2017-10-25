@@ -19,13 +19,13 @@ class MaxPoolLRPTest(unittest.TestCase):
             activation = tf.nn.max_pool(inp, [1, 2, 2, 1], [1, 2, 1, 1], "SAME")
 
             # Set the prediction to be equal to the activations of the last layer
-            pred = activation
+            pred = tf.reshape(activation, (1,6,1))
 
             # Calculate the relevance scores using lrp
             # The tf.expand_dims() is necessary because we call _lrp which means that
             # we bypass the part of the framework that takes care of adding and removing
             # an extra dimension for multiple predictions per sample
-            expl = lrp._lrp(inp, pred, tf.expand_dims(pred, 1))
+            expl = lrp.lrp(inp, pred)
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:
@@ -60,6 +60,8 @@ class MaxPoolLRPTest(unittest.TestCase):
                 self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
                                  msg="Should be a wellformed explanation")
 
+                # Shape: (1, 6, 6, 2, 1)
+                # i.e, (batch_size, pred. pr. sample, input_sizes ...)
                 expected = np.array([[[[[0], [0]],
                                        [[0], [4]],
                                        [[0], [0]],

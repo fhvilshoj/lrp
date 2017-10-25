@@ -30,7 +30,7 @@ def split(router, R):
         # (batch_size, predictions_per_sample, classes)) or two dimensions for predictions_per_sample
         # (if the starting point relevances had shape (batch_size, predictions_per_sample, classes)) to the relevances
         shape = tf.expand_dims(output, 1)
-        if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
+        if router.starting_point_relevances_did_not_have_predictions_per_sample_dimension():
             shape = tf.expand_dims(shape, 1)
 
         relevances_to_sum.append([tf.zeros_like(shape)])
@@ -97,7 +97,7 @@ def split(router, R):
     # predictions_per_sample (if the starting point relevances had shape (batch_size, predictions_per_sample, classes))
     # or two dimensions for predictions_per_sample (if the starting point relevances had shape
     # (batch_size, predictions_per_sample, classes)) to the relevances
-    if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
+    if router.starting_point_relevances_did_not_have_predictions_per_sample_dimension():
         axis += 2
     else:
         axis += 1

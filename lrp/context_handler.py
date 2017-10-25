@@ -12,8 +12,8 @@ class ContextHandler:
         self.router.mark_operation_handled(operation)
 
     # Forward to real router
-    def did_add_extra_dimension_for_multiple_predictions_per_sample(self):
-        return self.router.added_dimension_for_multiple_predictions_per_sample
+    def starting_point_relevances_did_not_have_predictions_per_sample_dimension(self):
+        return self.router.starting_point_relevances_did_not_have_predictions_per_sample_dimension
 
     def get_current_operation(self):
         pass

@@ -13,7 +13,7 @@ def shaping(router, R):
 
     # Check if there has been added an extra dimension (for multiple predictions per sample) in
     # which case we have to add the dimension again after the reshape
-    if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
+    if router.starting_point_relevances_did_not_have_predictions_per_sample_dimension():
         R_reshaped = tf.expand_dims(R_reshaped, 1)
 
     # Tell the router that we handled this operation

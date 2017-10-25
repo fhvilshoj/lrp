@@ -29,7 +29,7 @@ class _LRPImplementation:
         self.handled_operations = []
 
         # Remember if there has been added an dimension to the starting point relevances
-        self.added_dimension_for_multiple_predictions_per_sample = False
+        self.starting_point_relevances_did_not_have_predictions_per_sample_dimension = False
 
     def lrp(self, input, output, R = None):
         # Remember input and output
@@ -67,8 +67,8 @@ class _LRPImplementation:
         return self.relevances[operation._id]
 
 
-    def did_add_extra_dimension_for_multiple_predictions_per_sample(self):
-        return self.added_dimension_for_multiple_predictions_per_sample
+    def starting_point_relevances_did_not_have_predictions_per_sample_dimension(self):
+        return self.starting_point_relevances_did_not_have_predictions_per_sample_dimension
 
     # Run through the path between output and input and iteratively
     # compute relevances
@@ -86,7 +86,7 @@ class _LRPImplementation:
 
         # If the starting point relevances where shape (batch_size, classes), remove the extra two
         # predictions_per_sample dimensions that where added to the starting point relevances
-        if self.added_dimension_for_multiple_predictions_per_sample:
+        if self.starting_point_relevances_did_not_have_predictions_per_sample_dimension:
             final_input_relevances = tf.squeeze(final_input_relevances, 1)
             final_input_relevances = tf.squeeze(final_input_relevances, 1)
 
@@ -112,7 +112,7 @@ class _LRPImplementation:
                 predictions = tf.expand_dims(predictions, 1)
                 batch_size, predictions_per_sample, number_of_classes = predictions.get_shape().as_list()
                 # Remember that there has been added an extra dimension, so it can be removed again later
-                self.added_dimension_for_multiple_predictions_per_sample = True
+                self.starting_point_relevances_did_not_have_predictions_per_sample_dimension = True
             else:
                 raise ValueError("Only accepts outputs of shape (batch_size, predictions_per_sample, number_of_classes) "
                                  "or (batch_size, number_of_classes) but got shape: " + predictions_shape)

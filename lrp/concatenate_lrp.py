@@ -26,9 +26,13 @@ def concatenate(router, R):
         # Find and add the size of the input in the "axis" dimension
         split_sizes.append(shape[axis])
 
-    # Check if there has been added an extra dimension (for multiple predictions per sample) in
-    # which case the axis to split over has to be adjusted accordingly
+    # Adjust the axis to split over, since we in the lrp router have added either one extra dimension for
+    # predictions_per_sample (if the starting point relevances had shape (batch_size, predictions_per_sample, classes))
+    # or two dimensions for predictions_per_sample (if the starting point relevances had shape
+    # (batch_size, predictions_per_sample, classes)) to the relevances
     if router.did_add_extra_dimension_for_multiple_predictions_per_sample():
+        axis += 2
+    else:
         axis += 1
 
     # Split the relevances over the "axis" dimension according to the found split sizes

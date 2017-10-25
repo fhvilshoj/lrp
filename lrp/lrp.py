@@ -84,9 +84,10 @@ class _LRPImplementation:
         # Sum the potentially multiple relevances calculated for the input
         final_input_relevances = lrp_util.sum_relevances(self.relevances[self.input.op._id])
 
-        # If there was added an extra dimension to the starting point relevances,
-        # remove it again before returning the calculated relevances
+        # If the starting point relevances where shape (batch_size, classes), remove the extra two
+        # predictions_per_sample dimensions that where added to the starting point relevances
         if self.added_dimension_for_multiple_predictions_per_sample:
+            final_input_relevances = tf.squeeze(final_input_relevances, 1)
             final_input_relevances = tf.squeeze(final_input_relevances, 1)
 
         return final_input_relevances
@@ -129,7 +130,26 @@ class _LRPImplementation:
             # for each sample have been set to zero
             relevances_with_only_chosen_class = tf.multiply(predictions, max_score_indices_as_one_hot_vectors)
 
-            return relevances_with_only_chosen_class
+            # Add an extra dimension for predictions_per_sample, so we can calculate 'predictions_per_sample'
+            # independent paths through the network.
+            # New shape: (predictions_per_sample, batch_size, predictions_per_sample, classes)
+            relevances_with_only_chosen_class = tf.expand_dims(relevances_with_only_chosen_class, 0)
+
+            # Stack 'predictions_per_sample' identical copies of the starting relevances on top of each other
+            stacked_relevances = tf.tile(relevances_with_only_chosen_class, [predictions_per_sample, 1, 1, 1])
+
+            # Create a tensor of shape (predictions_per_sample, 1, predictions_per_sample, 1) that has ones in position
+            # [i, 1, i, 1] and zeros everywhere else
+            selections = tf.expand_dims(tf.expand_dims(tf.eye(predictions_per_sample), -1), 1)
+
+            # For each prediction per sample, "select" the associated relevance and set all other relevances to zero
+            relevances_new = tf.multiply(selections, stacked_relevances)
+
+            # Transpose the starting point relevances to get the final shape
+            # (batch_size, predictions_per_sample, predictions_per_sample, classes)
+            relevances_new = tf.transpose(relevances_new, [1, 0, 2, 3])
+
+            return relevances_new
 
 
 # The purpose of this method is to have a handle for test cases where

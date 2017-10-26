@@ -90,7 +90,7 @@ def convolutional(router, R):
     zp_sum += tf.expand_dims(positive_bias_tensor, 0)
 
     # Find the number of predictions per sample from R
-    relevances_shape = R.get_shape().as_list()
+    relevances_shape = tf.shape(R)
     predictions_per_sample = relevances_shape[1]
 
     # Find the relative contribution of each feature in the input to the activations,

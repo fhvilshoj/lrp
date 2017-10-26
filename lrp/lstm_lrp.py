@@ -194,47 +194,35 @@ def lstm(path, R, LSTM_input):
         body=_body,
         loop_vars=[i, hidden_states, state_cells, input_gate, gate_gate, forget_gate])
 
-    # Create a while loop that for each iteration looks at one prediction per sample in the batch and
-    # calculates the relevance to propagate to the lower layers.
     # Start by finding the number of predictions per sample from R, which has
     # shape (batch_size, predictions_pr_sample, sequence_length, units)
     predictions_per_sample = tf.shape(R)[1]
 
-    # Transpose R to have shape (sequence_length, batch_size, predictions_pr_sample, units)
+    # Transpose R to have shape (sequence_length, batch_size, predictions_per_sample, units)
     R = tf.transpose(R, [2, 0, 1, 3])
-
-    # # Create a variable that indicates the starting time step to begin the backpropagation of relevance
-    # # through the LSTM from and set it to the sequence length, since we always want to start from the last
-    # # hidden state output by the LSTM
-    # starting_point = tf.constant(sequence_length, dtype=tf.int32)
-
-    # # Create the stop point that tells us when to stop iterating through the LSTM
-    # stop_point = sequence_length - predictions_per_sample
-
-    # # Create a tensorarray that has length = predictions_per_sample and holds elements of shape
-    # # (batch_size, predictions_pr_sample, input_depth)
-    # R_new_ta = tf.TensorArray(tf.float32, size=predictions_per_sample, clear_after_read=False)
 
     # Split relevances into a tensor array to have elements of shape (1, batch_size, predictions_per_sample, units)
     R_ta = tf.TensorArray(tf.float32, size=sequence_length, clear_after_read=False)
     R_ta = R_ta.split(R, [1] * sequence_length)
 
+    # Calculate the relevances to forward to lower layers
     # R_new shape: (sequence_length, batch_size, predictions_per_sample, input_depth)
     R_new = _calculate_relevance_from_lstm(R_ta, weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg, sequence_length)
 
-
-    # Reshape the calculated relevances to shape (batch_size, input_sequence_length, input_sequence_length, input_depth)
+    # Reshape the calculated relevances to shape (batch_size, predictions_per_sample, input_sequence_length, input_depth)
     R_new = tf.transpose(R_new, [1, 2, 0, 3])
 
     print(predictions_per_sample)
 
     return R_new
 
-# R, weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg
+# Helper function that calculates the relevances to forward
+# Input: R, weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg
 def _calculate_relevance_from_lstm(R_ta, W_g, b_g, X, hidden_states, cell_states, input_gate_outputs, gate_gate_outputs,
                                    forget_gate_outputs, sequence_length):
 
-    # Find batch size (R holds tensors of size (1, batch_size, predictions_per_sample, input depth)
+    # Find batch size. R holds tensors of size (1, batch_size, predictions_per_sample, input depth) so start by
+    # squeezing the first dimension to get an element of shape (batch_size, predictions_per_sample, input depth)
     R_0 = R_ta.read(0)
     R_0 = tf.squeeze(R_0, 0)
     R_0_shape = tf.shape(R_0)
@@ -248,26 +236,19 @@ def _calculate_relevance_from_lstm(R_ta, W_g, b_g, X, hidden_states, cell_states
     # since the number of units is equal to the depth of h
     x_depth = tmp - units
 
-    # Initialize relevances for X[t]
+    # Initialize tensorarray to hold the relevances for X[t] and put zeros in index 0 (so the relevances for timestep
+    # t are written in index t rather than t-1)
     relevance_xs = tf.TensorArray(tf.float32, sequence_length + 1, clear_after_read=False)
     relevance_xs = relevance_xs.write(0, tf.zeros((batch_size, predictions_per_sample, x_depth)))
 
     # Initialize relevances for the hidden states
-    # R_0 has shape (1, batch_size, predictions_per_sample, units)
-    # Reshape to (batch_size, predictions_per_sample, units)
     relevance_hs = tf.TensorArray(tf.float32, (sequence_length + 1), clear_after_read=False)
 
-    # Fill the last relevance in hidden states relevances with zeros since the upper layer
-    # relevance now comes from the tensor array R directly
+    # Fill the last relevance in hidden states relevances with zeros
     relevance_hs = relevance_hs.write(sequence_length, tf.zeros_like(R_0))
 
     # Initialize relevances for the cell states
     relevance_cs = tf.zeros_like(R_0)
-
-    # The counting variable for the while loop
-    # print(max_timestep)
-    # t = tf.constant(max_timestep)
-    # print(t)
 
     # The body of the while loop
     def calculate_relevances(t, rel_xs, rel_cs, rel_hs):
@@ -316,19 +297,21 @@ def _calculate_relevance_from_lstm(R_ta, W_g, b_g, X, hidden_states, cell_states
         rel_x_t_and_h_t_minus_one = linear_epsilon(relevance_g, x_h_concat, W_g, bias=b_g)
         (rel_xs_t, rel_hs_t_minus_one) = tf.split(rel_x_t_and_h_t_minus_one, [x_depth, units], 2)
 
+        # Store the relevances for x and h
         rel_xs = rel_xs.write(t, rel_xs_t)
         rel_hs = rel_hs.write(t - 1, rel_hs_t_minus_one)
 
+        # Ready for next iteration of the loop
         return tf.add(t, -1), rel_xs, rel_cs_t_minus_one, rel_hs
 
-    # The while loop
+    # Run the while loop
     t, rel_xs, rel_cs, rel_hs = tf.while_loop(_t_geq_one, calculate_relevances,
                                               [sequence_length, relevance_xs, relevance_cs,
                                                relevance_hs])
 
     R_new = rel_xs.stack()
 
-    # Remove the first zero row from the tensor
+    # Remove the zeros we inserted in the first position
     R_new = tf.slice(R_new, [1, 0, 0, 0], [-1, -1, -1, -1])
 
     return R_new

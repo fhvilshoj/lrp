@@ -20,7 +20,7 @@ def brackets(arr, default_element):
     res += "]"
     return res
 
-def b(arr, default_element=""):
+def br(arr, default_element=""):
     if not isinstance(default_element, str):
         default_element = str(default_element)
     print(brackets(np.array(arr), default_element))

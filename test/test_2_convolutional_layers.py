@@ -28,7 +28,6 @@ class Convolution2LayersLRPTest(unittest.TestCase):
                                          [2, 3]]]],
                                       dtype=tf.float32)
                 activation = tf.nn.conv2d(inp, weights, [1, 1, 1, 1], "SAME")
-            activation = tf.Print(activation, [activation], message="activation: ", summarize=1000)
 
             # Create the second convolutional layer equal to `test_convolution_with_bias.py`
             with tf.name_scope('conv2'):

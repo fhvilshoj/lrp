@@ -32,8 +32,9 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
 
     # When bias is given divide it equally among the i's to avoid relevance loss
     if bias is not None:
-        # Number of input features to divide relevance among
-        input_features = input.get_shape().as_list()[1]
+        # Number of input features to divide relevance among (cast to float32 from int to perform the division below)
+        input_shape = tf.shape(input)
+        input_features = tf.cast(input_shape[1], tf.float32)
 
         # Find the bias to divide equally among the rows (This includes the stabilizer: epsilon)
         # Shape: (output_width) or (batch, output_width)

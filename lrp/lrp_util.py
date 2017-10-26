@@ -305,9 +305,14 @@ def get_operations_between_output_and_input(input, output):
             # Clear the boolean so we won't consider it again.
             reached_ops[op._id] = False
 
-            # Add inputs to the queue
-            for inp in op.inputs:
-                queue.append(inp.op)
+            # Add inputs to the queue - if the operation is a reshape, we only care about its first input
+            # since that is the input that stems from the input to the network while all other inputs to the
+            # reshape operation are irrelevant for us
+            if "Reshape" in op.type:
+                queue.append(op.inputs[0].op)
+            else:
+                for inp in op.inputs:
+                    queue.append(inp.op)
 
     between_op_list = _rearrange_op_list(output, between_ops)
 

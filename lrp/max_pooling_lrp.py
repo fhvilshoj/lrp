@@ -70,7 +70,7 @@ def max_pooling(router, R):
     fractions = tf.expand_dims(fractions, 1)
 
     # Extract information about R for later reshapes
-    relevances_shape = R.get_shape().as_list()
+    relevances_shape = tf.shape(R)
     predictions_per_sample = relevances_shape[1]
     batch_size_times_predictions_per_sample = batch_size * predictions_per_sample
 

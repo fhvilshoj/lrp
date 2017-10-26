@@ -14,17 +14,17 @@ def shaping(router, R):
     # Get the shape of the input to the shaping operation
     input_shape = tf.shape(input_to_current_operation)
 
+    # Split the shape of the input into 'batch_size' and everything else
+    batch_size, input_shape_without_batch_size = tf.split(input_shape, [1, -1], 0)
+
     # Get the shape of the relevances
-    relevances_shape = R.get_shape().as_list()
+    relevances_shape = tf.shape(R)
 
-    # Find the size of the batch_size and predictions_per_sample dimensions
-    batch_size_and_predictions_per_sample = relevances_shape[:2]
-
-    # Find the shape of the input (except the batch_size which we already know from above)
-    input_shape_without_batch_size = tf.slice(input_shape, [1], [-1])
+    # Find the size of the predictions_per_sample dimension
+    predictions_per_sample = relevances_shape[1]
 
     # Concatenate the dimensions to get the new shape of the relevances
-    relevances_new_shape = tf.concat([batch_size_and_predictions_per_sample, input_shape_without_batch_size], 0)
+    relevances_new_shape = tf.concat([batch_size, [predictions_per_sample], input_shape_without_batch_size], 0)
 
     # Reshape R to the same shape as the input to the reshaping operation that created the tensor
     # but leave the two first dimensions untouched since they are batch_size, predictions_per_sample

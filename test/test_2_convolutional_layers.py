@@ -18,16 +18,17 @@ class Convolution2LayersLRPTest(unittest.TestCase):
             # same manner (so we were able to reuse calculations from earlier
             # test case, `test_convolution_with_bias.py`)
             with tf.name_scope('conv1'):
-                weights = tf.constant([[[[1, 0],
-                                         [0, 1]],
-                                        [[0, 0],
-                                         [0, 0]]],
-                                       [[[0, 0],
-                                         [0, 0]],
-                                        [[0, 0],
-                                         [0, 0]]]],
+                weights = tf.constant([[[[9, 5],
+                                         [0, -2]],
+                                        [[2, 0],
+                                         [4, 0]]],
+                                       [[[4, 6],
+                                         [1, 0]],
+                                        [[-8, 7],
+                                         [2, 3]]]],
                                       dtype=tf.float32)
                 activation = tf.nn.conv2d(inp, weights, [1, 1, 1, 1], "SAME")
+            activation = tf.Print(activation, [activation], message="activation: ", summarize=1000)
 
             # Create the second convolutional layer equal to `test_convolution_with_bias.py`
             with tf.name_scope('conv2'):
@@ -47,17 +48,14 @@ class Convolution2LayersLRPTest(unittest.TestCase):
 
                 # Add bias
                 activation = tf.nn.bias_add(activation, bias)
+                print(activation)
 
-            # Set the prediction to be equal to the activations of the last layer
-            # (there is no softmax in this network)
-            pred = activation
+            # Flatten the activations to get something of the shape (batch_size, predictions_per_sample, classes)
+            # as required by the lrp framework
+            final_output = tf.reshape(activation, [1, 2, 6])
 
             # Calculate the relevance scores using lrp
-            R_mock = tf.constant([[[[[3., 2., 1.],
-                                     [4., 3., 2.]],
-                                    [[1., 1., 3.],
-                                     [1., 0., 4.]]]]], dtype=tf.float32)
-            expl = lrp._lrp(inp, pred, R_mock)
+            expl = lrp.lrp(inp, final_output)
 
             # Run a tensorflow session to evaluate the graph
             with tf.Session() as sess:
@@ -65,28 +63,27 @@ class Convolution2LayersLRPTest(unittest.TestCase):
                 sess.run(tf.global_variables_initializer())
 
                 # Run the operations of interest and feed an input to the network
-                prediction, explanation = sess.run([pred, expl],
-                                                   feed_dict={inp: [[[[1., 0.],
-                                                                      [-1., 2.]],
-                                                                     [[2., -1.],
-                                                                      [3., 0.]]]]
+                prediction, explanation = sess.run([final_output, expl],
+                                                   feed_dict={inp: [[[[-1., 0.],
+                                                                      [1., 2.]],
+                                                                     [[12., 9.],
+                                                                      [13., 6.]]]]
                                                               })
 
-                # Check if the predictions has the right shape
-                self.assertEqual(prediction.shape, (1, 2, 2, 3),
-                                 msg="Should be able to do a convolutional forward pass")
+                # The expected relevances (calculated in Google sheet)
+                expected_explanation = np.array([[[[[0, 0],
+                                                    [20.77998952, 0]],
 
-                # Check if the explanation has the right shape. Notice that we have to take explanation[0] because
-                # we call the _lrp function rather than the lrp function and that the produced relevances therefore
-                # have a dimension more (for multiple predictions per sample) than the input.
-                self.assertEqual(list(explanation[0].shape), inp.get_shape().as_list(),
-                                 msg="Should be a wellformed explanation")
+                                                   [[162.531828, 0],
+                                                    [480.9247907, 48.85034831]]],
 
-                # Check if the relevance scores are correct (the correct values are
-                # found by calculating the example by hand)
+                                                  [[[0, 0],
+                                                    [0, 0]],
+
+                                                   [[258, 0],
+                                                    [339, 48]]]]])
+
+                # Check if the relevance scores are correct
                 self.assertTrue(
-                    np.allclose([[[[1.06, 0],
-                                   [0, 4.49]],
-                                  [[2.62, 0],
-                                   [13.19, 0]]]], explanation[0], rtol=1e-01, atol=1e-01),
+                    np.allclose(expected_explanation, explanation, rtol=1e-03, atol=1e-03),
                     msg="Should be a good convolutional explanation")

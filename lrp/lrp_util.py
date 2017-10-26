@@ -1,10 +1,6 @@
 import tensorflow as tf
-from math import ceil
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import sparse_ops
-from tensorflow.python.framework import sparse_tensor, ops
-
 from constants import *
+
 
 # Helper function that takes a tensor, goes back to the operation that created it,
 # and determines which of the operation's inputs lead in the direction of the input
@@ -150,7 +146,6 @@ def _find_operations_in_LSTM(first_operation_in_LSTM, between_ops):
     return LSTM_path, start_of_LSTM, reached_ops
 
 
-
 # Add the operation right after the LSTM to the queue of operations to take care of and begin
 # a new path (the path that is before the LSTM in the original computational graph)
 
@@ -252,6 +247,7 @@ def _rearrange_op_list(output, between_ops):
     context_list.append({CONTEXT_PATH: current_path, CONTEXT_TYPE: NON_LSTM_CONTEXT_TYPE})
     return context_list
 
+
 # Helper function that traverses computation graph through all nodes
 # to find the path from the output back to the input.
 def get_operations_between_output_and_input(input, output):
@@ -305,12 +301,14 @@ def get_operations_between_output_and_input(input, output):
             # Clear the boolean so we won't consider it again.
             reached_ops[op._id] = False
 
-            # Add inputs to the queue - if the operation is a reshape, we only care about its first input
-            # since that is the input that stems from the input to the network while all other inputs to the
-            # reshape operation are irrelevant for us
+            # Add the operation's inputs to the queue
             if "Reshape" in op.type:
+                # If the operation is a reshape, we only care about its first input
+                # since that is the input that stems from the input to the network while all other inputs to the
+                # reshape operation are irrelevant for us
                 queue.append(op.inputs[0].op)
             else:
+                # For all other operations, we add all its inputs to the queue
                 for inp in op.inputs:
                     queue.append(inp.op)
 
@@ -327,70 +325,156 @@ def _print(tensor, index=''):
         _print(inp, index + ' | ')
 
 
-# Helper function borrowed from
-# https://github.com/VigneshSrinivasan10/interprettensor/blob/master/interprettensor/modules/convolution.py#L209
-# TODO: Do we want to change this to something we develop ourself?
 def patches_to_images(patches, batch_size, rows_in, cols_in, channels, rows_out, cols_out, ksize_r, ksize_c,
-                      stride_r, stride_h, padding):
-    ksize_r_eff = ksize_r  # + (ksize_r - 1) * (rate_r - 1)
-    ksize_c_eff = ksize_c  # + (ksize_c - 1) * (rate_c - 1)
+                      stride_r, stride_c, padding):
 
     if padding == 'SAME':
-        rows_out = int(ceil(rows_in / stride_r))
-        cols_out = int(ceil(cols_in / stride_h))
-        pad_rows = ((rows_out - 1) * stride_r + ksize_r_eff - rows_in) // 2
-        pad_cols = ((cols_out - 1) * stride_h + ksize_c_eff - cols_in) // 2
+        rows_out = tf.cast((tf.ceil(rows_in / stride_r)), tf.int32)
+        cols_out = tf.cast((tf.ceil(cols_in / stride_c)), tf.int32)
+        pad_rows = ((rows_out - 1) * stride_r + ksize_r - rows_in) // 2
+        pad_cols = ((cols_out - 1) * stride_c + ksize_c - cols_in) // 2
 
     elif padding == 'VALID':
-        rows_out = int(ceil((rows_in - ksize_r_eff + 1) / stride_r))
-        cols_out = int(ceil((cols_in - ksize_c_eff + 1) / stride_h))
-        pad_rows = (rows_out - 1) * stride_r + ksize_r_eff - rows_in
-        pad_cols = (cols_out - 1) * stride_h + ksize_c_eff - cols_in
+        rows_out = tf.cast(tf.ceil((rows_in - ksize_r + 1) / stride_r), tf.int32)
+        cols_out = tf.cast(tf.ceil((cols_in - ksize_c + 1) / stride_c), tf.int32)
+        pad_rows = 0  # (rows_out - 1) * stride_r + ksize_r - rows_in
+        pad_cols = 0  # (cols_out - 1) * stride_c + ksize_c - cols_in
 
-    pad_rows, pad_cols = max(0, pad_rows), max(0, pad_cols)
 
-    grad_expanded = array_ops.transpose(
-        array_ops.reshape(patches, (batch_size, rows_out,
-                                    cols_out, ksize_r, ksize_c, channels)),
-        (1, 2, 3, 4, 0, 5)
+    # Reshape the patches from shape (batch_size, out_height, out_width, kernel_height * kernel_width * in_channels) to
+    # shape (batch_size, out_height, out_width, kernel_height,kernel_width, in_channels)
+    patch_shape = tf.stack([batch_size, rows_out, cols_out, ksize_r, ksize_c, channels])
+    patches = tf.reshape(patches, patch_shape)
+
+    # Transpose the patches to shape (out_height, out_width, kernel_height,kernel_width, batch_size, in_channels)
+    patches = tf.transpose(patches, (1, 2, 3, 4, 0, 5))
+
+    # Reshape the patches to shape (out_height * out_width * kernel_height * kernel_width, batch_size * in_channels)
+    patches = tf.reshape(patches, tf.stack([-1, batch_size * channels]))
+
+    sparse_indexes_size = rows_out * cols_out * ksize_r * ksize_c
+    sparse_indexes = tf.TensorArray(tf.int64, size=sparse_indexes_size, dynamic_size=True)
+
+    batch_size = tf.cast(batch_size, dtype=tf.int64)
+    ksize_r = tf.cast(ksize_r, dtype=tf.int64)
+    ksize_c = tf.cast(ksize_c, dtype=tf.int64)
+    channels = tf.cast(channels, dtype=tf.int64)
+    rows_out = tf.cast(rows_out, dtype=tf.int64)
+    cols_out = tf.cast(cols_out, dtype=tf.int64)
+    rows_in = tf.cast(rows_in, dtype=tf.int64)
+    cols_in = tf.cast(cols_in, dtype=tf.int64)
+    pad_rows = tf.cast(pad_rows, dtype=tf.int64)
+    pad_cols = tf.cast(pad_cols, dtype=tf.int64)
+
+    def _loop_over_rows_out(r_out_center, sparse_indexes, tensor_array_index):
+
+        #############################################################################
+        def _loop_over_columns_out(c_out_center, sparse_indexes, tensor_array_index):
+            r_low = r_out_center * stride_r - pad_rows
+            c_low = c_out_center * stride_c - pad_cols
+            r_high = r_low + ksize_r
+            c_high = c_low + ksize_c
+
+            #############################################################################
+            def _loop_over_kernel_rows(kernel_row_index, current_input_row, sparse_indexes, tensor_array_index):
+
+                #############################################################################
+                def _loop_over_kernel_columns(kernel_column_index, current_input_column, sparse_indexes, tensor_array_index):
+                    def _add_tuple():
+                        index_tuple = (current_input_row * (cols_in) + current_input_column,
+                                       r_out_center * (cols_out * ksize_r * ksize_c) +
+                                       c_out_center * (ksize_r * ksize_c) +
+                                       kernel_row_index * (ksize_c) +
+                                       kernel_column_index)
+                        return sparse_indexes.write(tensor_array_index, index_tuple), tf.add(tensor_array_index, 1)
+
+                    def _do_not_add_tuple():
+                        return sparse_indexes, tensor_array_index
+
+                    sparse_indexes, tensor_array_index = tf.cond(
+                        tf.logical_and(
+                            tf.logical_and(
+                                current_input_column >= 0,
+                                current_input_column < cols_in
+                            ),
+                            tf.logical_and(
+                                current_input_row >= 0,
+                                current_input_row < rows_in
+                            )
+                        ),
+                        true_fn=_add_tuple,
+                        false_fn=_do_not_add_tuple)
+
+                    return tf.add(kernel_column_index, 1), tf.add(current_input_column,
+                                                                  1), sparse_indexes, tensor_array_index
+
+                #############################################################################
+
+
+                *_, sparse_indexes, tensor_array_index = tf.while_loop(
+                    cond=lambda _, t, *__: tf.less(t, c_high),
+                    body=_loop_over_kernel_columns,
+                    loop_vars=[tf.constant(0, dtype=tf.int64), c_low, sparse_indexes, tensor_array_index]
+                )
+
+                return tf.add(kernel_row_index, 1), tf.add(current_input_row, 1), sparse_indexes, tensor_array_index
+
+            #############################################################################
+            *_, sparse_indexes, tensor_array_index = tf.while_loop(
+                cond=lambda _, t, *__: tf.less(t, r_high),
+                body=_loop_over_kernel_rows,
+                loop_vars=[tf.constant(0, dtype=tf.int64), r_low, sparse_indexes, tensor_array_index]
+            )
+
+            return tf.add(c_out_center, 1), sparse_indexes, tensor_array_index
+
+        #############################################################################
+
+        _, sparse_indexes, tensor_array_index = tf.while_loop(
+            cond=lambda t, *_: tf.less(t, cols_out * stride_c),
+            body=_loop_over_columns_out,
+            loop_vars=[tf.constant(0, dtype=tf.int64), sparse_indexes, tensor_array_index]
+        )
+        return tf.add(r_out_center, 1), sparse_indexes, tensor_array_index
+
+    #############################################################################
+    _, sparse_indexes, tensor_array_index = tf.while_loop(
+        cond=lambda t, *_: tf.less(t, rows_out * stride_r),
+        body=_loop_over_rows_out,
+        loop_vars=[tf.constant(0, dtype=tf.int64), sparse_indexes, 0]
     )
-    grad_flat = array_ops.reshape(grad_expanded, (-1, batch_size * channels))
 
-    row_steps = range(0, rows_out * stride_r, stride_r)
-    col_steps = range(0, cols_out * stride_h, stride_h)
 
-    idx = []
-    for i in range(rows_out):
-        for j in range(cols_out):
-            r_low, c_low = row_steps[i] - pad_rows, col_steps[j] - pad_cols
-            r_high, c_high = r_low + ksize_r_eff, c_low + ksize_c_eff
+    tensor_array_index = tf.cast(tensor_array_index, dtype=tf.int32)
 
-            idx.extend([(r * (cols_in) + c,
-                         i * (cols_out * ksize_r * ksize_c) +
-                         j * (ksize_r * ksize_c) +
-                         ri * (ksize_c) + ci)
-                        for (ri, r) in enumerate(range(r_low, r_high))
-                        for (ci, c) in enumerate(range(c_low, c_high))
-                        if 0 <= r and r < rows_in and 0 <= c and c < cols_in
-                        ])
+    sparse_indexes = sparse_indexes.gather(tf.range(tensor_array_index))
 
-    sp_shape = (rows_in * cols_in,
-                rows_out * cols_out * ksize_r * ksize_c)
+    columns = rows_out * cols_out * ksize_r * ksize_c
+    rows = rows_in * cols_in
+    dense_shape = tf.stack([rows, columns])
 
-    sp_mat = sparse_tensor.SparseTensor(
-        array_ops.constant(idx, dtype=ops.dtypes.int64),
-        array_ops.ones((len(idx),), dtype=ops.dtypes.float32),
-        sp_shape
+    transformation_matrix = tf.SparseTensor(
+        sparse_indexes,
+        tf.ones((tensor_array_index,)),
+        dense_shape
     )
 
-    jac = sparse_ops.sparse_tensor_dense_matmul(sp_mat, grad_flat)
+    batch_size = tf.cast(batch_size, dtype=tf.int32)
+    ksize_r = tf.cast(ksize_r, dtype=tf.int32)
+    ksize_c = tf.cast(ksize_c, dtype=tf.int32)
+    channels = tf.cast(channels, dtype=tf.int32)
+    rows_out = tf.cast(rows_out, dtype=tf.int32)
+    cols_out = tf.cast(cols_out, dtype=tf.int32)
+    rows_in = tf.cast(rows_in, dtype=tf.int32)
+    cols_in = tf.cast(cols_in, dtype=tf.int32)
 
-    result = array_ops.reshape(
-        jac, (rows_in, cols_in, batch_size, channels)
-    )
-    result = array_ops.transpose(result, (2, 0, 1, 3))
+    new_relevances = tf.sparse_tensor_dense_matmul(transformation_matrix, patches)
 
-    return result
+    new_relevances = tf.reshape(new_relevances, tf.stack((rows_in, cols_in, batch_size, channels)))
+
+    new_relevances = tf.transpose(new_relevances, (2, 0, 1, 3))
+
+    return new_relevances
 
 
 # Helper function that uses tensorflow's Print function to print the value of a tensor

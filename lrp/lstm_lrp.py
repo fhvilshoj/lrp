@@ -107,7 +107,9 @@ def lstm(path, R, LSTM_input):
     lstm_units = bias_ref.get_shape().as_list()[0] // 4
 
     # Find the length of the LSTM_input sequence
-    batch_size, sequence_length, input_depth = LSTM_input.get_shape().as_list()
+    LSTM_input_shape = tf.shape(LSTM_input)
+    batch_size = LSTM_input_shape[0]
+    sequence_length = LSTM_input_shape[1]
 
     # Slicing the weights and biases used for calculating gate gate
     # output (Ug and Wg). The kernel matrix has the following regions:
@@ -133,11 +135,11 @@ def lstm(path, R, LSTM_input):
 
     # LSTM_input: ( time, batch_size, depth )
     # input_a: TensorArray containing sizes: (1, batch_size, depth)
-    input_a = input_a.split(LSTM_input, [1] * sequence_length)
+    input_a = input_a.split(LSTM_input, tf.ones((sequence_length,)))
 
     def create_ta_with_0_at_idx_zero():
         ta = tf.TensorArray(tf.float32, size=sequence_length + 1, clear_after_read=False)
-        return ta.write(0, tf.constant(0., shape=(batch_size, lstm_units)))
+        return ta.write(0, tf.zeros((batch_size, lstm_units), dtype=tf.float32))
 
     hidden_states = create_ta_with_0_at_idx_zero()
     state_cells = create_ta_with_0_at_idx_zero()
@@ -203,7 +205,7 @@ def lstm(path, R, LSTM_input):
 
     # Split relevances into a tensor array to have elements of shape (1, batch_size, predictions_per_sample, units)
     R_ta = tf.TensorArray(tf.float32, size=sequence_length, clear_after_read=False)
-    R_ta = R_ta.split(R, [1] * sequence_length)
+    R_ta = R_ta.split(R, tf.ones((sequence_length,)))
 
     # Calculate the relevances to forward to lower layers
     # R_new shape: (sequence_length, batch_size, predictions_per_sample, input_depth)

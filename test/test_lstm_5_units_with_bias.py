@@ -32,7 +32,9 @@ class LSTM5UnitsWithBiasLRPTest(unittest.TestCase):
             bias = next(i for i in tf.global_variables() if i.shape == (20,))
             assign_bias = bias.assign(LSTM_BIAS)
 
-            # Fake the relevance
+            # Slice the output to get shape (batch_size, 1, lstm_units) and then squueze the 2nd dimension to
+            # get shape (batch_size, lstm_units) so we test if the framework if capable of handling starting point
+            # predictions without the predictions_per_sample dimension
             output = tf.squeeze(tf.slice(lstm_output, [0, 7, 0], [1, 1, lstm_units]), 1)
 
             # Get the explanation from the LRP framework.

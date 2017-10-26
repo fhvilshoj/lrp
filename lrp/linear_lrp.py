@@ -20,10 +20,14 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
         if bias is not None:
             output += bias
 
-    # Prepare batch for elementwise multiplication. New input shape: (batch_size, input_width, 1)
+    # Prepare batch for elementwise multiplication
+    # Shape of input: (batch_size, input_width)
+    # Shape of input after expand_dims: (batch_size, input_width, 1)
     input = tf.expand_dims(input, -1)
 
-    # Find Z_kij's. Shape: (batch, input_width, output_width)
+    # Perform elementwise multiplication of input, weights to get z_kij which is the contribution from
+    # feature i to neuron j for input k
+    # Shape of zs: (batch_size, input_width, output_width)
     zs = tf.multiply(input, weights)
 
     # When bias is given divide it equally among the i's to avoid relevance loss
@@ -43,12 +47,12 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
         # Shape: (1, output_width) or (batch, 1, output_width)
         bias_per_feature = tf.expand_dims(bias_per_feature, -2)
 
-        # Add bias through rows of zs
-        # Shape: (batch, input_width, output_width)
+        # Add bias to zs
+        # Shape of zs: (batch, input_width, output_width)
         zs = zs + bias_per_feature
 
     # Add stabilizer to denominator to avoid dividing with 0
-    # Shape: (batch, output_width)
+    # Shape of denominator: (batch, output_width)
     denominator = output + EPSILON * tf.sign(output)
 
     # Expand the second to last dimension to be able to divide the denominator through the rows of zs
@@ -56,27 +60,18 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
     denominator = tf.expand_dims(denominator, -2)
 
     # Find the relative contribution from feature i to neuron j for input k
-    # Shape: (batch, input_width, output_width)
+    # Shape of fractions: (batch_size, input_width, output_width)
     fractions = tf.divide(zs, denominator)
 
-    # Transpose the fractions to be able to do matrix multiplication with R
-    # Shape after transpose: (batch_size, output_width, input_width)
+    # Prepare the fractions for the matmul below
+    # Shape of fractions after transpose: (batch_size, output_width, input_width)
     fractions = tf.transpose(fractions, [0, 2, 1])
 
-    # Expand the dimensions of fractions to be able to broadcast them over all predictions_per_sample of R
-    fractions = tf.expand_dims(fractions, 1)
-
-    # Expand the second to last dimension to be able to do matrix multiplication with fractions
-    # Shape after expand_dims: (batch_size, 1, output_width)
-    R = tf.expand_dims(R, -2)
-
-    # Calculate relevance by doing matrix multiplication of R and fractions
-    # R_new shape: (batch_size, predictions_per_sample, 1, input_width)
+    # Multiply relevances with fractions to find relevance per feature in input
+    # Shape of R: (batch_size, predictions_per_sample, output_width)
+    # Shape of fractions: (batch_size, output_width, input_width)
+    # Shape of R_new: (batch_size, predictions_per_sample, input_width)
     R_new = tf.matmul(R, fractions)
-
-    # Remove the extra dimension added to R above
-    # Final shape: (batch_size, input_width)
-    R_new = tf.squeeze(R_new, -2)
 
     return R_new
 
@@ -92,7 +87,7 @@ def linear_alpha(R, input, weights, bias=None):
     # Perform elementwise multiplication of input, weights to get z_kij which is the contribution from
     # feature i to neuron j for input k
     # Shape of zs: (batch_size, input_width, output_width)
-    zs = input * weights
+    zs = tf.multiply(input, weights)
 
     # Replace the negative elements with zeroes to only have the positive z's left (i.e. z_kij^+)
     # Shape of zp: (batch_size, input_width, output_width)
@@ -123,9 +118,9 @@ def linear_alpha(R, input, weights, bias=None):
 
     # Multiply relevances with fractions to find relevance per feature in input
     # In other words: Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
-    # Shape of R: (batch_size, predictions_per_sample, out_width)
+    # Shape of R: (batch_size, predictions_per_sample, output_width)
     # Shape of fractions: (batch_size, output_width, input_width)
-
+    # Shape of R_new: (batch_size, predictions_per_sample, input_width)
     R_new = tf.matmul(R, fractions)
 
     return R_new

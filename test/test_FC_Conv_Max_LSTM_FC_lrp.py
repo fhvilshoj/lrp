@@ -7,64 +7,73 @@ import unittest
 class FCConvMaxLSTMFCTest(unittest.TestCase):
     def runTest(self):
         # Build the computational graph
-        with tf.Graph().as_default() as g:
-            # Make static input shape: (8, 10)
-            inp = tf.constant([[-2, -17, 17, 4, 8, -1, 0, -16, -16, 17],
-                               [11, 18, -2, -10, -7, 5, -11, 18, 0, -10],
-                               [2, -7, -17, -15, 3, 11, -5, -11, 18, 4],
-                               [4, 5, 9, -19, 10, 8, 8, 13, 1, -7],
-                               [9, 0, -6, -7, 19, 20, 4, 8, 2, -3],
-                               [-2, -17, 0, 10, -17, 17, 19, -15, 2, -7],
-                               [7, 14, 11, 16, -1, 10, -9, 3, -4, -7],
-                               [11, 1, 1, 16, 0, 14, 2, 20, -20, 13]], dtype=tf.float32)
+        with tf.Graph().as_default():
+            # Make static input shape: (4, 6)
+            inp = tf.constant([[0.49529851, -0.64648792, 0.18508197, -0.14201359, 0.29480708,
+                                -0.23168202],
+                               [0.03458613, -0.11823616, -0.67511888, -0.17805438, 0.7495242,
+                                -0.29286811],
+                               [-1.51681199, -1.05214575, -0.31338711, -0.14845488, 0.32269641,
+                                2.08227179],
+                               [0.18766482, 0.10273498, 0.93645419, -0.71804516, -0.92730127,
+                                0.11013126]]
+
+                              , dtype=tf.float32)
 
             # -------------------------------------------- FC 1--------------------------------------------
-            # shape: (10, 6)
-            weights_1 = tf.constant([[0.99215692, 0.27058825, 0.34509805, 0.99215692, -0.98823535, 0.322352958],
-                                     [0.87843144, -0.17254902, 0.50196081, -0.98823535, 0.98823535, 0.241568646],
-                                     [-0.54509807, 0.0627451, 0.64705884, -0.1647058, 0.94117653, 0.18823532],
-                                     [0.20000002, -0.77647066, 0.99215692, 0.88627458, 0.77254909, 0.41490199],
-                                     [0.98823535, 0.10196079, 0.84705889, 0.9450981, 0.22352943, -0.91372555],
-                                     [0.9333334, 0.8705883, 0.10980393, -0.20000002, 0.22352943, 0.42745101],
-                                     [0.14901961, 0.98823535, -0.0509804, 0.1137255, 0.56470591, 0.07450981],
-                                     [0.77254909, 0.88235301, 0.40784317, 0.98823535, 0.80784321, 0.65882355],
-                                     [0.98823535, -0.0627451, 0.99215692, -0.98823535, 0.99215692, 0.91764712],
-                                     [0.88235301, 0.84705889, 0.99215692, -0.64705884, 0.98823535, 0.98823535]],
+            # shape: (6, 10)
+            weights_1 = tf.constant([[0.63023564, 0.72418477, -0.03827982, 0.48678625, 1.04275436,
+                                      0.35443291, 0.92035296, -0.89705308, -0.90312034, 0.51454559],
+                                     [-0.40643197, -0.19538514, 0.52029634, -0.43955133, -1.19634436,
+                                      0.33259718, -0.21127183, 0.6793771, -0.72406187, 1.54054022],
+                                     [-0.67484287, -1.14928279, 1.28560718, -0.02242465, 0.3377433,
+                                      0.74823952, 2.18620002, 0.18857024, 0.6531554, 2.72489568],
+                                     [-0.15728904, 0.28771674, -1.18420233, 2.17638949, -0.47370135,
+                                      -0.02005775, 0.41663315, 0.60860928, 0.57529257, -0.104214],
+                                     [-0.4055075, 0.8596076, -0.89655813, -1.39272219, 0.73927064,
+                                      1.44179635, -1.01808758, 1.20547704, -1.30409662, 0.02295059],
+                                     [0.80911711, 0.99273549, 0.31395664, 2.29630583, 0.58090097,
+                                      -1.05635963, -0.90120138, 1.63487712, 2.27660196, 0.51776111]]
+
+                                    ,
                                     dtype=tf.float32)
 
-            # shape: (6,)
-            bias_1 = tf.constant([-1.5, -1, -0.5, 0, 0.5, 1], dtype=tf.float32)
+            # shape: (10,)
+            bias_1 = tf.constant([-1.58876296, 1.44444094, 0.73600305, 0.99948251, -0.25653983,
+                                  0.54555058, 0.80193129, -0.46552793, 0.30203156, -0.28628351]
+                                 , dtype=tf.float32)
 
-            # shape: (8, 6)
+            # shape: (4, 10)
             output_1 = tf.matmul(inp, weights_1) + bias_1
+
+            # Prepare the output for the convolutional layer
+            # New shape: (4, 5, 2)
+            output_1 = tf.reshape(output_1, (4, 5, 2))
 
             # -------------------------------------------- Convolution 1 --------------------------------------------
             # Create the filter which has shape [filter_width, in_channels, out_channels]
+            # Shape: (2,2,1)
             filter_2 = tf.constant(
-                [[[0.14901961, 0.99215692, -0.01176471, -0.85490203],
-                  [0.98823535, 0.32156864, 0.49803925, 0.08235294],
-                  [-0.0509804, -0.09803922, -0.99215692, 0.66274512],
-                  [0.1137255, 0.99215692, 0.99215692, -0.99215692],
-                  [0.56470591, -0.99215692, 0.66274512, 0.99215692],
-                  [0.07450981, 0.84705889, -0.30588236, -0.52156866]],
-                 [[0.14901961, 0.09019608, 0.99215692, 0.1254902],
-                  [0.98823535, -0.19215688, -0.99215692, 0.50980395],
-                  [-0.0509804, 0.99215692, 0.65882355, -0.99607849],
-                  [0.1137255, -0.99215692, 0.27843139, 0.99215692],
-                  [0.56470591, 0.76862752, -0.99215692, -0.99215692],
-                  [0.07450981, 0.04705883, 0.99215692, 0.44313729]]],
-                dtype=tf.float32)
+                [[[-0.41445586],
+                  [1.26795033]],
+                 [[-1.61688659],
+                  [1.50628238]]]
+                , dtype=tf.float32)
 
-            bias_2 = tf.constant([0.84705889, 0.09019608, -0.19215688, 0.99215692], dtype=tf.float32)
+            # Shape: (1,)
+            bias_2 = tf.constant([0.84705889], dtype=tf.float32)
 
-            # Add an extra dimension to fit the expected input shape of conv1d
-            output_1_reshaped = tf.expand_dims(output_1, 0)
-            output_2 = tf.nn.conv1d(output_1_reshaped, filter_2, 1, "SAME") + bias_2
+            # Perform the convolution
+            # Shape of output_2: (4, 5, 1)
+            output_2 = tf.nn.conv1d(output_1, filter_2, 1, "SAME") + bias_2
+
+            # Prepare output for the max pooling
+            # Pooling is defined for 2d, so add dim of 1 (height)
+            # New shape of output_2_reshaped: (4,1,5,1)
+            output_2 = tf.expand_dims(output_2, 1)
 
             # -------------------------------------------- Max pooling --------------------------------------------
 
-            # Pooling is defined for 2d, so add dim of 1 (height)
-            output_2_reshaped = tf.expand_dims(output_2, 1)
             # Kernel looks at 1 sample, 1 height, 2 width, and 1 depth
             ksize = [1, 1, 2, 1]
 
@@ -72,33 +81,36 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
             strides = [1, 1, 2, 1]
 
             # Perform the max pooling
-            pool = tf.nn.max_pool(output_2_reshaped, ksize, strides, padding='SAME')
+            # Shape of pool: (4, 1, 3, 1)
+            pool = tf.nn.max_pool(output_2, ksize, strides, padding='SAME')
 
             # Remove the "height" dimension again
+            # New shape: (4, 3, 1)
             output_3 = tf.squeeze(pool, 1)
 
             # -------------------------------------------- Convolution 2--------------------------------------------
 
             # Create the filter which has shape [filter_width, in_channels, out_channels]
+            # Shape: (2,1,2)
             filter_4 = tf.constant(
-                [[[-0.99215692, 0.99215692, -0.52156866, 0.1254902],
-                  [0.50980395, -0.99607849, 0.99215692, -0.99215692],
-                  [0.44313729, 0.50588238, -0.99215692, 0.99215692],
-                  [0.33725491, 0.84313732, -0.99215692, 0.99607849]],
-                 [[0.71764708, 0.0627451, -0.19215688, 0.99215692],
-                  [-0.19215688, 0.99215692, -0.99215692, 0.99215692],
-                  [0.99215692, -0.98039222, 0.56862748, 0.05490196],
-                  [-0.60392159, 0.99215692, 0.65882355, -0.27450982]]],
+                [[[0.19205464, -0.90562985]],
+                 [[1.0016198, 0.89356491]]],
                 dtype=tf.float32)
 
-            bias_4 = tf.constant([0.07450981, 0.14901961, 0.98823535, -0.0509804], dtype=tf.float32)
+            # Shape: (2, )
+            bias_4 = tf.constant([0.07450981, -0.14901961], dtype=tf.float32)
 
+            # Perform the convolution
+            # Shape: (4, 3, 2)
             output_4 = tf.nn.conv1d(output_3, filter_4, 1, "SAME") + bias_4
+
+            # Prepare output for the max pooling
+            # Pooling is defined for 2d, so add dim of 1 (height)
+            # New shape of output_2_reshaped: (4,1,3,2)
+            output_4 = tf.expand_dims(output_4, 1)
 
             # -------------------------------------------- Max pooling --------------------------------------------
 
-            # Pooling is defined for 2d, so add dim of 1 (height)
-            output_4_reshaped = tf.expand_dims(output_4, 1)
             # Kernel looks at 1 sample, 1 height, 2 width, and 1 depth
             ksize = [1, 1, 2, 1]
 
@@ -106,71 +118,76 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
             strides = [1, 1, 2, 1]
 
             # Perform the max pooling
-            pool = tf.nn.max_pool(output_4_reshaped, ksize, strides, padding='SAME')
+            # Shape of pool: (4, 1, 2, 2)
+            pool = tf.nn.max_pool(output_4, ksize, strides, padding='SAME')
 
             # Remove the "height" dimension again
+            # New shape: (4, 2, 2)
             output_5 = tf.squeeze(pool, 1)
 
             # -------------------------------------------- LSTM --------------------------------------------
-            lstm_units = 4
+            lstm_units = 3
 
-            LSTM_weights = [
-                [0.047461336, -0.2525125, 0.133023, 0.11263981, 0.34583206, -0.61531019, -0.8803405, 0.99488366,
-                 0.85897743, -0.36209199, -0.63935106, -0.05743177, 0.00316062, -0.61984265, -0.65267929, 0.25477407],
-                [0.057721273, 0.0218620435, -0.01197869, 0.052430139, -0.28346617, -0.00683066, -0.71810405, 0.09335204,
-                 0.62675115, 0.90367544, 0.39301098, -0.6796605, 0.77573529, 0.72351356, 0.30118468, -0.16851472],
-                [-0.857999441, 0.023618397, 0.02000072, 0.185856544, -0.8450011, -0.7853939, -0.00261568, -0.70895696,
-                 -0.20551959, -0.2137256, 0.04685076, 0.78725204, 0.6767832, 0.93165379, 0.24688992, 0.54482694],
-                [-0.15851247, 0.18707229, -0.03427629, -0.089051459, 0.54172115, 0.94506127, -0.1827192, 0.44763495,
-                 0.69120797, 0.29112628, 0.85072496, -0.0153968, -0.39041728, 0.18252702, 0.15263933, 0.35599324],
-                [-0.83214537, 0.11154398, -0.028220953, -0.065826703, -0.46254772, -0.04844626, 0.58888535, 0.71568758,
-                 -0.39430272, 0.78568475, -0.17918778, -0.79950794, 0.77709696, -0.21645212, 0.2234143, -0.85459363],
-                [0.08630577, -0.073923609, 0.12680474, -0.96924272, 0.72734454, 0.0777216, -0.60380081, -0.9895412,
-                 0.37282269, 0.16629956, 0.92285417, 0.86485604, -0.13370907, -0.75214074, 0.72669859, -0.261183],
-                [0.72360051, 0.82933379, 0.06519956, 0.25991941, 0.11860591, -0.99293746, -0.08927943, -0.56968878,
-                 -0.33370412, 0.09363034, 0.13263364, -0.72481075, 0.88884886, 0.41754448, 0.5463333, -0.80689945],
-                [0.75863926, -0.16137513, 0.21030268, 0.05861826, 0.16492918, -0.12813282, -0.8740667, -0.0847981,
-                 -0.52497674, -0.29709172, -0.3040518, 0.31963997, 0.24175961, -0.91323495, -0.61515323, 0.32519525]]
-
-            LSTM_bias = [0.77461336, -0.28620435, 0.75000072, -0.89051459, -0.46254772, -0.04844626, -0.60380081,
-                         -0.56968878, -0.52497674, 0.09363034, 0.92285417, 0.86485604, -0.77709696, 0.21645212,
-                         0.15263933, 0.54482694]
+            # Shape of weights: (5, 12)
+            LSTM_weights = [[-0.6774261, -1.77336803, 0.37789944, -1.47642675, -0.77326061,
+                             -0.41624885, -0.80737161, -1.00830384, 0.80501084, -0.10506079,
+                             -0.42341706, 1.61561637],
+                            [0.65131449, -1.25813521, -1.01188983, 1.58355103, -0.55863594,
+                             0.59259386, -1.15333092, 1.31657508, -0.3582473, -0.91620798,
+                             1.30231276, 0.32319264],
+                            [1.11120673, 0.60646556, -1.11294626, -0.26202266, -1.53741017,
+                             -0.09405062, -0.82200596, -0.41727707, 0.69017403, -2.67866443,
+                             1.08780302, -0.53820959],
+                            [0.12222124, 0.17716194, -0.96654223, 0.64953949, 1.55478632,
+                             -1.22787184, 0.67456202, 0.34234439, -2.42116309, 0.22752669,
+                             -0.40613203, -0.42356035],
+                            [0.9004432, 1.9286521, 1.04199918, 1.17486178, -1.30394625,
+                             0.60571671, 1.30499515, 2.12358405, -1.82775648, 0.81019163,
+                             0.20284197, 0.72304922]]
+            # Shape: (12,)
+            LSTM_bias = [-9.46940060e-01, 5.69888879e-02, -4.06483928e-05,
+                         -9.60644436e-01, -1.18161660e+00, -2.04222054e+00,
+                         -2.27343882e-02, 2.39842965e-01, -4.42784509e-01,
+                         2.86647829e+00, 2.92904572e-02, -1.45679881e+00]
 
             # Create lstm layer
             lstm = tf.contrib.rnn.LSTMCell(lstm_units,
                                            forget_bias=0.)
 
             # Put it into Multi RNN Cell
-            lstm = tf.contrib.rnn.MultiRNNCell([lstm] * 1)
+            lstm = tf.contrib.rnn.MultiRNNCell([lstm])
 
             # Let dynamic rnn setup the control flow (making while loops and stuff)
-            output_lstm, _ = tf.nn.dynamic_rnn(lstm, output_5, dtype=tf.float32)
-
-            # Use only the last hidden state
-            output_6 = tf.slice(output_lstm, [0, 1, 0], [1, 1, 4])
+            # Shape of output_6: (4, 2, 3)
+            output_6, _ = tf.nn.dynamic_rnn(lstm, output_5, dtype=tf.float32)
 
             # Construct operation for assigning mock weights
-            kernel = next(i for i in tf.global_variables() if i.shape == (8, 16))
+            kernel = next(i for i in tf.global_variables() if i.shape == (5, 12))
             assign_kernel = kernel.assign(LSTM_weights)
 
             # Construct operation for assigning mock bias
-            bias = next(i for i in tf.global_variables() if i.shape == (16,))
+            bias = next(i for i in tf.global_variables() if i.shape == (12,))
             assign_bias = bias.assign(LSTM_bias)
 
+            # Prepare output for the linear layer by flattening the batch and timesteps
+            # to be able to use linear layer on all predictions and all samples in batch at the same time
+            # New shape of output_6: (8, 3)
+            output_6 = tf.reshape(output_6, (-1, lstm_units))
+
             # -------------------------------------------- FC 2--------------------------------------------
-            weights_7 = tf.constant([[0.86485604, 0.76485604],
-                                     [0.75214074, 0.65214074],
-                                     [-0.13370907, -0.23370907],
-                                     [0.72669859, 0.62669859]],
+            # Shape of weights_7: (3,2)
+            weights_7 = tf.constant([[1.6295322, 1.54609607],
+                                     [1.04818304, -0.98323105],
+                                     [-1.35106161, -1.20737747]],
                                     dtype=tf.float32)
 
             bias_7 = tf.constant([0.85856544, 0.75856544], dtype=tf.float32)
 
-            # Remove the "height" dimension to fit the required input shape of the matmul
-            output_6_reshaped = tf.squeeze(output_6, 1)
-
             # Perform the matmul
-            output_7 = tf.matmul(output_6_reshaped, weights_7) + bias_7
+            output_7 = tf.matmul(output_6, weights_7) + bias_7
+
+            # Reshape to shape (4, 2, 2)
+            output_7 = tf.reshape(output_7, (4, 2, 2))
 
             # -------------------------------------------- Softmax -------------------------------------------
 
@@ -189,8 +206,13 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
                 # Assign mock bias
                 s.run([assign_kernel, assign_bias])
 
+                output = s.run(output_final)
+                print("out shape", output.shape)
+
                 # # Calculate relevance
                 relevances = s.run(R)
+
+                print(relevances.shape)
 
                 # Expected result calculated in
                 # https://docs.google.com/spreadsheets/d/1_bmSEBSWVOkpdlZYEUckgrnUtxhEfnR84LZy1cU5fIw/edit?usp=sharing
@@ -216,8 +238,6 @@ class FCConvMaxLSTMFCTest(unittest.TestCase):
                                              0.0243733322, 0.002747249697, 0.05362725729, 0.01680197517,
                                              0.02779999447]])
 
-                # Check for shape and actual result
-                self.assertEqual(inp.shape, R.shape)
                 self.assertEqual(expected_result.shape, relevances.shape,
                                  "Shapes of expected relevance and relevance should be equal")
                 self.assertTrue(np.allclose(relevances, expected_result, rtol=1e-03, atol=1e-03),

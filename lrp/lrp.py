@@ -100,62 +100,64 @@ class _LRPImplementation:
     # user chosen indices of shape (batch_size, )
 
     def _find_starting_point_relevances(self, predictions, user_chosen_indices=None):
-            # Get the shape of the predictions
-            predictions_shape = predictions.get_shape().as_list()
+        # Get the shape of the prediction
+        predictions_shape = tf.shape(predictions)
 
-            has_pred_per_sample_dim = True
+        has_pred_per_sample_dim = True
 
-            # Check if the predictions have the shape (batch_size, predictions_per_sample, number_of_classes) or
-            # (batch_size, number_of_classes). In the case of the latter, set the predictions_per_sample dimension
-            # equal to one
-            if len(predictions_shape) == 3:
-                batch_size, predictions_per_sample, number_of_classes = predictions_shape
-            elif len(predictions_shape) == 2:
-                predictions_per_sample = 1
-                # Remember that there has been added an extra dimension, so it can be removed again later
-                self.starting_point_relevances_had_predictions_per_sample_dimension = False
-                batch_size, number_of_classes = predictions.get_shape().as_list()
-            else:
-                raise ValueError("Only accepts outputs of shape (batch_size, predictions_per_sample, number_of_classes) "
-                                 "or (batch_size, number_of_classes)")
+        # Check if the predictions have the shape (batch_size, predictions_per_sample, number_of_classes) or
+        # (batch_size, number_of_classes). In the case of the latter, set the predictions_per_sample dimension
+        # equal to one
+        predictions_rank = len(predictions.get_shape())
+        if predictions_rank == 3:
+            predictions_per_sample = predictions_shape[1]
+            number_of_classes = predictions_shape[2]
+        elif predictions_rank == 2:
+            predictions_per_sample = 1
+            # Remember that the starting point relevances did not have a 'predictions_per_sample' dimension
+            self.starting_point_relevances_had_predictions_per_sample_dimension = False
+            number_of_classes = predictions_shape[1]
+        else:
+            raise ValueError("Only accepts outputs of shape (batch_size, predictions_per_sample, number_of_classes) "
+                             "or (batch_size, number_of_classes)")
 
 
-            # If the user has provided the indexes of the number_of_classes of interest, use those. If not, find
-            # the indexes by finding the class with the largest prediction score for each sample
-            max_score_indices = user_chosen_indices if user_chosen_indices else tf.argmax(predictions, axis=-1)
+        # If the user has provided the indexes of the number_of_classes of interest, use those. If not, find
+        # the indexes by finding the class with the largest prediction score for each sample
+        max_score_indices = user_chosen_indices if user_chosen_indices else tf.argmax(predictions, axis=-1)
 
-            # Create a tensor that for each sample has a one at the position of the class of interest and
-            # zeros in all other positions
-            max_score_indices_as_one_hot_vectors = tf.one_hot(max_score_indices, number_of_classes)
+        # Create a tensor that for each sample has a one at the position of the class of interest and
+        # zeros in all other positions
+        max_score_indices_as_one_hot_vectors = tf.one_hot(max_score_indices, number_of_classes)
 
-            # Create and return the relevance tensor, where all relevances except the one for the class of interest
-            # for each sample have been set to zero
-            relevances_with_only_chosen_class = tf.multiply(predictions, max_score_indices_as_one_hot_vectors)
+        # Create and return the relevance tensor, where all relevances except the one for the class of interest
+        # for each sample have been set to zero
+        relevances_with_only_chosen_class = tf.multiply(predictions, max_score_indices_as_one_hot_vectors)
 
-            # Add an extra dimension for predictions_per_sample, so we can calculate 'predictions_per_sample'
-            # independent paths through the network.
-            # New shape: (predictions_per_sample, batch_size, predictions_per_sample, classes)
-            relevances_with_only_chosen_class = tf.expand_dims(relevances_with_only_chosen_class, 0)
+        # Add an extra dimension for predictions_per_sample, so we can calculate 'predictions_per_sample'
+        # independent paths through the network.
+        # New shape: (predictions_per_sample, batch_size, predictions_per_sample, classes)
+        relevances_with_only_chosen_class = tf.expand_dims(relevances_with_only_chosen_class, 0)
 
-            # Stack 'predictions_per_sample' identical copies of the starting relevances on top of each other
-            if self.starting_point_relevances_had_predictions_per_sample_dimension:
-                stacked_relevances = tf.tile(relevances_with_only_chosen_class, [predictions_per_sample, 1, 1, 1])
-                # Create a tensor of shape (predictions_per_sample, 1, predictions_per_sample, 1) that has ones in position
-                # [i, 1, i, 1] and zeros everywhere else
-                selections = tf.expand_dims(tf.expand_dims(tf.eye(predictions_per_sample), -1), 1)
+        # Stack 'predictions_per_sample' identical copies of the starting relevances on top of each other
+        if self.starting_point_relevances_had_predictions_per_sample_dimension:
+            stacked_relevances = tf.tile(relevances_with_only_chosen_class, [predictions_per_sample, 1, 1, 1])
+            # Create a tensor of shape (predictions_per_sample, 1, predictions_per_sample, 1) that has ones in position
+            # [i, 1, i, 1] and zeros everywhere else
+            selections = tf.expand_dims(tf.expand_dims(tf.eye(predictions_per_sample), -1), 1)
 
-                # For each prediction per sample, "select" the associated relevance and set all other relevances to zero
-                relevances_new = tf.multiply(selections, stacked_relevances)
+            # For each prediction per sample, "select" the associated relevance and set all other relevances to zero
+            relevances_new = tf.multiply(selections, stacked_relevances)
 
-                # Transpose the starting point relevances to get the final shape
-                # (batch_size, predictions_per_sample, predictions_per_sample, classes)
-                relevances_new = tf.transpose(relevances_new, [1, 0, 2, 3])
-            else:
-                # Transpose the starting point relevances to get the final shape
-                # (batch_size, predictions_per_sample=1, classes)
-                relevances_new = tf.transpose(relevances_with_only_chosen_class, [1, 0, 2])
+            # Transpose the starting point relevances to get the final shape
+            # (batch_size, predictions_per_sample, predictions_per_sample, classes)
+            relevances_new = tf.transpose(relevances_new, [1, 0, 2, 3])
+        else:
+            # Transpose the starting point relevances to get the final shape
+            # (batch_size, predictions_per_sample=1, classes)
+            relevances_new = tf.transpose(relevances_with_only_chosen_class, [1, 0, 2])
 
-            return relevances_new
+        return relevances_new
 
 
 # The purpose of this method is to have a handle for test cases where

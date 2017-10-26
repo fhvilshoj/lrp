@@ -30,10 +30,21 @@ def max_pooling(router, R):
     kernel_size = current_operation.get_attr("ksize")
 
     # Get shape of the input
-    (batch_size, input_height, input_width, input_channels) = max_pool_input.get_shape().as_list()
+    max_pooling_input_shape = tf.shape(max_pool_input)
+    batch_size = max_pooling_input_shape[0]
+    input_height = max_pooling_input_shape[1]
+    input_width = max_pooling_input_shape[2]
+    input_channels = max_pooling_input_shape[3]
+
+    # (batch_size, input_height, input_width, input_channels) = max_pool_input.get_shape().as_list()
 
     # Get the shape of the output of the max pool operation
-    (_, output_height, output_width, output_channels) = current_tensor.get_shape().as_list()
+    current_tensor_shape = tf.shape(current_tensor)
+    output_height = current_tensor_shape[1]
+    output_width = current_tensor_shape[2]
+    output_channels = current_tensor_shape[3]
+
+    # (_, output_height, output_width, output_channels) = current_tensor.get_shape().as_list()
 
     # Replace the negative elements with zeroes to only have the positive entries left
     # Shape of max_pool_input_positive: (batch_size, in_height, in_width, in_depth)
@@ -80,7 +91,7 @@ def max_pooling(router, R):
     R = tf.reshape(R, [batch_size, predictions_per_sample, output_height, output_width, 1, 1, output_channels])
 
     # Distribute the relevance onto athe fractions
-    # Shape of new relevances: (batch_size, out_height, out_width, kernel_height, kernel_width, input_channels)
+    # Shape of new relevances: (batch_size, predictions_per_sample, out_height, out_width, kernel_height, kernel_width, input_channels)
     relevances = fractions * R
 
     # Put the batch size and predictions_per_sample on the same dimension to be able to use the patches_to_images tool.

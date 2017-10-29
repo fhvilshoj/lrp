@@ -1,7 +1,7 @@
 from context_handler import ContextHandler
 from lrp import lrp_util
 from lrp.convolutional_lrp import convolutional
-from lrp.linear_lrp import linear, element_wise_linear
+from lrp.linear_lrp import linear, elementwise_linear
 from lrp.max_pooling_lrp import max_pooling
 from lrp.nonlinearities_lrp import nonlinearities
 from lrp.softmax_lrp import softmax
@@ -19,7 +19,7 @@ class StandardContextHandler(ContextHandler):
     # Known operations to the standard context handler
     _router = {
         'MatMul': linear,
-        'Mul': element_wise_linear,
+        'Mul': elementwise_linear,
         'Conv2D': convolutional,
         'MaxPool': max_pooling,
         'ExpandDims': shaping,
@@ -51,9 +51,6 @@ class StandardContextHandler(ContextHandler):
         self.context = context
         # Extract the current path
         current_path = context[CONTEXT_PATH]
-
-        for p in current_path:
-            print(p.type)
 
         # Run through the operations in the path
         while self.current_path_index < len(current_path):

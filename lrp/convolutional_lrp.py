@@ -42,13 +42,22 @@ def convolutional(router, R):
     strides = convolution_tensor.op.get_attr("strides")
 
     # Extract dimensions of the filters
-    (filter_height, filter_width, input_channels, output_channels) = filters.get_shape().as_list()
+    filter_sh = filters.get_shape().as_list()
+    filter_height = filter_sh[0]
+    filter_width = filter_sh[1]
 
     # Get shape of the input
-    (batch_size, input_height, input_width, input_channels) = conv_input.get_shape().as_list()
+    input_shape = tf.shape(conv_input)
+    batch_size = input_shape[0]
+    input_height = input_shape[1]
+    input_width = input_shape[2]
+    input_channels = input_shape[3]
 
     # Get the shape of the output of the convolution
-    (_, output_height, output_width, _) = convolution_tensor.get_shape().as_list()
+    convolution_tensor_shape = tf.shape(convolution_tensor)
+    output_height = convolution_tensor_shape[1]
+    output_width = convolution_tensor_shape[2]
+    output_channels = convolution_tensor_shape[3]
 
     # Extract every patch of the input (i.e. portion of the input that a filter looks at a
     # time), to get a tensor of shape

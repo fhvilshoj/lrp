@@ -214,8 +214,6 @@ def lstm(path, R, LSTM_input):
     # Reshape the calculated relevances to shape (batch_size, predictions_per_sample, input_sequence_length, input_depth)
     R_new = tf.transpose(R_new, [1, 2, 0, 3])
 
-    print(predictions_per_sample)
-
     return R_new
 
 # Helper function that calculates the relevances to forward

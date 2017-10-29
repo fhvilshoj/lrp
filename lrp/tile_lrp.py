@@ -3,89 +3,59 @@ import tensorflow as tf
 
 
 def tile(router, R):
-    # Sum the relevances
+    # Sum the relevances received from upper layers
     R = lrp_util.sum_relevances(R)
 
     # Get the current operation, i.e. the tile operation we are currently handling
     current_operation = router.get_current_operation()
 
-    # Get the input to the tiling operation
+    # Get the input to the tiling operation and find the shape of it
     input_to_current_operation = current_operation.inputs[0]
-
-    # Get the size of the 'batch_size' dimension from the input
     input_shape = tf.shape(input_to_current_operation)
-    batch_size = input_shape[0]
 
     # Get the size of the 'predictions_per_sample' dimension from R
     R_shape = tf.shape(R)
     predictions_per_sample = R_shape[1]
-
-    # Find the shape of the input
-    input_shape = tf.shape(input_to_current_operation)
-
-    # Concatenate the dimensions to get the new shape of the relevances
-    relevances_new_shape = tf.concat([predictions_per_sample, input_shape], 0)
-
+    # Reshape to a list so it can be used in the concat below
+    predictions_per_sample = tf.reshape(predictions_per_sample, (1,))
 
     # Get the tensor that tells how many times the input has been duplicated for each dimension of the input
-    copies_per_dimension = tf.cast(current_operation.inputs[1], tf.int32)
-
-    # Get the total number of times the input was duplicated by the tile operation
-    number_of_copies = tf.reduce_prod(copies_per_dimension, 0)
+    copies_per_dimension = current_operation.inputs[1]
 
     # Get the number of dimensions of the input
     rank_input = tf.size(copies_per_dimension)
 
     # Transpose R from shape (batch_size, predictions_per_sample, ....) to shape
     # (predictions_per_sample, batch_size, ...) since the predictions_per_sample dimensions is left untouched in
-    # the while loop below
-    first_two_axes = tf.constant([1, 0])
+    # the processing below
     remaining_axes = tf.range(2, rank_input + 1)
-    perm = tf.concat([first_two_axes, remaining_axes], 0)
+    perm = tf.concat([[1, 0], remaining_axes], 0)
     R = tf.transpose(R, perm)
 
-    def _method(T, d):
-        lol = 1
-        def _return_T(T):
-            return T
+    # Reshape R to shape (copies_dim_0, input_size_dim_0, ... copies_dim_(r-1), input_size_dim(r-1))
+    double_rank = rank_input * 2
+    zipped_dims = tf.reshape(tf.transpose([copies_per_dimension, input_shape]), (double_rank,))
+    zipped_dims = tf.concat([predictions_per_sample, zipped_dims], 0)
+    R = tf.reshape(R, zipped_dims)
 
-        def _iterate_elements_in_ta(T, d):
-            ta = tf.TensorArray(dtype=tf.float32, size=copies_per_dimension[d])
-            ta.split(T, [input_shape[d]] * copies_per_dimension[d])
+    # Transpose R to shape (input_size_dim_0, copies_dim_0 ... input_size_dim(r-1), copies_dim_(r-1))
+    perm1 = tf.range(2, double_rank + 1, 2)
+    perm2 = tf.range(1, double_rank + 1, 2)
+    zipped_perm = tf.reshape(tf.transpose([perm1, perm2]), (double_rank,))
+    zipped_perm = tf.concat([[0], zipped_perm], 0)
+    R = tf.transpose(R, zipped_perm)
 
-            d = tf.add(d, 1)
-            zeroes = tf.zeros(relevances_new_shape)
+    # Reduce sum for R over dimensions 'input_size_dim_0', ... 'input_size_dim(r-1)'
+    R_new = tf.reduce_sum(R, perm1)
 
-            def _add(idx, sum, ta):
-                elem = ta.read(idx)
-                tensor_sum = _method(elem, d)
-                new_sum = tf.add(sum, tensor_sum)
-                return tf.add(idx, 1), new_sum, ta
-
-            _, sum, _ = tf.while_loop(
-                cond=lambda idx, _: tf.less(idx, ta.size()),
-                body=_add,
-                loop_vars=[0, zeroes, ta]
-            )
-
-            return sum
-
-        T = tf.cond(tf.less_equal(d, rank_input), true_fn=lambda : _iterate_elements_in_ta(T, d),
-                    false_fn=lambda : _return_T(T, d))
-
-        return T
-
-    R_new = _method(R, 1)
-
-    # Transpose R back from shape (predictions_per_sample, batch_size, ...)
-    # to shape (batch_size, predictions_per_sample, ....)
-    first_two_axes = tf.constant([0, 1])
+    # Transpose R back from shape (predictions_per_sample, batch_size ....) to shape
+    # (batch_size, predictions_per_sample, ...)
     remaining_axes = tf.range(2, rank_input + 1)
-    perm = tf.concat([first_two_axes, remaining_axes], 0)
-    R = tf.transpose(R_new, perm)
+    perm = tf.concat([[1,0], remaining_axes], 0)
+    R_new = tf.transpose(R_new, perm)
 
     # Mark the tiling operation as handled
     router.mark_operation_handled(current_operation)
 
     # Forward the relevance to input to the tile operation
-    router.forward_relevance_to_operation(R, current_operation, input_to_current_operation.op)
+    router.forward_relevance_to_operation(R_new, current_operation, input_to_current_operation.op)

@@ -8,6 +8,7 @@ from lrp.softmax_lrp import softmax
 from lrp.shaping_lrp import shaping
 from lrp.concatenate_lrp import concatenate
 from lrp.split_lrp import split
+from lrp.tile_lrp import tile
 
 from constants import *
 from print_lrp import printing
@@ -31,7 +32,8 @@ class StandardContextHandler(ContextHandler):
         'Tanh': nonlinearities,
         'Softmax': softmax,
         'Slice': slicing,
-        'Print': printing
+        'Print': printing,
+        'Tile': tile
     }
 
     def __init__(self, router):
@@ -49,6 +51,9 @@ class StandardContextHandler(ContextHandler):
         self.context = context
         # Extract the current path
         current_path = context[CONTEXT_PATH]
+
+        for p in current_path:
+            print(p.type)
 
         # Run through the operations in the path
         while self.current_path_index < len(current_path):

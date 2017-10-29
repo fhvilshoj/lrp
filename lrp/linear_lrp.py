@@ -127,7 +127,7 @@ def linear_alpha(R, input, weights, bias=None):
     return R_new
 
 
-def element_wise_linear(router, R):
+def elementwise_linear(router, R):
     """
     Used to handle element wise multiplications (by transforming them into matrices)
     :param router: the router object to report changes to
@@ -148,10 +148,43 @@ def element_wise_linear(router, R):
 
     # Find the inputs to the matrix multiplication
     (input, weights) = multensor.op.inputs
+    # Make the weights to a diagonal matrix
     weights = tf.diag(weights)
 
+    # Get the shape of R to find 'batch_size' and 'predictions_per_sample'
+    R_shape = tf.shape(R)
+    batch_size = R_shape[0]
+    predictions_per_sample = R_shape[1]
+
+    # Reshape input and R to be able to "broadcast" weights if the input is rank > 2
+    def _rank2():
+        return input, R
+
+    def _higher_rank():
+        new_input = tf.reshape(input, (-1, tf.shape(input)[-1]))
+        d = tf.shape(input)[-1]
+        new_R = tf.reshape(R, (-1, predictions_per_sample, d))
+        return new_input, new_R
+
+    # Test if the rank of the input is > 2
+    new_input, R = tf.cond(tf.equal(tf.rank(input),  2),
+                       true_fn=_rank2,
+                       false_fn=_higher_rank)
+
     # Calculate new relevances with the alpha rule
-    R_new = linear_alpha(R, input, weights, bias=bias)
+    R_new = linear_alpha(R, new_input, weights, bias=bias)
+
+    # Turn the calculated relevances into the correct form if the rank of the input was > 2
+    def _revert_rank2():
+        return R_new
+
+    def _revert_higher_rank():
+        return tf.reshape(R_new, tf.concat(([batch_size], [predictions_per_sample], tf.shape(input)[1:]), 0))
+
+    # Test if the rank of the input is > 2
+    R_new = tf.cond(tf.equal(tf.rank(input),  2),
+                       true_fn=_revert_rank2,
+                       false_fn=_revert_higher_rank)
 
     # Mark handled operations
     router.mark_operation_handled(current_operation)

@@ -7,34 +7,6 @@ from lrp import lrp
 class TestSparseReshape(unittest.TestCase):
     def runTest(self):
         with tf.Graph().as_default() as g:
-            # Create the input
-
-            # indices1 = tf.multiply(tf.constant([[1, 2], [3, 3]], dtype=tf.int64), 2, name="indices1")
-            # values1 = tf.multiply(tf.constant([1, 3], dtype=tf.int64), 2, name="values1")
-            # input_dense_shape1 = tf.multiply(tf.constant([9, 8], dtype=tf.int64), 2, name="input_dense_shape1")
-            # input1 = tf.SparseTensor(indices=indices1, values=values1, dense_shape=input_dense_shape1)
-            #
-            # indices2 = tf.multiply(tf.constant([[1, 2], [3, 3]], dtype=tf.int64), 2, name="indices2")
-            # values2 = tf.multiply(tf.constant([1, 3], dtype=tf.int64), 2, name="values2")
-            # input_dense_shape2 = tf.multiply(tf.constant([9, 8], dtype=tf.int64), 2, name="input_dense_shape2")
-            # input2 = tf.SparseTensor(indices=indices2, values=values2, dense_shape=input_dense_shape2)
-            #
-            # output_of_maximum = tf.sparse_maximum(input1, input2, name="output_of_maximum")
-            #
-            #
-            # shape_after_reshape = tf.multiply(tf.constant([2, 9, 2], dtype=tf.int64), 2, name="shape_after_reshape")
-            # reshape_output = tf.sparse_reshape(output_of_maximum, shape_after_reshape, name="reshape_output")
-            #
-            # prediction = tf.sparse_tensor_to_dense(reshape_output, name="prediction_after_sparse_to_dense")
-
-
-
-
-
-
-
-
-
             # shape: (6,6)
             values = tf.constant([1], dtype=tf.float32, name="vals")
             inp = tf.SparseTensor([[5, 5]], values, [6, 6])

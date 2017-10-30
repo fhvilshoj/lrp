@@ -1,14 +1,13 @@
 from context_handler import ContextHandler
 from lrp import lrp_util
 from lrp.convolutional_lrp import convolutional
-from lrp.linear_lrp import linear, elementwise_linear
+from lrp.linear_lrp import linear, elementwise_linear, sparse_dense_linear
 from lrp.max_pooling_lrp import max_pooling
 from lrp.nonlinearities_lrp import nonlinearities
 from lrp.softmax_lrp import softmax
-from lrp.shaping_lrp import shaping
+from lrp.shaping_lrp import shaping, sparse_shaping
 from lrp.concatenate_lrp import concatenate
 from lrp.split_lrp import split
-from lrp.tile_lrp import tile
 
 from constants import *
 from print_lrp import printing
@@ -20,11 +19,13 @@ class StandardContextHandler(ContextHandler):
     _router = {
         'MatMul': linear,
         'Mul': elementwise_linear,
+        'SparseTensorDenseMatMul': sparse_dense_linear,
         'Conv2D': convolutional,
         'MaxPool': max_pooling,
         'ExpandDims': shaping,
         'Squeeze': shaping,
         'Reshape': shaping,
+        'SparseReshape': sparse_shaping,
         'ConcatV2': concatenate,
         'Split': split,
         'Relu': nonlinearities,

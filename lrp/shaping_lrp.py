@@ -36,3 +36,22 @@ def shaping(router, R):
 
     # Forward relevance to the operation of the input to the current operation
     router.forward_relevance_to_operation(R_reshaped, current_operation, input_to_current_operation.op)
+
+def sparse_shaping(router, R):
+    # Sum the potentially multiple relevances from the upper layers
+    R = lrp_util.sum_relevances(R)
+
+    # Get the current operation (i.e. the shaping operation we are currently taking care of)
+    current_operation = router.get_current_operation()
+
+    # Get the input to the shaping operation
+    input_to_current_operation = current_operation.inputs[0]
+
+    # TODO Do reshaping
+
+    # Tell the router that we handled this operation
+    router.mark_operation_handled(current_operation)
+
+    # Forward relevance to the operation of the input to the current operation
+    router.forward_relevance_to_operation(R, current_operation, input_to_current_operation.op)
+

@@ -2,6 +2,7 @@ import tensorflow as tf
 from lrp import lrp_util
 from constants import BIAS_DELTA, EPSILON
 
+
 def linear_epsilon(R, input, weights, bias=None, output=None):
     """
     Simple linear layer used for partial computations of LSTM
@@ -79,7 +80,6 @@ def linear_epsilon(R, input, weights, bias=None, output=None):
 
 # TODO Should this function also take output as an optional input to be consistent with other rules?
 def linear_alpha(R, input, weights, bias=None):
-
     # Prepare batch for elementwise multiplication
     # Shape of input: (batch_size, input_width)
     # Shape of input after expand_dims: (batch_size, input_width, 1)
@@ -223,10 +223,24 @@ def linear(router, R):
     # Calculate new relevances with the alpha rule
     R_new = linear_alpha(R, input, weights, bias=bias)
 
-
     # Mark handled operations
     router.mark_operation_handled(tensor.op)
     router.mark_operation_handled(matmultensor.op)
 
     # Forward relevance
     router.forward_relevance_to_operation(R_new, matmultensor.op, input.op)
+
+
+def sparse_dense_linear(router, R):
+    # TODO get back here
+    R = lrp_util.sum_relevances(R)
+    current_operation = router.get_current_operation()
+
+    print("@######@#@#@####@#")
+    for i in current_operation.inputs:
+        print(i.shape)
+        print(i.op.type, " -\t\t", i.op.name)
+        print([i for i in i.op.inputs])
+
+    router.mark_operation_handled(current_operation)
+    router.forward_relevance_to_operation(R, current_operation, current_operation.inputs[1].op)

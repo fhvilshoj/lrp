@@ -25,6 +25,7 @@ class TestReshape(unittest.TestCase):
                 output = s.run(out)
                 explanation = s.run(expl)
 
+                # Shape: (2,3,4)
                 expected_explanation = np.array([[[0., 0., 0., 0.],
                                                  [0., 0., 0., 0.],
                                                  [0., 0., 0., 12.]],

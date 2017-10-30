@@ -232,15 +232,184 @@ def linear(router, R):
 
 
 def sparse_dense_linear(router, R):
-    # TODO get back here
+    # Sum the potentially multiple relevances from the upper layers
     R = lrp_util.sum_relevances(R)
     current_operation = router.get_current_operation()
 
-    print("@######@#@#@####@#")
-    for i in current_operation.inputs:
-        print(i.shape)
-        print(i.op.type, " -\t\t", i.op.name)
-        print([i for i in i.op.inputs])
+    # As default set current_operation as matmul_tensor
+    matmul_operation = current_operation
 
+    # Start by assuming the activation tensor is the output of a sparse_tensor_dense_matmul
+    # (i.e. not an addition with a bias)
+    bias = None
+
+    # If the activation tensor is the output of an addition (i.e. the above assumption does not hold),
+    # move through the graph to find the output of the nearest matrix multiplication.
+    if current_operation.type == 'Add':
+        bias = lrp_util._get_input_bias_from_add(current_operation.outputs[0])
+        matmul_tensor = lrp_util.find_first_tensor_from_type(current_operation.outputs[0], 'SparseTensorDenseMatMul')
+        matmul_operation = matmul_tensor.op
+
+    # Extract tensors from input to the sparse matmul operation
+    (sparse_indices, sparse_values, sparse_shape, dense_input_weights) = matmul_operation.inputs
+
+    # Construct sparse tensor from the inputs
+    sparse_input_tensor = tf.SparseTensor(sparse_indices, sparse_values, sparse_shape)
+
+    # Find tensors holding the different dimensionalities of input and output tensors
+    R_shape = tf.shape(R)
+    batch_size = tf.cast(R_shape[0], tf.int64)
+    predictions_per_sample = tf.cast(R_shape[1], tf.int64)
+    out_size = R_shape[2]
+
+    # We know that sparse tensor to sparse_tensor_dense_matmul must be two dimensional
+    in_size = sparse_input_tensor.dense_shape[1]
+
+    # Create tensor array for the weights. This is used in the following while_loop.
+    ta = tf.TensorArray(tf.float32, out_size)
+
+    # Unstack the columns of the weights to be able to "manually" broadcast them
+    # over the input
+    ta = ta.unstack(tf.transpose(dense_input_weights))
+
+    # Create tensor array to hold all Zij's values calculated in the following while_loop
+    all_values = tf.TensorArray(tf.float32, 1, dynamic_size=True)
+
+    # Create tensor array to hold all indices of the Zij's calculated in the following while_loop
+    all_indices = tf.TensorArray(tf.int64, 1, dynamic_size=True)
+
+    def _loop(t, av, ai, ta, offset):
+        # Broad cast one column of the weights through the input tensor (over the batch_size dimension)
+        # tmp_sparse shape: (batch_size, input_width, output_width)
+        tmp_sparse = sparse_input_tensor * ta.read(t)
+
+        # Count how many elements we are about to add to the tensor arrays
+        value_cnt = tf.shape(tmp_sparse.values)[0]
+
+        # Calculate all the indexes to scatter the calculated values and indices into in the tensor arrays
+        scatter_range = tf.range(offset, offset + value_cnt, dtype=tf.int32)
+
+        # Scatter the values as is into the av ('all_values') array
+        av = av.scatter(scatter_range, tmp_sparse.values)
+
+        # Append the current column of the weights to the indices of the results to be able to
+        # get the shape (batch_size, input_width, output_width) when creating the sparse tensor
+        # that will later hold the fractions
+        new_indices = tf.pad(tmp_sparse.indices, [[0, 0], [0, 1]], constant_values=tf.cast(t, dtype=tf.int64))
+
+        # Scatter the indices like we did with with the values above
+        ai = ai.scatter(scatter_range, new_indices)
+
+        # Go to next column in the weights
+        return t + 1, av, ai, ta, offset + value_cnt
+
+    _, all_values, all_indices, *_ = tf.while_loop(
+        cond=lambda t, *_: t < out_size,
+        body=_loop,
+        loop_vars=[0, all_values, all_indices, ta, 0])
+
+    # Stack all the values into one list; shape: (values_length,)
+    all_values = all_values.stack()
+
+    # Stack all the indices into one list; shape: (values_length, 3)
+    all_indices = tf.cast(all_indices.stack(), dtype=tf.int64)
+
+    # Create new sparse tensor holding all Zij's across all outpus
+    # Zijs shape: (batch_size, in_size, out_size)
+    in_size = tf.cast(in_size, tf.int64)
+    out_size = tf.cast(out_size, tf.int64)
+    positive_values = lrp_util.replace_negatives_with_zeros(all_values)
+    zijs = tf.SparseTensor(all_indices, positive_values, (batch_size, in_size, out_size))
+    # in_size = tf.cast(in_size, tf.int64)
+    # out_size = tf.cast(out_size, tf.int64)
+
+    # Sum over the input dimension get the Zjs
+    zj = tf.sparse_reduce_sum(zijs, 1, keep_dims=True)
+
+    # Add positive bias is there is any
+    if bias is not None:
+        zj = zj + lrp_util.replace_negatives_with_zeros(bias)
+
+    # Add stabilizer
+    zj = zj + EPSILON
+
+    # Shape (batch_size, in_size, out_size)
+    fractions = zijs / zj
+
+    # Move the predictions_per_sample dimension up to be able to unstack it
+    R = tf.transpose(R, [1, 0, 2])
+
+    predictions_per_sample = tf.cast(predictions_per_sample, tf.int32)
+
+    # Unstack R to get a tensor array containing elements of shape (batch_size, out_size)
+    Rs = tf.TensorArray(tf.float32, predictions_per_sample).unstack(R)
+
+    # Prepare tensor arrays for holding values and indices for calculated relevances
+    all_values = tf.TensorArray(tf.float32, predictions_per_sample, dynamic_size=True)
+    all_indices = tf.TensorArray(tf.int64, predictions_per_sample, dynamic_size=True)
+
+    def _prediction_loop(t, av, ai, Rs, offset):
+        # current_R shape: (batch_size, out_size)
+        current_R = Rs.read(t)
+
+        # Prepare batch for current prediction_per_sample to be broadcasted over
+        # the input dimension
+        # current_R shape: (batch_size, 1, out_size)
+        current_R = tf.expand_dims(current_R, 1)
+
+        # Scale fractions with relevances for current prediction_per_sample
+        distributed_relevances = fractions * current_R
+
+        # Reduce sum the get the relevances for the individual in_dimensions
+        # new_relevances shape: (batch_size, in_size)
+        new_relevances = tf.sparse_reduce_sum_sparse(distributed_relevances, 2)
+
+        # Count how many values and indices to add to the tensor arrays
+        value_cnt = tf.shape(new_relevances.values)[0]
+        # Calculate range of indexes in the tensor arrays to write the values and indices to
+        scatter_range = tf.range(offset, offset + value_cnt, dtype=tf.int32)
+
+        # Scatter the values of the new relevances
+        av = av.scatter(scatter_range, new_relevances.values)
+
+        # Prepend the prediction_per_sample dimension to be able to make a
+        # sparse tensor of shape (predictions_per_sample, batch_size, in_width) after
+        # the while loop
+        new_indices = tf.pad(new_relevances.indices, [[0, 0], [1, 0]], constant_values=tf.cast(t, dtype=tf.int64))
+
+        # Scatter the indices of the new relevances
+        ai = ai.scatter(scatter_range, new_indices)
+
+        # Go to next prediction_per_sample
+        return t + 1, av, ai, Rs, offset + value_cnt
+
+    _, all_values, all_indices, *_ = tf.while_loop(
+        cond=lambda t, *_: t < predictions_per_sample,
+        body=_prediction_loop,
+        loop_vars=[0, all_values, all_indices, Rs, 0]
+    )
+
+    # Stack the values in the all_values tensor array to get
+    # R_values shape: (value_length,)
+    R_values = all_values.stack()
+    R_values = tf.Print(R_values, [R_values], message="\n\nR_values:\n", summarize=100)
+    # Stack the indices in the all_indices tensor array to get
+    # R_indices shape: (value_length, 3)
+    R_indices = tf.cast(all_indices.stack(), dtype=tf.int64)
+
+    # Create sparse tensor for R_new
+    # R_new shape: (predictions_per_sample, batch_size, in_width)
+    predictions_per_sample = tf.cast(predictions_per_sample, tf.int64)
+    R_new = tf.SparseTensor(R_indices, R_values, (predictions_per_sample, batch_size, in_size))
+
+    # Transpose R_new to get the proper shape
+    # R_new shape after transpose: (batch_size, predictions_per_sample, in_width)
+    R_new = tf.sparse_transpose(R_new, [1, 0, 2])
+
+    # Mark operation as handled
     router.mark_operation_handled(current_operation)
-    router.forward_relevance_to_operation(R, current_operation, current_operation.inputs[1].op)
+    router.mark_operation_handled(matmul_operation)
+
+    # Forward new Relevance to the proper operation
+    for i in matmul_operation.inputs:
+        router.forward_relevance_to_operation(R_new, current_operation, i.op)

@@ -48,7 +48,7 @@ def find_first_tensor_from_type(tensor, t):
 
 # Determine which type of operation an addition (the input) is associated with
 def addition_associated_with(tensor):
-    known_types = ['Conv2D', 'MatMul', 'Mul']
+    known_types = ['Conv2D', 'MatMul', 'Mul', 'SparseTensorDenseMatMul']
     found_tensor = find_first_tensor_from_type(tensor, known_types)
     return found_tensor.op.type
 

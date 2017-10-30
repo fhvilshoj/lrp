@@ -72,13 +72,23 @@ def _get_input_bias_from_add(tensor):
 def _logical_or(l1, l2):
     return [t[0] or t[1] for t in zip(l1, l2)]
 
-
+# Helper function that sums all relevances in an array
 def sum_relevances(relevances):
     # relevances are dictionaries with keys producer and relevance
     summed_relevances = relevances[0][RELEVANCE]
+
+    # Check if there are more than one relevance in the array
     if len(relevances) > 1:
-        for i in range(1, len(relevances)):
-            summed_relevances = tf.add(summed_relevances, relevances[i][RELEVANCE])
+        # Check if the relevances are sparse
+        # TODO: There is no test case that checks if multiple sparse relevances are added correctly
+        if isinstance(relevances[0][RELEVANCE], tf.SparseTensor):
+            # Add all the relevances to the sum using tf's sparse_add operation
+            for i in range(1, len(relevances)):
+                summed_relevances = tf.sparse_add(summed_relevances, relevances[i][RELEVANCE])
+        # If the relevances are dense, we can use tf's normal add operation
+        else:
+            for i in range(1, len(relevances)):
+                summed_relevances = tf.add(summed_relevances, relevances[i][RELEVANCE])
 
     return summed_relevances
 

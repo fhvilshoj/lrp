@@ -8,6 +8,7 @@ from lrp.softmax_lrp import softmax
 from lrp.shaping_lrp import shaping, sparse_shaping
 from lrp.concatenate_lrp import concatenate
 from lrp.split_lrp import split
+from tile_lrp import tile
 
 from constants import *
 from print_lrp import printing

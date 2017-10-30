@@ -5,7 +5,6 @@ from constants import *
 
 
 class _LRPImplementation:
-
     def __init__(self):
         # Placeholders for input and output
         self.input = None
@@ -31,7 +30,7 @@ class _LRPImplementation:
         # Remember if there has been added an dimension to the starting point relevances
         self.starting_point_relevances_had_predictions_per_sample_dimension = True
 
-    def lrp(self, input, output, R = None):
+    def lrp(self, input, output, R=None):
         # Remember input and output
         self.input = input
         self.output = output
@@ -61,7 +60,8 @@ class _LRPImplementation:
         return self.handled_operations[operation._id]
 
     def forward_relevance_to_operation(self, relevance, relevance_producer, relevance_receiver):
-        self.relevances[relevance_receiver._id].append({RELEVANCE_PRODUCER: relevance_producer._id, RELEVANCE: relevance})
+        self.relevances[relevance_receiver._id].append(
+            {RELEVANCE_PRODUCER: relevance_producer._id, RELEVANCE: relevance})
 
     def get_relevance_for_operation(self, operation):
         return self.relevances[operation._id]
@@ -79,7 +79,7 @@ class _LRPImplementation:
 
         # Handle each context separately by routing the context through the context switch
         for current_context in self.contexts:
-               context_switch.handle_context(current_context)
+            context_switch.handle_context(current_context)
 
         # Sum the potentially multiple relevances calculated for the input
         final_input_relevances = lrp_util.sum_relevances(self.relevances[self.input.op._id])
@@ -87,10 +87,25 @@ class _LRPImplementation:
         # If the starting point relevances were shape (batch_size, classes), remove the extra
         # predictions_per_sample dimension that was added to the starting point relevances
         if not self.starting_point_relevances_had_predictions_per_sample_dimension:
-            final_input_relevances = tf.squeeze(final_input_relevances, 1)
+            # Check if the relevances are sparse, in which case we need to use tf's sparse reshape operation
+            # to remove the extra dimension
+            if isinstance(final_input_relevances, tf.SparseTensor):
+                # Get the shape of the final relevances
+                final_input_relevances_shape = tf.shape(final_input_relevances)
+                # Extract the batch_size dimension
+                batch_size = tf.slice(final_input_relevances_shape, [0], [1])
+                # Extract all the dimensions after the predictions_per_sample dimension
+                sample_dimensions = tf.slice(final_input_relevances_shape, [2], [-1])
+                # Create the new shape of the relevances, i.e. the shape where the predictions_per_sample
+                # has been removed
+                final_input_relevances_new_shape = tf.concat([batch_size, sample_dimensions], 0)
+                # Remove the predictions_per_sample dimension
+                final_input_relevances = tf.sparse_reshape(final_input_relevances, final_input_relevances_new_shape)
+            # If the relevances are not sparse, i.e. they are dense, we can just squeeze the extra dimension
+            else:
+                final_input_relevances = tf.squeeze(final_input_relevances, 1)
 
         return final_input_relevances
-
 
     # Helper function that finds the relevance to be used as a starting point for lrp. For each sample
     # in a batch, the function finds the class of interest by either a) taking
@@ -120,7 +135,6 @@ class _LRPImplementation:
         else:
             raise ValueError("Only accepts outputs of shape (batch_size, predictions_per_sample, number_of_classes) "
                              "or (batch_size, number_of_classes)")
-
 
         # If the user has provided the indexes of the number_of_classes of interest, use those. If not, find
         # the indexes by finding the class with the largest prediction score for each sample
@@ -162,7 +176,7 @@ class _LRPImplementation:
 
 # The purpose of this method is to have a handle for test cases where
 # the relevence is predefined
-def _lrp(input, output, R = None):
+def _lrp(input, output, R=None):
     # Instantiate a LRP object
     impl = _LRPImplementation()
     # Return the relevances computed from the object

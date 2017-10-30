@@ -5,14 +5,16 @@ from lrp.linear_lrp import linear, elementwise_linear, sparse_dense_linear
 from lrp.max_pooling_lrp import max_pooling
 from lrp.nonlinearities_lrp import nonlinearities
 from lrp.softmax_lrp import softmax
-from lrp.shaping_lrp import shaping, sparse_shaping
+from lrp.shaping_lrp import shaping
 from lrp.concatenate_lrp import concatenate
 from lrp.split_lrp import split
+from sparse_reorder_lrp import sparse_reorder
 from tile_lrp import tile
 
 from constants import *
 from print_lrp import printing
 from slicing_lrp import slicing
+from sparse_reshape_lrp import sparse_reshape
 
 
 class StandardContextHandler(ContextHandler):
@@ -26,7 +28,6 @@ class StandardContextHandler(ContextHandler):
         'ExpandDims': shaping,
         'Squeeze': shaping,
         'Reshape': shaping,
-        'SparseReshape': sparse_shaping,
         'ConcatV2': concatenate,
         'Split': split,
         'Relu': nonlinearities,
@@ -35,7 +36,9 @@ class StandardContextHandler(ContextHandler):
         'Softmax': softmax,
         'Slice': slicing,
         'Print': printing,
-        'Tile': tile
+        'Tile': tile,
+        'SparseReshape': sparse_reshape,
+        'SparseReorder': sparse_reorder
     }
 
     def __init__(self, router):

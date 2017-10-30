@@ -410,6 +410,16 @@ def sparse_dense_linear(router, R):
     router.mark_operation_handled(current_operation)
     router.mark_operation_handled(matmul_operation)
 
+    # Find unique operations to send relevance to by making a
+    # small dictionary with operation._id as keys.
+    relevance_destinations = {}
+    for inp in matmul_operation.inputs:
+        relevance_destinations[inp.op._id] = inp.op
+
+    # Extract the actual operations as destinations
+    destinations = relevance_destinations.values()
+
     # Forward new Relevance to the proper operation
-    for i in matmul_operation.inputs:
-        router.forward_relevance_to_operation(R_new, current_operation, i.op)
+    for op in destinations:
+        print("Writing relevance to ", op.type, " - ", op.name)
+        router.forward_relevance_to_operation(R_new, current_operation, op)

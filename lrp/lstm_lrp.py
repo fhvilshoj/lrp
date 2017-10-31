@@ -91,11 +91,6 @@ def lstm(path, R, LSTM_input):
     kernel_ref = kernel_ref.outputs[0]
     bias_ref = bias_ref.outputs[0]
 
-    # TODO Should be removed if we dont expand kernel no more
-    # Expand the dimension of the kernel to be able to multiply it with the input || hidden state vector
-    # below. The shape of the kernel is (input_depth + hidden_state_depth, units) is before the expand_dims
-    # and (1, input_depth + hidden_state_depth, units) after the expand_dims
-
     # Finding extra bias associated with the forget gate
     # TODO We do not handle forget bias
     # before_output_gate = _find_operation_from_path(while_context, 'Tanh')

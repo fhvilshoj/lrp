@@ -15,6 +15,9 @@ class ContextHandler:
     def starting_point_relevances_did_not_have_predictions_per_sample_dimension(self):
         return self.router.starting_point_relevances_did_not_have_predictions_per_sample_dimension
 
+    def get_configuration(self, layer):
+        return self.router.get_configuration(layer)
+
     def get_current_operation(self):
         pass
 

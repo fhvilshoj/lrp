@@ -1,5 +1,6 @@
 import tensorflow as tf
 from lrp import lrp_util
+from lrp.configuration import LINEAR_LAYER, ALPHA_BETA_RULE, EPSILON_RULE
 from constants import BIAS_DELTA, EPSILON
 
 
@@ -171,8 +172,13 @@ def elementwise_linear(router, R):
                        true_fn=_rank2,
                        false_fn=_higher_rank)
 
-    # Calculate new relevances with the alpha rule
-    R_new = linear_alpha(R, new_input, weights, bias=bias)
+    layer_type = router.get_configuration(LINEAR_LAYER).type
+    if layer_type == ALPHA_BETA_RULE:
+        # Calculate new relevances with the alpha rule
+        R_new = linear_alpha(R, input, weights, bias=bias)
+    elif layer_type == EPSILON_RULE:
+        # Calculate new relevances with the epsilon rule
+        R_new = linear_epsilon(R, input, weights, bias=bias)
 
     # Turn the calculated relevances into the correct form if the rank of the input was > 2
     def _revert_rank2():
@@ -220,8 +226,13 @@ def linear(router, R):
     # Find the inputs to the matrix multiplication
     (input, weights) = matmultensor.op.inputs
 
-    # Calculate new relevances with the alpha rule
-    R_new = linear_alpha(R, input, weights, bias=bias)
+    layer_type = router.get_configuration(LINEAR_LAYER).type
+    if layer_type == ALPHA_BETA_RULE:
+        # Calculate new relevances with the alpha rule
+        R_new = linear_alpha(R, input, weights, bias=bias)
+    elif layer_type == EPSILON_RULE:
+        # Calculate new relevances with the epsilon rule
+        R_new = linear_epsilon(R, input, weights, bias=bias)
 
     # Mark handled operations
     router.mark_operation_handled(tensor.op)

@@ -1,14 +1,18 @@
 from lrp import lrp_util
-import tensorflow as tf
+from lrp.configuration import LRPConfiguration
 from context_handler_switch import ContextHandlerSwitch
 from constants import *
 
+import tensorflow as tf
 
 class _LRPImplementation:
     def __init__(self):
         # Placeholders for input and output
-        self.input = None
-        self.output = None
+        self._input = None
+        self._output = None
+
+        # Initialize default configuration (alpha=1, beta=0 for all layers but LSTM: epsilon=1e-12)
+        self._configuration = LRPConfiguration()
 
         # Initialize empty structures one by one.
         # Relevances are used to hold lists of the relevances comming from the
@@ -30,10 +34,13 @@ class _LRPImplementation:
         # Remember if there has been added an dimension to the starting point relevances
         self.starting_point_relevances_had_predictions_per_sample_dimension = True
 
-    def lrp(self, input, output, R=None):
+    def lrp(self, input, output, configuration=None, R=None):
         # Remember input and output
-        self.input = input
-        self.output = output
+        self._input = input
+        self._output = output
+
+        if configuration is not None:
+            self._configuration = configuration
 
         # Find relevance to distribute from the output if the relevance tensor
         # is not already defined
@@ -66,9 +73,8 @@ class _LRPImplementation:
     def get_relevance_for_operation(self, operation):
         return self.relevances[operation._id]
 
-    # todo: Remove!!!!
-    def starting_point_relevances_did_not_have_predictions_per_sample_dimension(self):
-        return False
+    def get_configuration(self, layer):
+        return self._configuration.get(layer)
 
     # Run through the path between output and input and iteratively
     # compute relevances
@@ -82,7 +88,7 @@ class _LRPImplementation:
             context_switch.handle_context(current_context)
 
         # Sum the potentially multiple relevances calculated for the input
-        final_input_relevances = lrp_util.sum_relevances(self.relevances[self.input.op._id])
+        final_input_relevances = lrp_util.sum_relevances(self.relevances[self._input.op._id])
 
         # If the starting point relevances were shape (batch_size, classes), remove the extra
         # predictions_per_sample dimension that was added to the starting point relevances
@@ -176,18 +182,19 @@ class _LRPImplementation:
 
 # The purpose of this method is to have a handle for test cases where
 # the relevence is predefined
-def _lrp(input, output, R=None):
+def _lrp(input, output, configuration, R=None):
     # Instantiate a LRP object
     impl = _LRPImplementation()
     # Return the relevances computed from the object
-    return impl.lrp(input, output, R)
+    return impl.lrp(input, output, configuration, R)
 
 
-def lrp(input, output):
+def lrp(input, output, configuration=None):
     """
     lrp main function
     :param input: Expecting a tensor containing a single input causing the output
     :param output: Expecting the output tensor to begin lrp from
+    :param configuration: Expecting LRPConfiguration object
     :return: Tensor of input size containing a relevance score for each feature of the input
     """
-    return _lrp(input, output)
+    return _lrp(input, output, configuration)

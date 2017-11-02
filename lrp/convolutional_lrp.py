@@ -1,4 +1,5 @@
 from lrp import lrp_util
+from lrp import linear_lrp
 import tensorflow as tf
 from constants import EPSILON
 
@@ -25,6 +26,7 @@ def convolutional(router, R):
     # Remember that there was no bias
     with_bias = False
 
+    bias_tensor = None
     # If the top operation is an addition (i.e. the above assumption
     # does not hold), move through the graph to find the output of the nearest convolution
     if current_operation.type in ['BiasAdd', 'Add']:
@@ -65,82 +67,58 @@ def convolutional(router, R):
     image_patches = tf.extract_image_patches(conv_input, [1, filter_height, filter_width, 1],
                                              strides, [1, 1, 1, 1], padding)
 
-    # Reshape the extracted patches to get a tensor of shape
-    # (batch_size, out_height, out_width, filter_height, filter_width, input_channels)
-    image_patches = tf.reshape(image_patches,
-                               [batch_size, output_height, output_width, filter_height, filter_width, input_channels])
+    # Reshape patches to suit linear
+    # shape: (batch_size * out_height * out_width, filter_height * filter_width * input_channels)
+    linear_input = tf.reshape(image_patches,
+                              (batch_size * output_height * output_width,
+                               filter_height * filter_width * input_channels))
 
-    # Add an extra dimesion to the filters to get shape:
-    # (1, filter_height, filter_width, input_channels, output_channels)
-    filters = tf.expand_dims(filters, 0)
-
-    # Add an extra dimension to the image_patches to get shape:
-    # (batch_size, out_height, out_width, filter_height, filter_width, input_channels, 1)
-    image_patches = tf.expand_dims(image_patches, -1)
-
-    # Multiply each patch by each filter to get the z_ijk's in a tensor zs with shape:
-    # (batch_size, out_height, out_width, filter_height, filter_width, input_channels, output_channels)
-    zs = tf.multiply(filters, image_patches)
-
-    # Replace the negative elements with zeroes to only have the positive z's left (i.e. z_ijk^+)
-    # Shape is still: (batch_size, out_height, out_width, filter_height, filter_width, input_channels, output_channels)
-    zp = lrp_util.replace_negatives_with_zeros(zs)
-
-    # Sum over each patch and add the positive parts of bias to get z_jk+'s
-    # Shape of zp_sum: (batch_size, out_height, out_width, 1, 1, 1, output_channels)
-    zp_sum = tf.reduce_sum(zp, [3, 4, 5], keep_dims=True)
-
-    # Add stabilizer to the sum to avoid dividing by 0
-    # Shape is still: (batch_size, out_height, out_width, 1, 1, 1, output_channels)
-    zp_sum += EPSILON
-
-    # Add a dimension to the bias and add it to the z's
-    # Shape of zp_sum: (batch_size, out_height, out_width, 1, 1, 1, output_channels)
-    zp_sum += tf.expand_dims(positive_bias_tensor, 0)
+    # Reshape finters to suit linear
+    linear_filters = tf.reshape(filters, (-1, output_channels))
 
     # Find the number of predictions per sample from R
     relevances_shape = tf.shape(R)
     predictions_per_sample = relevances_shape[1]
 
-    # Find the relative contribution of each feature in the input to the activations,
-    # i.e. the ratio between the z_ijk's and the z_jk's
-    # shape of fractions:
-    # (batch_size, out_height, out_width, kernel_height, kernel_width, input_channels, output_channels)
-    fractions = (zp / zp_sum)
+    # Transpose relevances to suit linear
+    # Shape goes from (batch_size, predictions_per_sample, out_height, out_width, out_channels)
+    # to: (batch_size, out_height, out_width, predictions_per_sample, out_channels)
+    R = tf.Print(R, [tf.shape(R), tf.shape(convolution_tensor)], summarize=100)
+    R_shape = tf.shape(R)
 
-    # Add the predictions_per_sample dimension to be able to broadcast fractions over the different
-    # predictions for the same sample
-    # Shape after expand_dims:
-    # (batch_size, predictions_per_sample=1, out_height, out_width, kernel_height, kernel_width, input_channels, output_channels)
-    fractions = tf.expand_dims(fractions, 1)
+    # Make transpose order (0, 2, .. , 1, last_dim)
+    # This in necessary because for conv1d the output might have been expanded which
+    # makes the output size partially unknown
+    transpose_order = tf.concat([[0], tf.range(2, tf.size(R_shape) - 1), [1], [tf.size(R_shape) - 1]], 0)
 
-    # Reshape the relevance from the upper layer
-    # shape of upper_layer_relevance:
-    # (batch_size, predictions_per_sample, output_height, output_width, 1, 1, 1, output_channels)
-    upper_layer_relevance = tf.reshape(R,
-                                       [batch_size, predictions_per_sample, output_height, output_width, 1, 1,
-                                        1, output_channels])
+    # Do the actual transpose
+    linear_R = tf.transpose(R, transpose_order)
 
+    # Reshape linear_R to have three dimensions
+    linear_R = tf.reshape(linear_R,
+                          (batch_size * output_height * output_width, predictions_per_sample, output_channels))
 
-    # Find the absolute contribution of each feature
-    # Shape of relevance:
-    # (batch_size, predictions_per_sample, out_height, out_width, kernel_height, kernel_width, input_channels, output_channels)
-    relevance = fractions * upper_layer_relevance
+    # TODO: refactor to call with appropriate configuration
+    # Pass the responsibility to linear_lrp
+    # Shape of linear_R_new: (batch_size * out_height * out_width, predictions_per_sample, filter_height * filter_width * input_channels)
+    linear_R_new = linear_lrp.linear_alpha(linear_R, linear_input, linear_filters, bias_tensor)
 
-    # Sum the relevances over the filters
-    # Shape of R_new:
-    # (batch_size, predictions_per_sample, out_height, out_width, kernel_height, kernel_width, input_channels)
-    R_new = tf.reduce_sum(relevance, 7)
+    # Shape back to be able to restitch
+    linear_R_new = tf.reshape(linear_R_new, (
+        batch_size, output_height, output_width, predictions_per_sample, filter_height * filter_width * input_channels))
 
-    # Put the batch size and predictions_per_sample on the same dimension to be able to use the patches_to_images tool.
-    # Also rearrange patches back to lists from the "small images".
-    # Shape of relevances after reshape:
-    # (batch_size * predictions_per_sample, out_height, out_width, filter_height * filter_width * input_channels)
-    R_new = tf.reshape(R_new, [batch_size*predictions_per_sample, output_height, output_width,
-                               filter_height * filter_width * input_channels])
+    # Transpose back to be able to restitch
+    # New shape: (batch_size, predictions_per_sample, out_height, out_width, filter_height * filter_width * input_channels)
+    linear_R_new = tf.transpose(linear_R_new, [0, 3, 1, 2, 4])
 
-    # Reconstruct the shape of the input, thereby summing the relevances for each individual feature
-    R_new = lrp_util.patches_to_images(R_new, batch_size*predictions_per_sample, input_height, input_width,
+    # Gather batch_size and predictions_per_sample
+    # New shape: (batch_size * predictions_per_sample, out_height, out_width, filter_height * filter_width * input_channels)
+    linear_R_new = tf.reshape(linear_R_new,
+                              (batch_size * predictions_per_sample, output_height, output_width,
+                               filter_height * filter_width * input_channels))
+
+    # Restitch relevances to the input size
+    R_new = lrp_util.patches_to_images(linear_R_new, batch_size * predictions_per_sample, input_height, input_width,
                                        input_channels, output_height, output_width, filter_height, filter_width,
                                        strides[1], strides[2], padding)
 

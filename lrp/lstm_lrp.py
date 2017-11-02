@@ -259,27 +259,35 @@ def _calculate_relevance_from_lstm(config, R_ta, W_g, b_g, X, hidden_states, cel
         # Add the relevance from the previous cell state
         rel_cs_t = tf.add(rel_hs_t, rel_cs)
 
-        # The relevance of the cell state in time t-1 is found using lrp for linear
-        # layers with relevance to distribute = relevance for cell state time t,
-        # input = (forget gate time t * cell state time t-1), weights = identity
-        # (i.e. the input is not changed), output = cell state time t.
-        cell_states_t = cell_states.read(t)
         forget_gate_t = forget_gate_outputs.read(t)
         input_gate_t = input_gate_outputs.read(t)
         gate_gate_t = gate_gate_outputs.read(t)
 
+        # Calculate the two parts of the cell state update in the LSTM
         from_old_cell_state = tf.multiply(forget_gate_t, cell_states.read(t - 1))
-        rel_cs_t_minus_one = linear_with_config(rel_cs_t, from_old_cell_state, tf.eye(units), config, output=cell_states_t)
+        gg_and_ig_product = tf.multiply(gate_gate_t, input_gate_t)
 
-        # The relevance of the gate gate in time t is found using lrp for linear
-        # layers with relevance to distribute = relevance for cell state time t,
+        # Concatenate them to be able to use linear LRP to divide relevance
+        from_old_cell_state_gg_and_ig_prod_concat = tf.concat([from_old_cell_state, gg_and_ig_product], axis=1)
+
+        # Use two eye matrices to divide the relevance
+        sum_selection = tf.tile(tf.eye(units), [2, 1])
+
+        # The relevance of the gate gate in time t and cell state in time t-1
+        # is found using lrp for linear layers with relevance to distribute =
+        # relevance for cell state time t,
         # input = (gate gate time t * input gate time t), weights = identity
         # (i.e. the input is not changed), output = cell state time t. Notice
         # that we don't have to care about the input gate, since relevance is
         # just forwarded through to the actual input as described in the paper
+        rel_cs_t_minus_one_and_relevance_g = linear_with_config(rel_cs_t,
+                                                                from_old_cell_state_gg_and_ig_prod_concat,
+                                                                sum_selection,
+                                                                config)
 
-        gg_and_ig_product = tf.multiply(gate_gate_t, input_gate_t)
-        relevance_g = linear_with_config(rel_cs_t, gg_and_ig_product, tf.eye(units), config, output=cell_states_t)
+        rel_cs_t_minus_one, relevance_g = tf.split(rel_cs_t_minus_one_and_relevance_g, 2, axis=2)
+        #
+        # relevance_g = linear_with_config(rel_cs_t, gg_and_ig_product, tf.eye(units), config, output=cell_states_t)
 
         # The relevance of x in time t and h in time t-1 are found using lrp for
         # linear layers with relevance to distribute = relevance for gate gate in time t,

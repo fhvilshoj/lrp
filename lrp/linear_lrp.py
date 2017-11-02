@@ -78,7 +78,6 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     return R_new
 
 
-# TODO Should this function also take output as an optional input to be consistent with other rules?
 def _linear_alpha(R, input, weights, config, bias=None):
     # Prepare batch for elementwise multiplication
     # Shape of input: (batch_size, input_width)

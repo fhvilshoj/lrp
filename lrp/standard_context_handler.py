@@ -81,8 +81,8 @@ class StandardContextHandler(ContextHandler):
                 # for Add in the concrete implementations
                 self._router[operation_type](self, self.router.get_relevance_for_operation(current_operation))
             else:
-                print("Router did not know the operation: ", operation_type)
                 # If we don't know the operation, skip it
+                pass
 
             # Go to next operation in path
             self.current_path_index += 1

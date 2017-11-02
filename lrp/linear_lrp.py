@@ -4,7 +4,7 @@ from configuration import LINEAR_LAYER, ALPHA_BETA_RULE, EPSILON_RULE
 from constants import BIAS_DELTA, EPSILON
 
 
-def _linear_epsilon(R, input, weights, config, bias=None, output=None):
+def _linear_epsilon(R, input, weights, config, bias=None):
     """
     Simple linear layer used for partial computations of LSTM
     :param R: tensor of relevance to distribute. Shape: (batch_size, output_width)
@@ -15,12 +15,11 @@ def _linear_epsilon(R, input, weights, config, bias=None, output=None):
     :param bias: Optional tensor with bias. Shape: (output_width) or (batch_size, output_width)
     :return: Redistributed relevance. Shape: (batch_size, input_width)
     """
-    # If no output tensor given; construct one by multiplying input and weights
-    if output is None:
-        output = tf.matmul(input, weights)
-        # Only add bias when bias is not none
-        if bias is not None:
-            output += bias
+    # Calculate the output of the layer
+    output = tf.matmul(input, weights)
+    # Only add bias when bias is not none
+    if bias is not None:
+        output += bias
 
     # Prepare batch for elementwise multiplication
     # Shape of input: (batch_size, input_width)
@@ -114,16 +113,16 @@ def _linear_alpha(R, input, weights, config, bias=None):
 
         # Find the relative contribution from feature i to neuron j for input k
         # Shape of fractions: (batch_size, input_width, output_width)
-        fractions = tf.divide(zijs, zj_sum)
-
-        # Prepare the fractions for the matmul below
-        # Shape of fractions after transpose: (batch_size, output_width, input_width)
-        return tf.transpose(fractions, perm=[0, 2, 1])
+        return tf.divide(zijs, zj_sum)
 
     fractions_alpha = config.alpha * _find_fractions(lrp_util.replace_negatives_with_zeros, tf.add)
     fractions_beta = config.beta * _find_fractions(lrp_util.replace_positives_with_zeros, tf.subtract)
 
     total_fractions = fractions_alpha + fractions_beta
+
+    # Prepare the fractions for the matmul below
+    # Shape of fractions after transpose: (batch_size, output_width, input_width)
+    total_fractions = tf.transpose(total_fractions, perm=[0, 2, 1])
 
     # Multiply relevances with fractions to find relevance per feature in input
     # In other words: Calculate the lower layer relevances (a combination of equation 60 and 62 in Bach 2015)
@@ -207,12 +206,14 @@ def elementwise_linear(router, R):
     # Forward relevance
     router.forward_relevance_to_operation(R_new, multensor.op, input.op)
 
+
 def linear_with_config(R, input, weights, configuration, bias=None, output=None):
     config_rule = configuration.type
     if config_rule == EPSILON_RULE:
-        return _linear_epsilon(R, input, weights, configuration, bias, output)
+        return _linear_epsilon(R, input, weights, configuration, bias)
     elif config_rule == ALPHA_BETA_RULE:
         return _linear_alpha(R, input, weights, configuration, bias)
+
 
 def linear(router, R):
     """
@@ -419,7 +420,7 @@ def sparse_dense_linear(router, R):
     # Stack the values in the all_values tensor array to get
     # R_values shape: (value_length,)
     R_values = all_values.stack()
-    R_values = tf.Print(R_values, [R_values], message="\n\nR_values:\n", summarize=100)
+
     # Stack the indices in the all_indices tensor array to get
     # R_indices shape: (value_length, 3)
     R_indices = tf.cast(all_indices.stack(), dtype=tf.int64)
@@ -448,5 +449,4 @@ def sparse_dense_linear(router, R):
 
     # Forward new Relevance to the proper operation
     for op in destinations:
-        print("Writing relevance to ", op.type, " - ", op.name)
         router.forward_relevance_to_operation(R_new, current_operation, op)

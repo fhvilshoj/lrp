@@ -347,8 +347,6 @@ def sparse_dense_linear(router, R):
     out_size = tf.cast(out_size, tf.int64)
     positive_values = lrp_util.replace_negatives_with_zeros(all_values)
     zijs = tf.SparseTensor(all_indices, positive_values, (batch_size, in_size, out_size))
-    # in_size = tf.cast(in_size, tf.int64)
-    # out_size = tf.cast(out_size, tf.int64)
 
     # Sum over the input dimension get the Zjs
     zj = tf.sparse_reduce_sum(zijs, 1, keep_dims=True)

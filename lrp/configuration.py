@@ -53,10 +53,9 @@ class LRPConfiguration(object):
             LSTM_LAYER: EpsilonConfiguration()
         }
 
-    def set(self, configuration):
-        configuration_type = configuration.type()
-        if configuration_type in self._rules:
-            self._rules[configuration_type] = configuration
+    def set(self, layer_type, configuration):
+        if layer_type in self._rules:
+            self._rules[layer_type] = configuration
         else:
             raise ValueError("Unknown configuration")
 

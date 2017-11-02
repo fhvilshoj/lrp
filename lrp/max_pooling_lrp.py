@@ -62,7 +62,8 @@ def max_pooling(router, R):
 
     # Find the largest elements in each patch and set all other entries to zero (to find z_ijk+'s)
     # Shape of max_elems: (batch_size, out_height, out_width, 1, 1, input_channels)
-    max_elems = tf.reduce_max(image_patches, axis=[3, 4], keep_dims=True)
+    # max_elems = tf.reduce_max(image_patches, axis=[3, 4], keep_dims=True)
+    max_elems = tf.reshape(current_tensor, (batch_size, output_height, output_width, 1, 1, input_channels))
 
     # Select maximum in each patch and set all others to zero
     # Shape of zs: (batch_size, out_height, out_width, kernel_height, kernel_width, input_channels)

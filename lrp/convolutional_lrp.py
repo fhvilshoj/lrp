@@ -1,7 +1,8 @@
 from lrp import lrp_util
-from lrp import linear_lrp
+from linear_lrp import linear_with_config
+from lrp.configuration import CONVOLUTIONAL_LAYER
 import tensorflow as tf
-from constants import EPSILON
+
 
 
 def convolutional(router, R):
@@ -20,9 +21,6 @@ def convolutional(router, R):
     current_operation = router.get_current_operation()
     current_tensor = convolution_tensor = current_operation.outputs[0]
 
-    # Initialize a bias tensor with 'out_depth' zeros
-    positive_bias_tensor = tf.zeros_like(tf.shape(R)[-1], dtype=tf.float32)
-
     # Remember that there was no bias
     with_bias = False
 
@@ -33,7 +31,6 @@ def convolutional(router, R):
         # Shape of convolution_tensor: (batch_size, out_height, out_width, out_depth)
         convolution_tensor = lrp_util.find_first_tensor_from_type(current_tensor, 'Conv2D')
         bias_tensor = lrp_util._get_input_bias_from_add(current_tensor)
-        positive_bias_tensor = lrp_util.replace_negatives_with_zeros(bias_tensor)
         with_bias = True
 
     # Find the inputs to the convolution
@@ -83,7 +80,6 @@ def convolutional(router, R):
     # Transpose relevances to suit linear
     # Shape goes from (batch_size, predictions_per_sample, out_height, out_width, out_channels)
     # to: (batch_size, out_height, out_width, predictions_per_sample, out_channels)
-    R = tf.Print(R, [tf.shape(R), tf.shape(convolution_tensor)], summarize=100)
     R_shape = tf.shape(R)
 
     # Make transpose order (0, 2, .. , 1, last_dim)
@@ -99,20 +95,26 @@ def convolutional(router, R):
                           (batch_size * output_height * output_width, predictions_per_sample, output_channels))
 
     # TODO: refactor to call with appropriate configuration
+    # Fetch configuration for linear_lrp
+    config = router.get_configuration(CONVOLUTIONAL_LAYER)
+
     # Pass the responsibility to linear_lrp
-    # Shape of linear_R_new: (batch_size * out_height * out_width, predictions_per_sample, filter_height * filter_width * input_channels)
-    linear_R_new = linear_lrp.linear_alpha(linear_R, linear_input, linear_filters, bias_tensor)
+    # Shape of linear_R_new:
+    # (batch_size * out_height * out_width, predictions_per_sample, filter_height * filter_width * input_channels)
+    linear_R_new = linear_with_config(linear_R, linear_input, linear_filters, config, bias=bias_tensor)
 
     # Shape back to be able to restitch
     linear_R_new = tf.reshape(linear_R_new, (
         batch_size, output_height, output_width, predictions_per_sample, filter_height * filter_width * input_channels))
 
     # Transpose back to be able to restitch
-    # New shape: (batch_size, predictions_per_sample, out_height, out_width, filter_height * filter_width * input_channels)
+    # New shape:
+    # (batch_size, predictions_per_sample, out_height, out_width, filter_height * filter_width * input_channels)
     linear_R_new = tf.transpose(linear_R_new, [0, 3, 1, 2, 4])
 
     # Gather batch_size and predictions_per_sample
-    # New shape: (batch_size * predictions_per_sample, out_height, out_width, filter_height * filter_width * input_channels)
+    # New shape:
+    # (batch_size * predictions_per_sample, out_height, out_width, filter_height * filter_width * input_channels)
     linear_R_new = tf.reshape(linear_R_new,
                               (batch_size * predictions_per_sample, output_height, output_width,
                                filter_height * filter_width * input_channels))

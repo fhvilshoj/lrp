@@ -1,7 +1,5 @@
 import tensorflow as tf
-from lrp.linear_lrp import linear_epsilon
-from lrp import lrp_util
-from constants import *
+from lrp.linear_lrp import linear_with_config
 
 
 def _t_geq_one(t, *_):
@@ -73,10 +71,11 @@ def _find_bias_add_operation_from_path(path):
     raise ValueError("Cannot find LSTM in LSTM Context")
 
 
-def lstm(path, R, LSTM_input):
+def lstm(config, path, R, LSTM_input):
     """
     Finds weights and bias and does forward pass inclusive recordings
     of activations
+    :param config: config object for rule
     :param path: path with all the operations belonging to the LSTM.
     :param R: Relevance for upper layer
     :param LSTM_input: the tensor which is input to the LSTM
@@ -204,7 +203,7 @@ def lstm(path, R, LSTM_input):
 
     # Calculate the relevances to forward to lower layers
     # R_new shape: (sequence_length, batch_size, predictions_per_sample, input_depth)
-    R_new = _calculate_relevance_from_lstm(R_ta, weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg, sequence_length)
+    R_new = _calculate_relevance_from_lstm(config, R_ta, weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg, sequence_length)
 
     # Reshape the calculated relevances to shape (batch_size, predictions_per_sample, input_sequence_length, input_depth)
     R_new = tf.transpose(R_new, [1, 2, 0, 3])
@@ -213,7 +212,7 @@ def lstm(path, R, LSTM_input):
 
 # Helper function that calculates the relevances to forward
 # Input: R, weights_gate_gate, bias_gate_gate, input_a, hs, sc, ig, gg, fg
-def _calculate_relevance_from_lstm(R_ta, W_g, b_g, X, hidden_states, cell_states, input_gate_outputs, gate_gate_outputs,
+def _calculate_relevance_from_lstm(config, R_ta, W_g, b_g, X, hidden_states, cell_states, input_gate_outputs, gate_gate_outputs,
                                    forget_gate_outputs, sequence_length):
 
     # Find batch size. R holds tensors of size (1, batch_size, predictions_per_sample, input depth) so start by
@@ -270,7 +269,7 @@ def _calculate_relevance_from_lstm(R_ta, W_g, b_g, X, hidden_states, cell_states
         gate_gate_t = gate_gate_outputs.read(t)
 
         from_old_cell_state = tf.multiply(forget_gate_t, cell_states.read(t - 1))
-        rel_cs_t_minus_one = linear_epsilon(rel_cs_t, from_old_cell_state, tf.eye(units), output=cell_states_t)
+        rel_cs_t_minus_one = linear_with_config(rel_cs_t, from_old_cell_state, tf.eye(units), config, output=cell_states_t)
 
         # The relevance of the gate gate in time t is found using lrp for linear
         # layers with relevance to distribute = relevance for cell state time t,
@@ -280,7 +279,7 @@ def _calculate_relevance_from_lstm(R_ta, W_g, b_g, X, hidden_states, cell_states
         # just forwarded through to the actual input as described in the paper
 
         gg_and_ig_product = tf.multiply(gate_gate_t, input_gate_t)
-        relevance_g = linear_epsilon(rel_cs_t, gg_and_ig_product, tf.eye(units), output=cell_states_t)
+        relevance_g = linear_with_config(rel_cs_t, gg_and_ig_product, tf.eye(units), config, output=cell_states_t)
 
         # The relevance of x in time t and h in time t-1 are found using lrp for
         # linear layers with relevance to distribute = relevance for gate gate in time t,
@@ -289,7 +288,7 @@ def _calculate_relevance_from_lstm(R_ta, W_g, b_g, X, hidden_states, cell_states
         x_t = tf.squeeze(X.read(t - 1), 0)  # Note that X is indexed from 0 where H is from 1
         x_h_concat = tf.concat([x_t, h_t_minus_one], axis=1)
 
-        rel_x_t_and_h_t_minus_one = linear_epsilon(relevance_g, x_h_concat, W_g, bias=b_g)
+        rel_x_t_and_h_t_minus_one = linear_with_config(relevance_g, x_h_concat, W_g, config, bias=b_g)
         (rel_xs_t, rel_hs_t_minus_one) = tf.split(rel_x_t_and_h_t_minus_one, [x_depth, units], 2)
 
         # Store the relevances for x and h

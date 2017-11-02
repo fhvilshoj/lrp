@@ -1,10 +1,10 @@
 import tensorflow as tf
 from lrp import lrp_util
-from lrp.configuration import LINEAR_LAYER, ALPHA_BETA_RULE, EPSILON_RULE
+from configuration import LINEAR_LAYER, ALPHA_BETA_RULE, EPSILON_RULE
 from constants import BIAS_DELTA, EPSILON
 
 
-def linear_epsilon(R, input, weights, bias=None, output=None, epsilon=EPSILON):
+def _linear_epsilon(R, input, weights, config, bias=None, output=None):
     """
     Simple linear layer used for partial computations of LSTM
     :param R: tensor of relevance to distribute. Shape: (batch_size, output_width)
@@ -40,7 +40,7 @@ def linear_epsilon(R, input, weights, bias=None, output=None, epsilon=EPSILON):
 
         # Find the bias to divide equally among the rows (This includes the stabilizer: epsilon)
         # Shape: (output_width) or (batch, output_width)
-        bias_to_divide = (BIAS_DELTA * bias + epsilon * tf.sign(output))
+        bias_to_divide = (BIAS_DELTA * bias + config.epsilon * tf.sign(output))
 
         # Divide the bias (and stabilizer) equally between the `input_features` (rows of zs)
         # Shape: (output_width) or (batch, output_width)
@@ -56,7 +56,7 @@ def linear_epsilon(R, input, weights, bias=None, output=None, epsilon=EPSILON):
 
     # Add stabilizer to denominator to avoid dividing with 0
     # Shape of denominator: (batch, output_width)
-    denominator = output + epsilon * tf.sign(output)
+    denominator = output + config.epsilon * tf.sign(output)
 
     # Expand the second to last dimension to be able to divide the denominator through the rows of zs
     # Shape after expand_dims: (batch, 1, output_width)
@@ -80,7 +80,7 @@ def linear_epsilon(R, input, weights, bias=None, output=None, epsilon=EPSILON):
 
 
 # TODO Should this function also take output as an optional input to be consistent with other rules?
-def linear_alpha(R, input, weights, bias=None, alpha=1, beta=0):
+def _linear_alpha(R, input, weights, config, bias=None):
     # Prepare batch for elementwise multiplication
     # Shape of input: (batch_size, input_width)
     # Shape of input after expand_dims: (batch_size, input_width, 1)
@@ -120,8 +120,8 @@ def linear_alpha(R, input, weights, bias=None, alpha=1, beta=0):
         # Shape of fractions after transpose: (batch_size, output_width, input_width)
         return tf.transpose(fractions, perm=[0, 2, 1])
 
-    fractions_alpha = alpha * _find_fractions(lrp_util.replace_negatives_with_zeros, tf.add)
-    fractions_beta = beta * _find_fractions(lrp_util.replace_positives_with_zeros, tf.subtract)
+    fractions_alpha = config.alpha * _find_fractions(lrp_util.replace_negatives_with_zeros, tf.add)
+    fractions_beta = config.beta * _find_fractions(lrp_util.replace_positives_with_zeros, tf.subtract)
 
     total_fractions = fractions_alpha + fractions_beta
 
@@ -180,12 +180,13 @@ def elementwise_linear(router, R):
                        false_fn=_higher_rank)
 
     layer_config = router.get_configuration(LINEAR_LAYER)
-    if layer_config.type == ALPHA_BETA_RULE:
-        # Calculate new relevances with the alpha rule
-        R_new = linear_alpha(R, new_input, weights, bias=bias, alpha=layer_config.alpha, beta=layer_config.beta)
-    elif layer_config.type == EPSILON_RULE:
-        # Calculate new relevances with the epsilon rule
-        R_new = linear_epsilon(R, new_input, weights, bias=bias, epsilon=layer_config.epsilon)
+    R_new = linear_with_config(R, new_input, weights, layer_config, bias)
+    # if layer_config.type == ALPHA_BETA_RULE:
+    #     # Calculate new relevances with the alpha rule
+    #     R_new = linear_alpha(R, new_input, weights, bias=bias, alpha=layer_config.alpha, beta=layer_config.beta)
+    # elif layer_config.type == EPSILON_RULE:
+    #     # Calculate new relevances with the epsilon rule
+    #     R_new = linear_epsilon(R, new_input, weights, bias=bias, epsilon=layer_config.epsilon)
 
     # Turn the calculated relevances into the correct form if the rank of the input was > 2
     def _revert_rank2():
@@ -206,6 +207,12 @@ def elementwise_linear(router, R):
     # Forward relevance
     router.forward_relevance_to_operation(R_new, multensor.op, input.op)
 
+def linear_with_config(R, input, weights, configuration, bias=None, output=None):
+    config_rule = configuration.type
+    if config_rule == EPSILON_RULE:
+        return _linear_epsilon(R, input, weights, configuration, bias, output)
+    elif config_rule == ALPHA_BETA_RULE:
+        return _linear_alpha(R, input, weights, configuration, bias)
 
 def linear(router, R):
     """
@@ -234,12 +241,14 @@ def linear(router, R):
     (input, weights) = matmultensor.op.inputs
 
     layer_config = router.get_configuration(LINEAR_LAYER)
-    if layer_config.type == ALPHA_BETA_RULE:
-        # Calculate new relevances with the alpha rule
-        R_new = linear_alpha(R, input, weights, bias=bias, alpha=layer_config.alpha, beta=layer_config.beta)
-    elif layer_config.type == EPSILON_RULE:
-        # Calculate new relevances with the epsilon rule
-        R_new = linear_epsilon(R, input, weights, bias=bias, epsilon=layer_config.epsilon)
+    R_new = linear_with_config(R, input, weights, layer_config, bias)
+    # if layer_config.type == ALPHA_BETA_RULE:
+    #     # Calculate new relevances with the alpha rule
+    #     R_new = linear_alpha(R, input, weights, bias=bias, alpha=layer_config.alpha, beta=layer_config.beta)
+    # elif layer_config.type == EPSILON_RULE:
+    #     # Calculate new relevances with the epsilon rule
+    #     R_new = linear_epsilon(R, input, weights, bias=bias, epsilon=layer_config.epsilon)
+
 
     # Mark handled operations
     router.mark_operation_handled(tensor.op)

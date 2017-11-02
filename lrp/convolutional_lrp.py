@@ -92,7 +92,7 @@ def convolutional(router, R):
 
     # Add stabilizer to the sum to avoid dividing by 0
     # Shape is still: (batch_size, out_height, out_width, 1, 1, 1, output_channels)
-    zp_sum += EPSILON * tf.ones_like(zp_sum)
+    zp_sum += EPSILON
 
     # Add a dimension to the bias and add it to the z's
     # Shape of zp_sum: (batch_size, out_height, out_width, 1, 1, 1, output_channels)

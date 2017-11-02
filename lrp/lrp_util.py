@@ -58,6 +58,11 @@ def replace_negatives_with_zeros(tensor):
     return tf.where(tf.greater(tensor, 0), tensor, tf.zeros_like(tensor))
 
 
+# Helper function that takes a tensor and replaces all positive entries with zeroes
+def replace_positives_with_zeros(tensor):
+    return tf.where(tf.less(tensor, 0), tensor, tf.zeros_like(tensor))
+
+
 # Finds the one of the two inputs to an add that is given as a constant or a variable
 def _get_input_bias_from_add(tensor):
     # Find bias tensor by identifying which of the two inputs to the addition are a variable (accessed

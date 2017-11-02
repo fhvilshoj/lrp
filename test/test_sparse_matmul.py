@@ -179,7 +179,6 @@ class TestSparseMatmul(unittest.TestCase):
                                     [13, 0]]
                 expected_values = [0.2233167596, 0.0, 0.0, 0.1664955752, 1.137187628, 0.2873733863, 0.529646685, 0.0,
                                    0.228592451, 0.5309809592]
-                print(explanation)
                 self.assertTrue(np.all(np.equal(expected_indices, explanation.indices)),
                                 "expected indices did not equal actual indices")
                 self.assertTrue(np.allclose(expected_values, explanation.values, rtol=1.e-3, atol=1.e-3),

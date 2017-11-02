@@ -8,6 +8,8 @@ _EMPTY_LAYER = 'Empty'
 # Rules
 ALPHA_BETA_RULE = 'Alpha_Beta_Rule'
 EPSILON_RULE = 'Epsilon_Rule'
+FLAT_RULE = 'Flat_Rule'
+WW_RULE = 'WW_Rule'
 
 class LayerConfiguration:
     def __init__(self, layer):
@@ -42,6 +44,16 @@ class EpsilonConfiguration(LayerConfiguration):
     @property
     def epsilon(self):
         return self._epsilon
+
+
+class FlatConfiguration(LayerConfiguration):
+    def __init__(self):
+        super().__init__(FLAT_RULE)
+
+
+class WWConfiguration(LayerConfiguration):
+    def __init__(self):
+        super().__init__(WW_RULE)
 
 
 class LRPConfiguration(object):

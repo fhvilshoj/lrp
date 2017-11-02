@@ -1,7 +1,76 @@
 import tensorflow as tf
 from lrp import lrp_util
-from configuration import LINEAR_LAYER, ALPHA_BETA_RULE, EPSILON_RULE
+from configuration import LINEAR_LAYER, ALPHA_BETA_RULE, EPSILON_RULE, FLAT_RULE, WW_RULE
 from constants import BIAS_DELTA, EPSILON
+
+
+def _linear_flat(R, input, weights, config, bias=None):
+    # Get width of the input
+    input_width = tf.cast(tf.shape(weights)[0], tf.float32)
+
+    # Fractions of size (input_width, output_width)
+    # fractions = tf.constant(1 / input_width, shape=tf.shape(weights), dtype=tf.float32)
+    fractions = tf.ones_like(weights) / input_width
+
+    # Transpose fractions to be able to multiply with relevances
+    # fraction shape after transpose: (output_width, input_width)
+    fractions = tf.transpose(fractions)
+
+    # Remember shape of R
+    R_shape = tf.shape(R)
+
+    # Reshape R to have only two dimensions to be able to use matrix multiplication
+    # R shape becomes: (batch_size * predictions_per_sample, output_width)
+    R = tf.reshape(R, (-1, R_shape[-1]))
+
+    # Multiply relevances with fractions to find relevance per feature in input
+    # Shape of R: (batch_size, predictions_per_sample, output_width)
+    # Shape of fractions: (batch_size, output_width, input_width)
+    # Shape of R_new: (batch_size, predictions_per_sample, input_width)
+    R_new = tf.matmul(R, fractions)
+
+    # Restore batch_size and predictions_per_sample
+    # R_new shape after reshape: (batch_size, predictions_per_sample, input_width)
+    R_new = tf.reshape(R_new, (R_shape[0], R_shape[1], -1))
+
+    return R_new
+
+
+def _linear_ww(R, input, weights, config, bias=None):
+    # Square the weights
+    # zs Shape: (input_width, output_width
+    zs = tf.square(weights)
+
+    # Sum the weights
+    # zs_sum shape: (output_width,)
+    zs_sum = tf.reduce_sum(zs, 0)
+
+    # Get the fractions by dividing the two
+    # fractions Shape: (input_width, output_width)
+    fractions = zs / zs_sum
+
+    # Transpose fractions to be able to multiply with relevances
+    # fraction shape after transpose: (output_width, input_width)
+    fractions = tf.transpose(fractions)
+
+    # Remember shape of R
+    R_shape = tf.shape(R)
+
+    # Reshape R to have only two dimensions to be able to use matrix multiplication
+    # R shape becomes: (batch_size * predictions_per_sample, output_width)
+    R = tf.reshape(R, (-1, R_shape[-1]))
+
+    # Multiply relevances with fractions to find relevance per feature in input
+    # Shape of R: (batch_size, predictions_per_sample, output_width)
+    # Shape of fractions: (batch_size, output_width, input_width)
+    # Shape of R_new: (batch_size, predictions_per_sample, input_width)
+    R_new = tf.matmul(R, fractions)
+
+    # Restore batch_size and predictions_per_sample
+    # R_new shape after reshape: (batch_size, predictions_per_sample, input_width)
+    R_new = tf.reshape(R_new, (R_shape[0], R_shape[1], -1))
+
+    return R_new
 
 
 def _linear_epsilon(R, input, weights, config, bias=None):
@@ -173,12 +242,13 @@ def elementwise_linear(router, R):
         return new_input, new_R
 
     # Test if the rank of the input is > 2
-    new_input, R = tf.cond(tf.equal(tf.rank(input),  2),
-                       true_fn=_rank2,
-                       false_fn=_higher_rank)
+    new_input, R = tf.cond(tf.equal(tf.rank(input), 2),
+                           true_fn=_rank2,
+                           false_fn=_higher_rank)
 
     layer_config = router.get_configuration(LINEAR_LAYER)
     R_new = linear_with_config(R, new_input, weights, layer_config, bias)
+
     # if layer_config.type == ALPHA_BETA_RULE:
     #     # Calculate new relevances with the alpha rule
     #     R_new = linear_alpha(R, new_input, weights, bias=bias, alpha=layer_config.alpha, beta=layer_config.beta)
@@ -194,9 +264,9 @@ def elementwise_linear(router, R):
         return tf.reshape(R_new, tf.concat(([batch_size], [predictions_per_sample], tf.shape(input)[1:]), 0))
 
     # Test if the rank of the input is > 2
-    R_new = tf.cond(tf.equal(tf.rank(input),  2),
-                       true_fn=_revert_rank2,
-                       false_fn=_revert_higher_rank)
+    R_new = tf.cond(tf.equal(tf.rank(input), 2),
+                    true_fn=_revert_rank2,
+                    false_fn=_revert_higher_rank)
 
     # Mark handled operations
     router.mark_operation_handled(current_operation)
@@ -206,13 +276,20 @@ def elementwise_linear(router, R):
     router.forward_relevance_to_operation(R_new, multensor.op, input.op)
 
 
-def linear_with_config(R, input, weights, configuration, bias=None, output=None):
+def linear_with_config(R, input, weights, configuration, bias=None):
     config_rule = configuration.type
-    if config_rule == EPSILON_RULE:
-        return _linear_epsilon(R, input, weights, configuration, bias)
-    elif config_rule == ALPHA_BETA_RULE:
-        return _linear_alpha(R, input, weights, configuration, bias)
 
+    handler = None
+    if config_rule == EPSILON_RULE:
+        handler = _linear_epsilon
+    elif config_rule == ALPHA_BETA_RULE:
+        handler = _linear_alpha
+    elif config_rule == FLAT_RULE:
+        handler = _linear_flat
+    elif config_rule == WW_RULE:
+        handler = _linear_ww
+
+    return handler(R, input, weights, configuration, bias)
 
 def linear(router, R):
     """

@@ -24,6 +24,24 @@ class LinearLRPTest(unittest.TestCase):
 
         self.do_test_with_config_and_result(expected_result, config)
 
+    def test_linear_lrp_alpha_beta_equal_bias(self):
+        # Prepare configuration of linear layer
+        config = LRPConfiguration()
+        config.set(LAYER.LINEAR, AlphaBetaConfiguration(alpha=2, beta=-1, bias_strategy=BIAS_STRATEGY.ALL))
+
+        expected_result = [[-70.90120207, 14.94277618, -27.09395311, 121.052379]]
+
+        self.do_test_with_config_and_result(expected_result, config)
+
+    def test_linear_lrp_alpha_beta_active_bias(self):
+        # Prepare configuration of linear layer
+        config = LRPConfiguration()
+        config.set(LAYER.LINEAR, AlphaBetaConfiguration(alpha=2, beta=-1, bias_strategy=BIAS_STRATEGY.ACTIVE))
+
+        expected_result = [[-83.6, 21.92307692, -47.5372549, 147.214178]]
+
+        self.do_test_with_config_and_result(expected_result, config)
+
     def test_linear_with_flat(self):
         # Prepare configuration of linear layer
         config = LRPConfiguration()

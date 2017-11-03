@@ -73,6 +73,45 @@ def _linear_ww(R, input, weights, config, bias=None):
     return R_new
 
 
+def _divide_bias_among_zs(config, zs, bias_to_divide):
+    if config.bias_strategy == BIAS_STRATEGY.ALL:
+        # Number of input features to divide relevance among (cast to float32 from int to perform the division below)
+        zs_shape = tf.shape(zs)
+        input_features = tf.cast(zs_shape[1], tf.float32)
+
+        # Divide the bias (and stabilizer) equally between the `input_features` (rows of zs)
+        # Shape: (output_width) or (batch, output_width)
+        bias_per_feature = bias_to_divide / input_features
+        # Expand the second to last dimension to be able to add the bias through the rows of zs
+        # Shape: (1, output_width) or (batch, 1, output_width)
+        bias_per_feature = tf.expand_dims(bias_per_feature, -2)
+
+    elif config.bias_strategy == BIAS_STRATEGY.ACTIVE:
+        # Find all the zijs that are not 0
+        # active_zs shape: (batch_size, input_width, output_width)
+        active_zs = tf.where(tf.equal(zs, 0), tf.zeros_like(zs), tf.ones_like(zs))
+
+        # For each sample and each neuron count how many active activations
+        # to divide the bias equally among
+        # counts shape: (batch_size, 1, output_width
+        counts = tf.reduce_sum(active_zs, 1, keep_dims=True)
+
+        # Scale all the indicator ones with the bias
+        # nonscaled shape: (batch_size, input_width, output_width)
+        nonadjusted_biases = (active_zs * tf.expand_dims(bias_to_divide, -2))
+
+        # Adjust the the biases by the counts for each neuron
+        bias_per_feature = nonadjusted_biases / counts
+    else:
+        # If no bias should be divided, return zs as is
+        return zs
+
+    # Add bias to zs
+    # Shape of zs: (batch, input_width, output_width)
+    zs = zs + bias_per_feature
+    return zs
+
+
 def _linear_epsilon(R, input, weights, config, bias=None):
     """
     Simple linear layer used for partial computations of LSTM
@@ -101,43 +140,12 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     zs = tf.multiply(input, weights)
 
     # When bias is given divide it equally among the i's to avoid relevance loss
-    if bias is not None and config.bias_strategy != BIAS_STRATEGY.NONE:
+    if bias is not None:
         # Find the bias to divide among the rows (This includes the stabilizer: epsilon)
         # Shape: (output_width) or (batch, output_width)
         bias_to_divide = (BIAS_DELTA * bias + config.epsilon * tf.sign(output))
 
-        if config.bias_strategy == BIAS_STRATEGY.ALL:
-            # Number of input features to divide relevance among (cast to float32 from int to perform the division below)
-            input_shape = tf.shape(input)
-            input_features = tf.cast(input_shape[1], tf.float32)
-
-            # Divide the bias (and stabilizer) equally between the `input_features` (rows of zs)
-            # Shape: (output_width) or (batch, output_width)
-            bias_per_feature = bias_to_divide / input_features
-            # Expand the second to last dimension to be able to add the bias through the rows of zs
-            # Shape: (1, output_width) or (batch, 1, output_width)
-            bias_per_feature = tf.expand_dims(bias_per_feature, -2)
-
-        else:  # config.bias_strategy is BIAS_STRATEGY.ACTIVE in this case
-            # Find all the zijs that are not 0
-            # active_zs shape: (batch_size, input_width, output_width)
-            active_zs = tf.where(tf.equal(zs, 0), tf.zeros_like(zs), tf.ones_like(zs))
-
-            # For each sample and each neuron count how many active activations
-            # to divide the bias equally among
-            # counts shape: (batch_size, 1, output_width
-            counts = tf.reduce_sum(active_zs, 1, keep_dims=True)
-
-            # Scale all the indicator ones with the bias
-            # nonscaled shape: (batch_size, input_width, output_width)
-            nonadjusted_biases = (active_zs * tf.expand_dims(bias_to_divide, -2))
-
-            # Adjust the the biases by the counts for each neuron
-            bias_per_feature = nonadjusted_biases / counts
-
-        # Add bias to zs
-        # Shape of zs: (batch, input_width, output_width)
-        zs = zs + bias_per_feature
+        zs = _divide_bias_among_zs(config, zs, bias_to_divide)
 
     # Add stabilizer to denominator to avoid dividing with 0
     # Shape of denominator: (batch, output_width)
@@ -187,14 +195,20 @@ def _linear_alpha(R, input, weights, config, bias=None):
 
         # Find and add the positive parts of an eventual bias (i.e. find and add the b^+s).
         if bias is not None:
-            # Replace the negative elements in the bias with zeroes
-            bias_positive = selection(bias)
+            # Filter elements in bias to either positives of negatives according to selection callable
+            bias_filtered = selection(bias)
+
+            # Add stabilizer to bias to be able to split that as well
+            bias_filtered = stabilizer_operation(bias_filtered, EPSILON)
 
             # Add the sum of the z_ij^+'s and the positive bias (i.e. find the z_j^+'s)
-            zj_sum = tf.add(zj_sum, bias_positive)
+            zj_sum = tf.add(zj_sum, bias_filtered)
 
-        # Add stabilizer to the denominator
-        zj_sum = stabilizer_operation(zj_sum, EPSILON)
+            # Divide the bias according to the current configuration
+            zijs = _divide_bias_among_zs(config, zijs, bias_filtered)
+        else:
+            # Add stabilizer to the denominator
+            zj_sum = stabilizer_operation(zj_sum, EPSILON)
 
         # Find the relative contribution from feature i to neuron j for input k
         # Shape of fractions: (batch_size, input_width, output_width)

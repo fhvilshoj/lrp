@@ -1,6 +1,6 @@
 import tensorflow as tf
 from lrp import lrp_util
-from configuration import LAYER, RULE
+from configuration import LAYER, RULE, BIAS_STRATEGY
 from constants import BIAS_DELTA, EPSILON
 
 
@@ -101,22 +101,39 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     zs = tf.multiply(input, weights)
 
     # When bias is given divide it equally among the i's to avoid relevance loss
-    if bias is not None:
-        # Number of input features to divide relevance among (cast to float32 from int to perform the division below)
-        input_shape = tf.shape(input)
-        input_features = tf.cast(input_shape[1], tf.float32)
-
-        # Find the bias to divide equally among the rows (This includes the stabilizer: epsilon)
+    if bias is not None and config.bias_strategy != BIAS_STRATEGY.NONE:
+        # Find the bias to divide among the rows (This includes the stabilizer: epsilon)
         # Shape: (output_width) or (batch, output_width)
         bias_to_divide = (BIAS_DELTA * bias + config.epsilon * tf.sign(output))
 
-        # Divide the bias (and stabilizer) equally between the `input_features` (rows of zs)
-        # Shape: (output_width) or (batch, output_width)
-        bias_per_feature = bias_to_divide / input_features
+        if config.bias_strategy == BIAS_STRATEGY.ALL:
+            # Number of input features to divide relevance among (cast to float32 from int to perform the division below)
+            input_shape = tf.shape(input)
+            input_features = tf.cast(input_shape[1], tf.float32)
 
-        # Expand the second to last dimension to be able to add the bias through the rows of zs
-        # Shape: (1, output_width) or (batch, 1, output_width)
-        bias_per_feature = tf.expand_dims(bias_per_feature, -2)
+            # Divide the bias (and stabilizer) equally between the `input_features` (rows of zs)
+            # Shape: (output_width) or (batch, output_width)
+            bias_per_feature = bias_to_divide / input_features
+            # Expand the second to last dimension to be able to add the bias through the rows of zs
+            # Shape: (1, output_width) or (batch, 1, output_width)
+            bias_per_feature = tf.expand_dims(bias_per_feature, -2)
+
+        else:  # config.bias_strategy is BIAS_STRATEGY.ACTIVE in this case
+            # Find all the zijs that are not 0
+            # active_zs shape: (batch_size, input_width, output_width)
+            active_zs = tf.where(tf.equal(zs, 0), tf.zeros_like(zs), tf.ones_like(zs))
+
+            # For each sample and each neuron count how many active activations
+            # to divide the bias equally among
+            # counts shape: (batch_size, 1, output_width
+            counts = tf.reduce_sum(active_zs, 1, keep_dims=True)
+
+            # Scale all the indicator ones with the bias
+            # nonscaled shape: (batch_size, input_width, output_width)
+            nonadjusted_biases = (active_zs * tf.expand_dims(bias_to_divide, -2))
+
+            # Adjust the the biases by the counts for each neuron
+            bias_per_feature = nonadjusted_biases / counts
 
         # Add bias to zs
         # Shape of zs: (batch, input_width, output_width)
@@ -290,6 +307,7 @@ def linear_with_config(R, input, weights, configuration, bias=None):
         handler = _linear_ww
 
     return handler(R, input, weights, configuration, bias)
+
 
 def linear(router, R):
     """

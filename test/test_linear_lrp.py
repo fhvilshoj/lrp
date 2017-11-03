@@ -1,7 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
-from configuration import LRPConfiguration, AlphaBetaConfiguration, FlatConfiguration, WWConfiguration, LAYER
+from configuration import LRPConfiguration, AlphaBetaConfiguration, FlatConfiguration, WWConfiguration, LAYER, \
+    EpsilonConfiguration, BIAS_STRATEGY
 from lrp import lrp
 import unittest
 
@@ -41,6 +42,32 @@ class LinearLRPTest(unittest.TestCase):
 
         self.do_test_with_config_and_result(expected_result, config)
 
+    def test_linear_with_epsilon_and_bias(self):
+        # Prepare configuration of linear layer
+        config = LRPConfiguration()
+        config.set(LAYER.LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.ALL))
+
+        expected_result = [[1.333333333, -14.06802721, 21.0521542, 29.68253968]]
+
+        self.do_test_with_config_and_result(expected_result, config)
+
+    def test_linear_with_epsilon_without_bias(self):
+        # Prepare configuration of linear layer
+        config = LRPConfiguration()
+        config.set(LAYER.LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.NONE))
+
+        expected_result = [[0., -12, 21, 32]]
+
+        self.do_test_with_config_and_result(expected_result, config)
+
+    def test_linear_lrp_epsilon_active_bias(self):
+        # Prepare configuration of linear layer
+        config = LRPConfiguration()
+        config.set(LAYER.LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.ACTIVE))
+
+        expected_result = [[1.340986395, -19.125, 28.75255102, 27.03146259]]
+
+        self.do_test_with_config_and_result(expected_result, config)
 
     def do_test_with_config_and_result(self, expectex_result, config=LRPConfiguration()):
         # Get a tensorflow graph
@@ -103,7 +130,6 @@ class LinearLRPTest(unittest.TestCase):
 
                 # Check if the predictions has the right shape
                 self.assertEqual(prediction.shape, (1, 2), msg="Should be able to do a linear forward pass")
-
                 # Check if the relevance scores are correct (the correct values
                 # are found by calculating the example by hand)
                 self.assertTrue(

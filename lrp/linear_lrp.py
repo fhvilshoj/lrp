@@ -1,6 +1,6 @@
 import tensorflow as tf
 from lrp import lrp_util
-from configuration import LINEAR_LAYER, ALPHA_BETA_RULE, EPSILON_RULE, FLAT_RULE, WW_RULE
+from configuration import LAYER, RULE
 from constants import BIAS_DELTA, EPSILON
 
 
@@ -246,7 +246,7 @@ def elementwise_linear(router, R):
                            true_fn=_rank2,
                            false_fn=_higher_rank)
 
-    layer_config = router.get_configuration(LINEAR_LAYER)
+    layer_config = router.get_configuration(LAYER.LINEAR)
     R_new = linear_with_config(R, new_input, weights, layer_config, bias)
 
     # if layer_config.type == ALPHA_BETA_RULE:
@@ -280,13 +280,13 @@ def linear_with_config(R, input, weights, configuration, bias=None):
     config_rule = configuration.type
 
     handler = None
-    if config_rule == EPSILON_RULE:
+    if config_rule == RULE.EPSILON:
         handler = _linear_epsilon
-    elif config_rule == ALPHA_BETA_RULE:
+    elif config_rule == RULE.ALPHA_BETA:
         handler = _linear_alpha
-    elif config_rule == FLAT_RULE:
+    elif config_rule == RULE.FLAT:
         handler = _linear_flat
-    elif config_rule == WW_RULE:
+    elif config_rule == RULE.WW:
         handler = _linear_ww
 
     return handler(R, input, weights, configuration, bias)
@@ -317,7 +317,7 @@ def linear(router, R):
     # Find the inputs to the matrix multiplication
     (input, weights) = matmultensor.op.inputs
 
-    layer_config = router.get_configuration(LINEAR_LAYER)
+    layer_config = router.get_configuration(LAYER.LINEAR)
     R_new = linear_with_config(R, input, weights, layer_config, bias)
     # if layer_config.type == ALPHA_BETA_RULE:
     #     # Calculate new relevances with the alpha rule

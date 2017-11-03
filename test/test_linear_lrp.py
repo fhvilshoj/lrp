@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-from configuration import LRPConfiguration, AlphaBetaConfiguration, LINEAR_LAYER, FlatConfiguration, WWConfiguration
+from configuration import LRPConfiguration, AlphaBetaConfiguration, FlatConfiguration, WWConfiguration, LAYER
 from lrp import lrp
 import unittest
 
@@ -17,7 +17,7 @@ class LinearLRPTest(unittest.TestCase):
     def test_linear_with_beta(self):
         # Prepare configuration of linear layer
         config = LRPConfiguration()
-        config.set(LINEAR_LAYER, AlphaBetaConfiguration(alpha=2, beta=-1))
+        config.set(LAYER.LINEAR, AlphaBetaConfiguration(alpha=2, beta=-1))
 
         expected_result = [[-80.14545455, 9.566433566, -28.36791444, 125.5933087]]
 
@@ -26,7 +26,7 @@ class LinearLRPTest(unittest.TestCase):
     def test_linear_with_flat(self):
         # Prepare configuration of linear layer
         config = LRPConfiguration()
-        config.set(LINEAR_LAYER, FlatConfiguration())
+        config.set(LAYER.LINEAR, FlatConfiguration())
 
         expected_result = [[9.5, 9.5, 9.5, 9.5]]
 
@@ -35,7 +35,7 @@ class LinearLRPTest(unittest.TestCase):
     def test_linear_with_ww(self):
         # Prepare configuration of linear layer
         config = LRPConfiguration()
-        config.set(LINEAR_LAYER, WWConfiguration())
+        config.set(LAYER.LINEAR, WWConfiguration())
 
         expected_result = [[1.80952381, 13.68, 13.75238095, 8.758095238]]
 

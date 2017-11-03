@@ -1,3 +1,5 @@
+from enum import Enum
+
 # Layer types
 LINEAR_LAYER = 'Linear'
 CONVOLUTIONAL_LAYER = 'Convolution'
@@ -5,24 +7,45 @@ MAX_POOL_LAYER = 'MaxPool'
 LSTM_LAYER = 'LSTM'
 _EMPTY_LAYER = 'Empty'
 
+# Layers
+class LAYER:
+    CONVOLUTIONAL = 0
+    MAX_POOL = 1
+    LINEAR = 2
+    EMPTY = 3
+    LSTM = 4
+
+
 # Rules
-ALPHA_BETA_RULE = 'Alpha_Beta_Rule'
-EPSILON_RULE = 'Epsilon_Rule'
-FLAT_RULE = 'Flat_Rule'
-WW_RULE = 'WW_Rule'
+class RULE:
+    ALPHA_BETA = 0
+    EPSILON = 1
+    FLAT = 2
+    WW = 3
+
+# Bias strategy
+class BIAS_STRATEGY:
+    ACTIVE = 0
+    NONE = 1
+    ALL = 2
 
 class LayerConfiguration:
-    def __init__(self, layer):
+    def __init__(self, layer, bias_strategy=BIAS_STRATEGY.NONE):
         self._layer = layer
+        self._bias_strategy = bias_strategy
 
     @property
     def type(self):
         return self._layer
 
+    @property
+    def bias_strategy(self):
+        return self._bias_strategy
+
 
 class AlphaBetaConfiguration(LayerConfiguration):
     def __init__(self, alpha=1, beta=0):
-        super().__init__(ALPHA_BETA_RULE)
+        super().__init__(RULE.ALPHA_BETA)
         assert alpha + beta == 1, "alpha + beta should be 1"
         self._alpha = alpha
         self._beta = beta
@@ -38,7 +61,7 @@ class AlphaBetaConfiguration(LayerConfiguration):
 
 class EpsilonConfiguration(LayerConfiguration):
     def __init__(self, epsilon=1e-12):
-        super().__init__(EPSILON_RULE)
+        super().__init__(RULE.EPSILON, bias_strategy=BIAS_STRATEGY.ALL)
         self._epsilon = epsilon
 
     @property
@@ -48,31 +71,31 @@ class EpsilonConfiguration(LayerConfiguration):
 
 class FlatConfiguration(LayerConfiguration):
     def __init__(self):
-        super().__init__(FLAT_RULE)
+        super().__init__(RULE.FLAT)
 
 
 class WWConfiguration(LayerConfiguration):
     def __init__(self):
-        super().__init__(WW_RULE)
+        super().__init__(RULE.WW)
 
 
 class LRPConfiguration(object):
     def __init__(self):
         self._rules = {
-            LINEAR_LAYER: AlphaBetaConfiguration(),
-            CONVOLUTIONAL_LAYER: AlphaBetaConfiguration(),
-            MAX_POOL_LAYER: AlphaBetaConfiguration(),
-            LSTM_LAYER: EpsilonConfiguration()
+            LAYER.LINEAR: AlphaBetaConfiguration(),
+            LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
+            LAYER.MAX_POOL: AlphaBetaConfiguration(),
+            LAYER.LSTM: EpsilonConfiguration()
         }
 
     def set(self, layer_type, configuration):
         if layer_type in self._rules:
             self._rules[layer_type] = configuration
         else:
-            raise ValueError("Unknown configuration")
+            raise ValueError("Unknown configuration " + layer_type)
 
     def get(self, layer):
         if layer in self._rules:
             return self._rules[layer]
         else:
-            return LayerConfiguration(_EMPTY_LAYER)
+            return LayerConfiguration(LAYER.EMPTY)

@@ -1,8 +1,7 @@
 from lrp import lrp_util
 from linear_lrp import linear_with_config
-from lrp.configuration import CONVOLUTIONAL_LAYER
+from lrp.configuration import LAYER
 import tensorflow as tf
-
 
 
 def convolutional(router, R):
@@ -96,7 +95,7 @@ def convolutional(router, R):
 
     # TODO: refactor to call with appropriate configuration
     # Fetch configuration for linear_lrp
-    config = router.get_configuration(CONVOLUTIONAL_LAYER)
+    config = router.get_configuration(LAYER.CONVOLUTIONAL)
 
     # Pass the responsibility to linear_lrp
     # Shape of linear_R_new:

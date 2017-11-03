@@ -1,6 +1,6 @@
 from context_handler import ContextHandler
 from lstm_lrp import lstm
-from configuration import LSTM_LAYER
+from configuration import LAYER
 import lrp_util
 from constants import *
 
@@ -37,7 +37,7 @@ class LSTMContextHandler(ContextHandler):
 
         # TODO use configuration to set alpha_beta or epsilon rule
         # Calculate the relevances to distribute to the lower layers
-        lstm_config = self.get_configuration(LSTM_LAYER)
+        lstm_config = self.get_configuration(LAYER.LSTM)
         R_new = lstm(lstm_config, path, R, LSTM_input)
 
         # TODO this call should be done in the LSTM. Not in the context handler.

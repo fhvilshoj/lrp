@@ -51,6 +51,6 @@ def print_array_from_paste_book():
         for line in f:
             if len(line) == 0:
                 continue
-            arr.append(list(map(lambda str: float(str.replace(",", ".")), line.split("	"))))
+            arr.append(list(map(lambda str: float(str.replace(",", ".")) if "," in str else int(str), line.split("	"))))
 
         print(arr)

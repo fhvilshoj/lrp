@@ -44,8 +44,8 @@ class LayerConfiguration:
 
 
 class AlphaBetaConfiguration(LayerConfiguration):
-    def __init__(self, alpha=1, beta=0):
-        super().__init__(RULE.ALPHA_BETA)
+    def __init__(self, alpha=1, beta=0, bias_strategy=BIAS_STRATEGY.NONE):
+        super().__init__(RULE.ALPHA_BETA, bias_strategy)
         assert alpha + beta == 1, "alpha + beta should be 1"
         self._alpha = alpha
         self._beta = beta
@@ -60,8 +60,8 @@ class AlphaBetaConfiguration(LayerConfiguration):
 
 
 class EpsilonConfiguration(LayerConfiguration):
-    def __init__(self, epsilon=1e-12):
-        super().__init__(RULE.EPSILON, bias_strategy=BIAS_STRATEGY.ALL)
+    def __init__(self, epsilon=1e-12, bias_strategy=BIAS_STRATEGY.ALL):
+        super().__init__(RULE.EPSILON, bias_strategy)
         self._epsilon = epsilon
 
     @property

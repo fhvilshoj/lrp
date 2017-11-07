@@ -1,10 +1,13 @@
 import numpy as np
 import tensorflow as tf
+import subprocess
+from sys import platform
 
 g = tf.Graph()
 g = g.as_default()
 
 s = tf.Session()
+
 
 def brackets(arr, default_element):
     res = "["
@@ -14,11 +17,12 @@ def brackets(arr, default_element):
             if i < arr[0] - 1:
                 res += ","
     else:
-        for _ in range(arr[0]-1):
+        for _ in range(arr[0] - 1):
             res += default_element + ", "
         res += default_element
     res += "]"
     return res
+
 
 def br(arr, default_element=""):
     if not isinstance(default_element, str):
@@ -39,18 +43,27 @@ def get_text_to_copy_to_sheets(arr):
             get_text_to_copy_to_sheets(i)
     print("\r\n")
 
+
 def pr(arr):
     if not type(arr).__module__ == np.__name__:
         arr = np.array(arr)
     get_text_to_copy_to_sheets(arr)
 
 
-def print_array_from_paste_book():
-    with open('playground/paste_book.txt') as f:
-        arr = []
-        for line in f:
-            if len(line) == 0:
-                continue
-            arr.append(list(map(lambda str: float(str.replace(",", ".")) if "," in str else int(str), line.split("	"))))
+def copy2clip(txt):
+    if 'linux' in platform:
+        cmd='echo ' + txt.strip() + '| xclip -selection clipboard'
+        return subprocess.check_call(cmd, shell=True)
+    else:
+        print(txt)
 
-        print(arr)
+def print_array_from_paste_book():
+    arr = []
+    with open('playground/paste_book.txt') as f:
+        for line in f:
+            if len(line.strip()) == 0:
+                continue
+            arr.append(
+                list(map(lambda str: float(str.replace(",", ".")) if "," in str else int(str), line.split("	"))))
+
+    copy2clip(str(arr).replace('],', '],\n'))

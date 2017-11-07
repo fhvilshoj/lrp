@@ -1,19 +1,11 @@
-from enum import Enum
-
-# Layer types
-LINEAR_LAYER = 'Linear'
-CONVOLUTIONAL_LAYER = 'Convolution'
-MAX_POOL_LAYER = 'MaxPool'
-LSTM_LAYER = 'LSTM'
-_EMPTY_LAYER = 'Empty'
-
 # Layers
 class LAYER:
     CONVOLUTIONAL = 0
-    MAX_POOL = 1
-    LINEAR = 2
-    EMPTY = 3
-    LSTM = 4
+    SPARSE_LINEAR = 1
+    MAX_POOL = 2
+    LINEAR = 3
+    EMPTY = 4
+    LSTM = 5
 
 
 # Rules
@@ -22,6 +14,7 @@ class RULE:
     EPSILON = 1
     FLAT = 2
     WW = 3
+
 
 # Bias strategy
 class BIAS_STRATEGY:
@@ -83,6 +76,7 @@ class LRPConfiguration(object):
     def __init__(self):
         self._rules = {
             LAYER.LINEAR: AlphaBetaConfiguration(),
+            LAYER.SPARSE_LINEAR: AlphaBetaConfiguration(),
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
             LAYER.MAX_POOL: AlphaBetaConfiguration(),
             LAYER.LSTM: EpsilonConfiguration()

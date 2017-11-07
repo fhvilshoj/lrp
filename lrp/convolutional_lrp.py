@@ -29,7 +29,7 @@ def convolutional(router, R):
     if current_operation.type in ['BiasAdd', 'Add']:
         # Shape of convolution_tensor: (batch_size, out_height, out_width, out_depth)
         convolution_tensor = lrp_util.find_first_tensor_from_type(current_tensor, 'Conv2D')
-        bias_tensor = lrp_util._get_input_bias_from_add(current_tensor)
+        bias_tensor = lrp_util.get_input_bias_from_add(current_tensor)
         with_bias = True
 
     # Find the inputs to the convolution

@@ -64,7 +64,7 @@ def replace_positives_with_zeros(tensor):
 
 
 # Finds the one of the two inputs to an add that is given as a constant or a variable
-def _get_input_bias_from_add(tensor):
+def get_input_bias_from_add(tensor):
     # Find bias tensor by identifying which of the two inputs to the addition are a variable (accessed
     # with the operation identity) or a constant
     if tensor.op.inputs[0].op.type in ['Identity', 'Const']:

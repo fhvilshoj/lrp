@@ -249,7 +249,7 @@ def elementwise_linear(router, R):
     multensor = current_tensor
     bias = None
     if current_tensor.op.type == 'Add':
-        bias = lrp_util._get_input_bias_from_add(current_tensor)
+        bias = lrp_util.get_input_bias_from_add(current_tensor)
         multensor = lrp_util.find_first_tensor_from_type(current_tensor, 'Mul')
 
     # Find the inputs to the matrix multiplication
@@ -343,7 +343,7 @@ def linear(router, R):
     # If the activation tensor is the output of an addition (i.e. the above assumption does not hold),
     # move through the graph to find the output of the nearest matrix multiplication.
     if tensor.op.type == 'Add':
-        bias = lrp_util._get_input_bias_from_add(tensor)
+        bias = lrp_util.get_input_bias_from_add(tensor)
         matmultensor = lrp_util.find_first_tensor_from_type(tensor, 'MatMul')
 
     # Find the inputs to the matrix multiplication
@@ -367,6 +367,75 @@ def linear(router, R):
     router.forward_relevance_to_operation(R_new, matmultensor.op, input.op)
 
 
+def sparse_divide_bias_among_zs(config, zs_sparse, bias_to_divide):
+    return zs_sparse
+
+
+def _sparse_flat(config, zijs, bias):
+    # TODO
+    return zijs
+
+
+def _sparse_ww(config, zijs, bias):
+    # TODO
+    return zijs
+
+
+def _sparse_epsilon(config, zijs, bias):
+
+    # Zj has shape (batch_size, 1, output_width) dense tensor
+    zj = tf.sparse_reduce_sum(zijs, 1, keep_dims=True)
+
+    # Prepare sparse tensor with duplicated bias for addition with zj
+    if bias is not None:
+        zj = zj + bias + config.epsilon
+
+    # construct bias to add to zj
+    fractions = zijs / zj
+    return fractions
+
+
+def _sparse_alpha(config, zijs, bias):
+
+    def _get_zijs(selection):
+        selection_values = selection(zijs.values)
+        return tf.SparseTensor(zijs.indices, selection_values, zijs.dense_shape)
+
+    zijs_p = _get_zijs(lrp_util.replace_negatives_with_zeros)
+
+    # Sum over the input dimension to get the Zjs
+    zj = tf.sparse_reduce_sum(zijs_p, 1, keep_dims=True)
+
+    # Add positive bias if there is any
+    if bias is not None:
+        zj = zj + lrp_util.replace_negatives_with_zeros(bias)
+
+    # Add stabilizer
+    zj = zj + EPSILON
+
+    # Shape (batch_size, in_size, out_size)
+    fractions = zijs_p / zj
+
+    # TODO
+    return fractions
+
+
+def _sparse_dense_fractions(config, zijs, bias=None):
+    config_rule = config.type
+
+    handler = None
+    if config_rule == RULE.EPSILON:
+        handler = _sparse_epsilon
+    elif config_rule == RULE.ALPHA_BETA:
+        handler = _sparse_alpha
+    elif config_rule == RULE.FLAT:
+        handler = _sparse_flat
+    elif config_rule == RULE.WW:
+        handler = _sparse_ww
+
+    return handler(config, zijs, bias)
+
+
 def sparse_dense_linear(router, R):
     # Sum the potentially multiple relevances from the upper layers
     R = lrp_util.sum_relevances(R)
@@ -382,7 +451,7 @@ def sparse_dense_linear(router, R):
     # If the activation tensor is the output of an addition (i.e. the above assumption does not hold),
     # move through the graph to find the output of the nearest matrix multiplication.
     if current_operation.type == 'Add':
-        bias = lrp_util._get_input_bias_from_add(current_operation.outputs[0])
+        bias = lrp_util.get_input_bias_from_add(current_operation.outputs[0])
         matmul_tensor = lrp_util.find_first_tensor_from_type(current_operation.outputs[0], 'SparseTensorDenseMatMul')
         matmul_operation = matmul_tensor.op
 
@@ -406,6 +475,7 @@ def sparse_dense_linear(router, R):
 
     # Unstack the columns of the weights to be able to "manually" broadcast them
     # over the input
+    # each element in ta has shape: (input_width,)
     ta = ta.unstack(tf.transpose(dense_input_weights))
 
     # Create tensor array to hold all Zij's values calculated in the following while_loop
@@ -414,9 +484,9 @@ def sparse_dense_linear(router, R):
     # Create tensor array to hold all indices of the Zij's calculated in the following while_loop
     all_indices = tf.TensorArray(tf.int64, 1, dynamic_size=True)
 
-    def _loop(t, av, ai, ta, offset):
+    def _zij_loop(t, av, ai, ta, offset):
         # Broad cast one column of the weights through the input tensor (over the batch_size dimension)
-        # tmp_sparse shape: (batch_size, input_width, output_width)
+        # tmp_sparse shape: (batch_size, input_width)
         tmp_sparse = sparse_input_tensor * ta.read(t)
 
         # Count how many elements we are about to add to the tensor arrays
@@ -441,7 +511,7 @@ def sparse_dense_linear(router, R):
 
     _, all_values, all_indices, *_ = tf.while_loop(
         cond=lambda t, *_: t < out_size,
-        body=_loop,
+        body=_zij_loop,
         loop_vars=[0, all_values, all_indices, ta, 0])
 
     # Stack all the values into one list; shape: (values_length,)
@@ -454,21 +524,9 @@ def sparse_dense_linear(router, R):
     # Zijs shape: (batch_size, in_size, out_size)
     in_size = tf.cast(in_size, tf.int64)
     out_size = tf.cast(out_size, tf.int64)
-    positive_values = lrp_util.replace_negatives_with_zeros(all_values)
-    zijs = tf.SparseTensor(all_indices, positive_values, (batch_size, in_size, out_size))
 
-    # Sum over the input dimension get the Zjs
-    zj = tf.sparse_reduce_sum(zijs, 1, keep_dims=True)
-
-    # Add positive bias is there is any
-    if bias is not None:
-        zj = zj + lrp_util.replace_negatives_with_zeros(bias)
-
-    # Add stabilizer
-    zj = zj + EPSILON
-
-    # Shape (batch_size, in_size, out_size)
-    fractions = zijs / zj
+    config = router.get_configuration(LAYER.SPARSE_LINEAR)
+    zijs = tf.SparseTensor(all_indices, all_values, (batch_size, in_size, out_size))
 
     # Move the predictions_per_sample dimension up to be able to unstack it
     R = tf.transpose(R, [1, 0, 2])
@@ -476,8 +534,35 @@ def sparse_dense_linear(router, R):
     predictions_per_sample = tf.cast(predictions_per_sample, tf.int32)
 
     # Unstack R to get a tensor array containing elements of shape (batch_size, out_size)
-    Rs = tf.TensorArray(tf.float32, predictions_per_sample).unstack(R)
+    Rs = tf.TensorArray(tf.float32, predictions_per_sample, clear_after_read=False).unstack(R)
 
+    # TODO Distribute relevance to both alpha and beta
+    fractions = _sparse_dense_fractions(config, zijs, bias)
+    R_new = _sparse_distribute_relevances(Rs, batch_size, in_size, predictions_per_sample, fractions)
+
+    # Transpose R_new to get the proper shape
+    # R_new shape after transpose: (batch_size, predictions_per_sample, in_width)
+    R_new = tf.sparse_transpose(R_new, [1, 0, 2])
+
+    # Mark operation as handled
+    router.mark_operation_handled(current_operation)
+    router.mark_operation_handled(matmul_operation)
+
+    # Find unique operations to send relevance to by making a
+    # small dictionary with operation._id as keys.
+    relevance_destinations = {}
+    for inp in matmul_operation.inputs:
+        relevance_destinations[inp.op._id] = inp.op
+
+    # Extract the actual operations as destinations
+    destinations = relevance_destinations.values()
+
+    # Forward new Relevance to the proper operation
+    for op in destinations:
+        router.forward_relevance_to_operation(R_new, current_operation, op)
+
+
+def _sparse_distribute_relevances(Rs, batch_size, in_size, predictions_per_sample, fractions):
     # Prepare tensor arrays for holding values and indices for calculated relevances
     all_values = tf.TensorArray(tf.float32, predictions_per_sample, dynamic_size=True)
     all_indices = tf.TensorArray(tf.int64, predictions_per_sample, dynamic_size=True)
@@ -522,37 +607,14 @@ def sparse_dense_linear(router, R):
         body=_prediction_loop,
         loop_vars=[0, all_values, all_indices, Rs, 0]
     )
-
     # Stack the values in the all_values tensor array to get
     # R_values shape: (value_length,)
     R_values = all_values.stack()
-
     # Stack the indices in the all_indices tensor array to get
     # R_indices shape: (value_length, 3)
     R_indices = tf.cast(all_indices.stack(), dtype=tf.int64)
-
     # Create sparse tensor for R_new
     # R_new shape: (predictions_per_sample, batch_size, in_width)
     predictions_per_sample = tf.cast(predictions_per_sample, tf.int64)
     R_new = tf.SparseTensor(R_indices, R_values, (predictions_per_sample, batch_size, in_size))
-
-    # Transpose R_new to get the proper shape
-    # R_new shape after transpose: (batch_size, predictions_per_sample, in_width)
-    R_new = tf.sparse_transpose(R_new, [1, 0, 2])
-
-    # Mark operation as handled
-    router.mark_operation_handled(current_operation)
-    router.mark_operation_handled(matmul_operation)
-
-    # Find unique operations to send relevance to by making a
-    # small dictionary with operation._id as keys.
-    relevance_destinations = {}
-    for inp in matmul_operation.inputs:
-        relevance_destinations[inp.op._id] = inp.op
-
-    # Extract the actual operations as destinations
-    destinations = relevance_destinations.values()
-
-    # Forward new Relevance to the proper operation
-    for op in destinations:
-        router.forward_relevance_to_operation(R_new, current_operation, op)
+    return R_new

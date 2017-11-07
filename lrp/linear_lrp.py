@@ -372,16 +372,17 @@ def sparse_divide_bias_among_zs(config, zs_sparse, bias_to_divide):
 
 
 def _sparse_flat(config, zijs, bias):
-    # TODO
-    return zijs
-
+    # TODO should we implement these? They will end up being huge, since all parts of the input (also zeros) will
+    # get relevance
+    raise NotImplementedError("Flat relevance distribution is not implemented for sparse matrix multiplications")
 
 def _sparse_ww(config, zijs, bias):
-    # TODO
-    return zijs
+    # TODO should we implement these? They will end up being huge, since all parts of the input (also zeros) will
+    # get relevance
+    raise NotImplementedError("WW relevance distribution is not implemented for sparse matrix multiplications")
 
 
-def _sparse_epsilon(config, zijs, bias):
+def _sparse_epsilon(config, Rs, predictions_per_sample, zijs, bias):
 
     # Zj has shape (batch_size, 1, output_width) dense tensor
     zj = tf.sparse_reduce_sum(zijs, 1, keep_dims=True)
@@ -392,48 +393,41 @@ def _sparse_epsilon(config, zijs, bias):
 
     # construct bias to add to zj
     fractions = zijs / zj
-    return fractions
+
+    R_new = _sparse_distribute_relevances(Rs, zijs.dense_shape[0], zijs.dense_shape[1], predictions_per_sample, fractions)
+
+    return R_new
 
 
-def _sparse_alpha(config, zijs, bias):
+def _sparse_alpha(config, Rs, predictions_per_sample, zijs, bias):
 
-    def _get_zijs(selection):
+    def _selective_Rs(selection):
+
         selection_values = selection(zijs.values)
-        return tf.SparseTensor(zijs.indices, selection_values, zijs.dense_shape)
+        selection_values = tf.Print(selection_values, [selection_values], message="\n\nselection_values\n", summarize=100)
 
-    zijs_p = _get_zijs(lrp_util.replace_negatives_with_zeros)
+        zijs_selection = tf.SparseTensor(zijs.indices, selection_values, zijs.dense_shape)
 
-    # Sum over the input dimension to get the Zjs
-    zj = tf.sparse_reduce_sum(zijs_p, 1, keep_dims=True)
+        # Sum over the input dimension to get the Zjs
+        zj = tf.sparse_reduce_sum(zijs_selection, 1, keep_dims=True)
 
-    # Add positive bias if there is any
-    if bias is not None:
-        zj = zj + lrp_util.replace_negatives_with_zeros(bias)
+        # Add positive bias if there is any
+        if bias is not None:
+            zj = zj + selection(bias)
 
-    # Add stabilizer
-    zj = zj + EPSILON
+        # Add stabilizer
+        zj = zj + EPSILON
 
-    # Shape (batch_size, in_size, out_size)
-    fractions = zijs_p / zj
+        # Shape (batch_size, in_size, out_size)
+        fractions = zijs_selection / zj
 
-    # TODO
-    return fractions
+        return _sparse_distribute_relevances(Rs, zijs.dense_shape[0], zijs.dense_shape[1],
+                                             predictions_per_sample, fractions)
 
+    R_positive = _selective_Rs(lrp_util.replace_negatives_with_zeros) * config.alpha
+    R_negative = _selective_Rs(lrp_util.replace_positives_with_zeros) * config.beta
 
-def _sparse_dense_fractions(config, zijs, bias=None):
-    config_rule = config.type
-
-    handler = None
-    if config_rule == RULE.EPSILON:
-        handler = _sparse_epsilon
-    elif config_rule == RULE.ALPHA_BETA:
-        handler = _sparse_alpha
-    elif config_rule == RULE.FLAT:
-        handler = _sparse_flat
-    elif config_rule == RULE.WW:
-        handler = _sparse_ww
-
-    return handler(config, zijs, bias)
+    return tf.sparse_add(R_positive, R_negative)
 
 
 def sparse_dense_linear(router, R):
@@ -525,7 +519,6 @@ def sparse_dense_linear(router, R):
     in_size = tf.cast(in_size, tf.int64)
     out_size = tf.cast(out_size, tf.int64)
 
-    config = router.get_configuration(LAYER.SPARSE_LINEAR)
     zijs = tf.SparseTensor(all_indices, all_values, (batch_size, in_size, out_size))
 
     # Move the predictions_per_sample dimension up to be able to unstack it
@@ -536,9 +529,20 @@ def sparse_dense_linear(router, R):
     # Unstack R to get a tensor array containing elements of shape (batch_size, out_size)
     Rs = tf.TensorArray(tf.float32, predictions_per_sample, clear_after_read=False).unstack(R)
 
-    # TODO Distribute relevance to both alpha and beta
-    fractions = _sparse_dense_fractions(config, zijs, bias)
-    R_new = _sparse_distribute_relevances(Rs, batch_size, in_size, predictions_per_sample, fractions)
+    config = router.get_configuration(LAYER.SPARSE_LINEAR)
+    config_rule = config.type
+
+    handler = None
+    if config_rule == RULE.EPSILON:
+        handler = _sparse_epsilon
+    elif config_rule == RULE.ALPHA_BETA:
+        handler = _sparse_alpha
+    elif config_rule == RULE.FLAT:
+        handler = _sparse_flat
+    elif config_rule == RULE.WW:
+        handler = _sparse_ww
+
+    R_new = handler(config, Rs, predictions_per_sample, zijs, bias)
 
     # Transpose R_new to get the proper shape
     # R_new shape after transpose: (batch_size, predictions_per_sample, in_width)

@@ -196,6 +196,16 @@ class TestSparseMatmul(unittest.TestCase):
 
         self._do_test_with_configuration(expected_values, config)
 
+    def test_alpha_and_beta_no_bias(self):
+        # Prepare configuration
+        config = LRPConfiguration()
+        config.set(LAYER.SPARSE_LINEAR, AlphaBetaConfiguration(alpha=2, beta=-1, bias_strategy=BIAS_STRATEGY.NONE))
+
+        expected_values = [[0, 0.03244332333, 0.2643160845, -0.6176972702, 0.387918481,
+                            1.882732545, 1.317762361, 0.4275610398, 0.1960997496, -2.481142585]]
+
+        self._do_test_with_configuration(expected_values, config)
+
     def _do_test_with_configuration(self, expected_values, config):
         with tf.Graph().as_default():
             values = tf.placeholder(tf.float32, (10,), 'sparse_values')
@@ -231,7 +241,7 @@ class TestSparseMatmul(unittest.TestCase):
                 explanation = s.run(R, feed_dict={values: _values,
                                                   indices: _indices,
                                                   shape: _shape})
-
+                print(explanation)
                 self.assertTrue(np.all(np.equal(_indices, explanation.indices)),
                                 "expected indices did not equal actual indices")
                 self.assertTrue(np.allclose(expected_values, explanation.values, rtol=1.e-3, atol=1.e-3),

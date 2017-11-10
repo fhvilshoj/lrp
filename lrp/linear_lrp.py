@@ -376,14 +376,148 @@ def _sparse_flat(config, zijs, bias):
     # get relevance
     raise NotImplementedError("Flat relevance distribution is not implemented for sparse matrix multiplications")
 
+
 def _sparse_ww(config, zijs, bias):
     # TODO should we implement these? They will end up being huge, since all parts of the input (also zeros) will
     # get relevance
     raise NotImplementedError("WW relevance distribution is not implemented for sparse matrix multiplications")
 
 
-def _sparse_epsilon(config, Rs, predictions_per_sample, zijs, bias):
+def _sparse_distribute_bias(config, zijs, bias):
+    if bias is None:
+        return zijs
+    if config.bias_strategy == BIAS_STRATEGY.NONE:
+        return zijs
+    elif config.bias_strategy == BIAS_STRATEGY.ALL:
+        raise NotImplementedError("BIAS_STRATEGY.ALL is not implemented for sparse matmul")
 
+    bias = tf.squeeze(bias)
+
+    # zijs dense_shape: (batch_size, input_width, output_width)
+    column_cnt = tf.cast(zijs.dense_shape[2], tf.int32)
+    active_counts = tf.TensorArray(tf.int32, column_cnt,
+                                   clear_after_read=False,
+                                   dynamic_size=True)
+
+    # Number of values and associated indices to consider
+    number_of_values = tf.size(zijs.values)
+
+    # Transpose zijs in order to be able to scan through columns
+    zijs = tf.sparse_transpose(zijs, [0, 2, 1])
+
+    # Each element in indices_ta is shape (3,) (indicating batch_idx, output_width_idx, and input_width_idx)
+    indices_ta = tf.TensorArray(tf.int64, number_of_values, clear_after_read=False).unstack(zijs.indices)
+    values_ta = tf.TensorArray(tf.float32, number_of_values, clear_after_read=False).unstack(zijs.values)
+
+    def _get_value(t):
+        # Get the position for the current value
+        value_position = tf.cast(indices_ta.read(t), tf.int32)
+        return value_position[0], value_position[1], values_ta.read(t)
+
+    first_batch, first_col, _ = _get_value(0)
+
+    # Loop over every value in sparse tensor zijs and count how many values
+    # is in each column of zijs
+    def _count_loop(value_idx, actives, actives_idx, batch_idx, col_idx, cnt, considered):
+        # Get the position for the current value
+        value_batch_idx, value_col_idx, value_value = _get_value(value_idx)
+
+        def _get_new_cnt(prev_cnt):
+            return tf.cond(tf.not_equal(value_value, 0),
+                              true_fn=lambda: prev_cnt + 1,
+                              false_fn=lambda: prev_cnt)
+
+        def _increase_cnt():
+            return actives, actives_idx, batch_idx, col_idx, _get_new_cnt(cnt), considered + 1
+
+        def _step_column():
+            new_actives = actives.write(actives_idx, [cnt, considered])
+            return new_actives, actives_idx + 1, batch_idx, value_col_idx, _get_new_cnt(0), 1
+
+        def _step_batch():
+            new_actives = actives.write(actives_idx, [cnt, considered])
+            return new_actives, actives_idx + 1, value_batch_idx, value_col_idx, _get_new_cnt(0), 1
+
+        actives, actives_idx, batch_idx, col_idx, cnt, considered = tf.cond(
+            tf.equal(batch_idx, value_batch_idx),
+            true_fn=lambda: tf.cond(
+                tf.equal(col_idx, value_col_idx),
+                true_fn=_increase_cnt,
+                false_fn=_step_column
+            ),
+            false_fn=_step_batch
+        )
+
+        return value_idx + 1, actives, actives_idx, batch_idx, col_idx, cnt, considered
+
+    _, active_counts, actives_count_idx, _, _, cnt, considered = tf.while_loop(
+        cond=lambda batch_idx, *args: batch_idx < number_of_values,
+        body=_count_loop,
+        loop_vars=[0, active_counts, 0, first_batch, first_col, 0, 0]
+    )
+
+    # Append the last count as is
+    active_counts = active_counts.write(actives_count_idx, [cnt, considered])
+
+    # Prepare bias by splitting it in to a tensorarray
+    bias_ta = tf.TensorArray(tf.float32, tf.size(bias), clear_after_read=False).unstack(bias)
+
+    # Prepare tensor array to record new zijs in
+    new_values = tf.TensorArray(tf.float32, number_of_values)
+
+    def _distribute_loop(value_idx, new_values, actives_idx, used):
+        # Get info about current sample
+        value_batch_idx, value_col_idx, value_value = _get_value(value_idx)
+        # Get the active neuron count to distribute bias among
+        count_and_considered = active_counts.read(actives_idx)
+        active_count = count_and_considered[0]
+        considered = count_and_considered[1]
+
+        def _distribute_bias():
+            # Calculate bias for value
+            tmp_cnt = active_count
+            bias_for_value = bias_ta.read(value_col_idx) / tf.cast(tmp_cnt, tf.float32)
+            return value_value + bias_for_value
+
+        def _not_active():
+            return value_value
+
+        new_value_value = tf.cond(
+            tf.equal(value_value, 0),
+            true_fn=_not_active,
+            false_fn=_distribute_bias
+        )
+
+        used += 1
+
+        new_values = new_values.write(value_idx, new_value_value)
+
+        actives_idx, used = tf.cond(tf.equal(used, considered),
+                                    true_fn=lambda: (actives_idx + 1, 0),
+                                    false_fn=lambda: (actives_idx, used))
+
+        return value_idx + 1, new_values, actives_idx, used
+
+    _, new_values, *_ = tf.while_loop(
+        cond=lambda t, *_: t < number_of_values,
+        body=_distribute_loop,
+        loop_vars=[0, new_values, 0, 0]
+    )
+
+    # Stack tensorarray to tensor
+    # Shape: (number_of_values,)
+    new_values = new_values.stack()
+
+    # Create new Sparse Tensor with same indices and shape but the new values
+    zijs_new = tf.SparseTensor(zijs.indices, new_values, zijs.dense_shape)
+
+    # Transpose back to shape (batch_size, input_width, output_width)
+    zijs_new = tf.sparse_transpose(zijs_new, [0, 2, 1])
+
+    return zijs_new
+
+
+def _sparse_epsilon(config, Rs, predictions_per_sample, zijs, bias):
     # Zj has shape (batch_size, 1, output_width) dense tensor
     zj = tf.sparse_reduce_sum(zijs, 1, keep_dims=True)
 
@@ -391,32 +525,36 @@ def _sparse_epsilon(config, Rs, predictions_per_sample, zijs, bias):
     if bias is not None:
         zj = zj + bias + config.epsilon
 
+    # Distribute bias according to config
+    zijs = _sparse_distribute_bias(config, zijs, bias)
+
     # construct bias to add to zj
     fractions = zijs / zj
 
-    R_new = _sparse_distribute_relevances(Rs, zijs.dense_shape[0], zijs.dense_shape[1], predictions_per_sample, fractions)
+    R_new = _sparse_distribute_relevances(Rs, zijs.dense_shape[0], zijs.dense_shape[1], predictions_per_sample,
+                                          fractions)
 
     return R_new
 
 
 def _sparse_alpha(config, Rs, predictions_per_sample, zijs, bias):
-
     def _selective_Rs(selection):
-
         selection_values = selection(zijs.values)
-        selection_values = tf.Print(selection_values, [selection_values], message="\n\nselection_values\n", summarize=100)
-
         zijs_selection = tf.SparseTensor(zijs.indices, selection_values, zijs.dense_shape)
 
         # Sum over the input dimension to get the Zjs
         zj = tf.sparse_reduce_sum(zijs_selection, 1, keep_dims=True)
-
-        # Add positive bias if there is any
-        if bias is not None:
-            zj = zj + selection(bias)
+        b = bias
+        # If there is actually
+        if b is not None:
+            # Filter bias
+            b = selection(b)
+            zj = zj + b
 
         # Add stabilizer
         zj = zj + EPSILON
+
+        zijs_selection = _sparse_distribute_bias(config, zijs_selection, b)
 
         # Shape (batch_size, in_size, out_size)
         fractions = zijs_selection / zj
@@ -520,6 +658,7 @@ def sparse_dense_linear(router, R):
     out_size = tf.cast(out_size, tf.int64)
 
     zijs = tf.SparseTensor(all_indices, all_values, (batch_size, in_size, out_size))
+    zijs = tf.sparse_reorder(zijs)
 
     # Move the predictions_per_sample dimension up to be able to unstack it
     R = tf.transpose(R, [1, 0, 2])

@@ -384,6 +384,9 @@ def _sparse_ww(config, zijs, bias):
 
 
 def _sparse_distribute_bias(config, zijs, bias):
+
+    # Return if bias or the bias strategy is none or throw error if it is all
+    # since all will kill the memory (remember we are in sparse land here ;) )
     if bias is None:
         return zijs
     if config.bias_strategy == BIAS_STRATEGY.NONE:
@@ -391,10 +394,23 @@ def _sparse_distribute_bias(config, zijs, bias):
     elif config.bias_strategy == BIAS_STRATEGY.ALL:
         raise NotImplementedError("BIAS_STRATEGY.ALL is not implemented for sparse matmul")
 
+    # From here on we assume that the BIAS_STRATEGY is BIAS_STRATEGY.ACTIVE
+    # Strategy for the rest of this function is to
+    # 1) Count how many active zijs (zij != 0) there are for each column (output_width dimension)
+    # 2) Use the counts to distribute bias equaly among the active zijs
+
+    # Squeeze bias to only have one dimension and shape: (output_width,)
     bias = tf.squeeze(bias)
 
     # zijs dense_shape: (batch_size, input_width, output_width)
+    # Column_cnt is the the output_width
     column_cnt = tf.cast(zijs.dense_shape[2], tf.int32)
+
+    # Prepare tensor array to hold the counts. It will hold both count
+    # and number of elements considered in current column. The reason
+    # for this is that there might be values in the values array that
+    # are 0 meaning that they are not active even though they are represented
+    # in the sparse matrix.
     active_counts = tf.TensorArray(tf.int32, column_cnt,
                                    clear_after_read=False,
                                    dynamic_size=True)
@@ -403,37 +419,55 @@ def _sparse_distribute_bias(config, zijs, bias):
     number_of_values = tf.size(zijs.values)
 
     # Transpose zijs in order to be able to scan through columns
+    # zijs shape before: (batch_size, input_width, output_width)
+    # zijs shape after: (batch_size, output_width, input_width)
     zijs = tf.sparse_transpose(zijs, [0, 2, 1])
 
     # Each element in indices_ta is shape (3,) (indicating batch_idx, output_width_idx, and input_width_idx)
     indices_ta = tf.TensorArray(tf.int64, number_of_values, clear_after_read=False).unstack(zijs.indices)
+
+    # Each element in values_ta holds the value associated with the index in indices_ta
     values_ta = tf.TensorArray(tf.float32, number_of_values, clear_after_read=False).unstack(zijs.values)
 
+    # Small helper function used to extact information about a single value and its associated index
+    # at index `t` in indices_ta and values_ta
     def _get_value(t):
         # Get the position for the current value
         value_position = tf.cast(indices_ta.read(t), tf.int32)
+        # Return a tuple containing (batch_index, column_index and value) for index `t`
         return value_position[0], value_position[1], values_ta.read(t)
 
+    # Extract first position for feeding into the count while_loop
     first_batch, first_col, _ = _get_value(0)
 
     # Loop over every value in sparse tensor zijs and count how many values
     # is in each column of zijs
     def _count_loop(value_idx, actives, actives_idx, batch_idx, col_idx, cnt, considered):
-        # Get the position for the current value
+
+        # Get the position and value for the current value_idx
         value_batch_idx, value_col_idx, value_value = _get_value(value_idx)
 
+        # Helper function that adds one to `prev_cnt` only if `value_value` is not 0
         def _get_new_cnt(prev_cnt):
             return tf.cond(tf.not_equal(value_value, 0),
                               true_fn=lambda: prev_cnt + 1,
                               false_fn=lambda: prev_cnt)
 
+        # Helper function that adds one to considered and counts active if `value_value` is not 0
+        # This function is called whenever we see an element from the same column and batch of zij
+        # as the previous element we considered in the while loop.
         def _increase_cnt():
             return actives, actives_idx, batch_idx, col_idx, _get_new_cnt(cnt), considered + 1
 
+        # Helper function that records current count, resets counting variable, and updates column variable
+        # This function is called whenever we see an element from the same batch but another
+        # column of zij
         def _step_column():
             new_actives = actives.write(actives_idx, [cnt, considered])
             return new_actives, actives_idx + 1, batch_idx, value_col_idx, _get_new_cnt(0), 1
 
+        # Helper function that records current count, resets counting variable, and updates column and batch variable
+        # This function is called whenever we see an element from a new batch of zij
         def _step_batch():
             new_actives = actives.write(actives_idx, [cnt, considered])
             return new_actives, actives_idx + 1, value_batch_idx, value_col_idx, _get_new_cnt(0), 1
@@ -448,6 +482,7 @@ def _sparse_distribute_bias(config, zijs, bias):
             false_fn=_step_batch
         )
 
+        # Go to next value in the values_ta
         return value_idx + 1, actives, actives_idx, batch_idx, col_idx, cnt, considered
 
     _, active_counts, actives_count_idx, _, _, cnt, considered = tf.while_loop(
@@ -456,29 +491,40 @@ def _sparse_distribute_bias(config, zijs, bias):
         loop_vars=[0, active_counts, 0, first_batch, first_col, 0, 0]
     )
 
-    # Append the last count as is
+    # Store the last count in the active_counts tensor array since this will
+    # not be recorded in the while loop.
     active_counts = active_counts.write(actives_count_idx, [cnt, considered])
 
-    # Prepare bias by splitting it in to a tensorarray
+    # Prepare bias by splitting it in to a tensor array
     bias_ta = tf.TensorArray(tf.float32, tf.size(bias), clear_after_read=False).unstack(bias)
 
-    # Prepare tensor array to record new zijs in
+    # Prepare tensor array to record new zijs
     new_values = tf.TensorArray(tf.float32, number_of_values)
 
+    # The loop body to distribute the bias among the active zijs
     def _distribute_loop(value_idx, new_values, actives_idx, used):
         # Get info about current sample
         value_batch_idx, value_col_idx, value_value = _get_value(value_idx)
-        # Get the active neuron count to distribute bias among
+
+        # Get the active neuron count to distribute bias among and the number of elements
+        # considered in the current column of zij
         count_and_considered = active_counts.read(actives_idx)
         active_count = count_and_considered[0]
         considered = count_and_considered[1]
 
+        # Helper function to be called whenever we encounter an active zij
+        # It adds the proper fraction of the associated bias to the current value
         def _distribute_bias():
-            # Calculate bias for value
-            tmp_cnt = active_count
-            bias_for_value = bias_ta.read(value_col_idx) / tf.cast(tmp_cnt, tf.float32)
-            return value_value + bias_for_value
+            # TODO we could avoid dividing bias with `active_count` for every single value
+            # Calculate bias for current value by dividing bias with the active count
+            bias_for_value = bias_ta.read(value_col_idx) / tf.cast(active_count, tf.float32)
+            # Caclulate new value by adding the right amount of bias
+            new_value = value_value + bias_for_value
 
+            return new_value
+
+        # Helper function that leaves the value untouched
+        # This function is called whenever `value_value` is 0
         def _not_active():
             return value_value
 
@@ -488,14 +534,18 @@ def _sparse_distribute_bias(config, zijs, bias):
             false_fn=_distribute_bias
         )
 
+        # Remember that we have used another one of the considered values of the current column
         used += 1
 
+        # Store the new value
         new_values = new_values.write(value_idx, new_value_value)
 
+        # Updated index for active count if we have used all the considered values
         actives_idx, used = tf.cond(tf.equal(used, considered),
                                     true_fn=lambda: (actives_idx + 1, 0),
                                     false_fn=lambda: (actives_idx, used))
 
+        # Go to next value
         return value_idx + 1, new_values, actives_idx, used
 
     _, new_values, *_ = tf.while_loop(
@@ -504,7 +554,7 @@ def _sparse_distribute_bias(config, zijs, bias):
         loop_vars=[0, new_values, 0, 0]
     )
 
-    # Stack tensorarray to tensor
+    # Stack tensor array to tensor
     # Shape: (number_of_values,)
     new_values = new_values.stack()
 
@@ -531,6 +581,7 @@ def _sparse_epsilon(config, Rs, predictions_per_sample, zijs, bias):
     # construct bias to add to zj
     fractions = zijs / zj
 
+    # Distribute the relevance according to the fractions
     R_new = _sparse_distribute_relevances(Rs, zijs.dense_shape[0], zijs.dense_shape[1], predictions_per_sample,
                                           fractions)
 
@@ -554,17 +605,23 @@ def _sparse_alpha(config, Rs, predictions_per_sample, zijs, bias):
         # Add stabilizer
         zj = zj + EPSILON
 
+        # Distribute bias according to the current configuration
         zijs_selection = _sparse_distribute_bias(config, zijs_selection, b)
 
         # Shape (batch_size, in_size, out_size)
         fractions = zijs_selection / zj
 
+        # Distribute the relevance according to the fractions and return
         return _sparse_distribute_relevances(Rs, zijs.dense_shape[0], zijs.dense_shape[1],
                                              predictions_per_sample, fractions)
 
+    # Scale the positive relevances by the alpha value of the configuration
     R_positive = _selective_Rs(lrp_util.replace_negatives_with_zeros) * config.alpha
+
+    # Scale the negative relevances by the beta value of the configuration
     R_negative = _selective_Rs(lrp_util.replace_positives_with_zeros) * config.beta
 
+    # Return the sum of the positive and the negative relevances
     return tf.sparse_add(R_positive, R_negative)
 
 
@@ -657,21 +714,29 @@ def sparse_dense_linear(router, R):
     in_size = tf.cast(in_size, tf.int64)
     out_size = tf.cast(out_size, tf.int64)
 
+    # Construct a sparse tensor of the zijs
     zijs = tf.SparseTensor(all_indices, all_values, (batch_size, in_size, out_size))
+
+    # Make sure that the zijs are ordered properly since it is expected by `_sparse_distribute_bias`
     zijs = tf.sparse_reorder(zijs)
 
     # Move the predictions_per_sample dimension up to be able to unstack it
     R = tf.transpose(R, [1, 0, 2])
 
+    # Cast predictions per sample to int32
     predictions_per_sample = tf.cast(predictions_per_sample, tf.int32)
 
     # Unstack R to get a tensor array containing elements of shape (batch_size, out_size)
     Rs = tf.TensorArray(tf.float32, predictions_per_sample, clear_after_read=False).unstack(R)
 
+    # Get the configuration for sparse linear from the router
     config = router.get_configuration(LAYER.SPARSE_LINEAR)
+
+    # Extract the config type
     config_rule = config.type
 
     handler = None
+    # Find rule to distribute relevance by
     if config_rule == RULE.EPSILON:
         handler = _sparse_epsilon
     elif config_rule == RULE.ALPHA_BETA:
@@ -681,6 +746,7 @@ def sparse_dense_linear(router, R):
     elif config_rule == RULE.WW:
         handler = _sparse_ww
 
+    # Distribute the relevance with the appropriate handler
     R_new = handler(config, Rs, predictions_per_sample, zijs, bias)
 
     # Transpose R_new to get the proper shape

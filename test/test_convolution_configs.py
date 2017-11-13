@@ -121,6 +121,63 @@ class TestConvolutionConfigs(unittest.TestCase):
 
         self._do_convolutional_test_with_config(config, expected)
 
+    def test_epsilon_no_bias(self):
+        # config
+        config = LRPConfiguration()
+        config.set(LAYER.CONVOLUTIONAL, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.NONE))
+
+        # Shape (3, 2, 2, 4, 2)
+        expected = [[[[[0., 0.],
+                       [0., 0.],
+                       [0.10428416, 0.3060324],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [-0.04751698, 0.46495467],
+                       [0., 0.]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.10213605, 0.30941548]]]],
+                    [[[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.33713338, 0.33407201]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [-0.04122655, 0.17455899]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0.1995201, 0.18868134],
+                       [0., 0.],
+                       [0., 0.]]]],
+                    [[[[-0.00199118, 0.13619322],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0.01444152, 0.15979111],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0.22497632, 0.44351909],
+                       [0., 0.],
+                       [0., 0.]]]]]
+
+        self._do_convolutional_test_with_config(config, expected)
+
     def _do_convolutional_test_with_config(self, config, expected_explanation, shape=None, input=None, filters=None,
                                            bias=None):
         # Set up default values for convolutional tests

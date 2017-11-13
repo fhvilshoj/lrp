@@ -2,12 +2,12 @@ import tensorflow as tf
 import numpy as np
 import unittest
 
-from configuration import LRPConfiguration, LAYER, EpsilonConfiguration
+from configuration import LRPConfiguration, LAYER, EpsilonConfiguration, BIAS_STRATEGY
 from lrp import lrp
 
 
 class TestConvolutionConfigs(unittest.TestCase):
-    def test_test(self):
+    def test_epsilon_all_bias(self):
         # config
         config = LRPConfiguration()
         config.set(LAYER.CONVOLUTIONAL, EpsilonConfiguration())
@@ -59,6 +59,63 @@ class TestConvolutionConfigs(unittest.TestCase):
                        [0., 0.]],
                       [[0., 0.],
                        [0.24505551, 0.46359828],
+                       [0., 0.],
+                       [0., 0.]]]]]
+
+        self._do_convolutional_test_with_config(config, expected)
+
+    def test_epsilon_active_bias(self):
+        # config
+        config = LRPConfiguration()
+        config.set(LAYER.CONVOLUTIONAL, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.ACTIVE))
+
+        # Shape (3, 2, 2, 4, 2)
+        expected = [[[[[0., 0.],
+                       [0., 0.],
+                       [0.11989002, 0.32163827],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [-0.03191111, 0.48056054],
+                       [0., 0.]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.12920713, 0.33648656]]]],
+                    [[[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.3551029, 0.35204153]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [-0.02325702, 0.19252851]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0.24398904, 0.23315028],
+                       [0., 0.],
+                       [0., 0.]]]],
+                    [[[[0.00876684, 0.14695124],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0.02519954, 0.17054913],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0.26513471, 0.48367747],
                        [0., 0.],
                        [0., 0.]]]]]
 

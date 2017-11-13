@@ -9,7 +9,7 @@ class ConvolutionLRPTest(unittest.TestCase):
     # Test case that builds a simple one layer convolution network,
     # finds the relevance and compares them to the results obtained
     # by calculating the same example by hand
-    def runTest(self):
+    def test_simple_convolution_default_config(self):
         # Get a tensorflow graph
         g = tf.Graph()
         # Set the graph as default

@@ -198,14 +198,14 @@ def _linear_alpha(R, input, weights, config, bias=None):
             # Filter elements in bias to either positives of negatives according to selection callable
             bias_filtered = selection(bias)
 
+            # Divide the bias according to the current configuration
+            zijs = _divide_bias_among_zs(config, zijs, bias_filtered)
+
             # Add stabilizer to bias to be able to split that as well
-            bias_filtered = stabilizer_operation(bias_filtered, EPSILON)
+            zj_sum = stabilizer_operation(zj_sum, EPSILON)
 
             # Add the sum of the z_ij^+'s and the positive bias (i.e. find the z_j^+'s)
             zj_sum = tf.add(zj_sum, bias_filtered)
-
-            # Divide the bias according to the current configuration
-            zijs = _divide_bias_among_zs(config, zijs, bias_filtered)
         else:
             # Add stabilizer to the denominator
             zj_sum = stabilizer_operation(zj_sum, EPSILON)

@@ -202,10 +202,8 @@ def _linear_alpha(R, input, weights, config, bias=None):
         if bias is not None:
             # Filter elements in bias to either positives of negatives according to selection callable
             bias_filtered = selection(bias)
-            zijs = tf.Print(zijs, [zijs], message="\nBEFORE\n", summarize=1000)
             # Divide the bias according to the current configuration
             zijs = _divide_bias_among_zs(config, zijs, bias_filtered)
-            zijs = tf.Print(zijs, [zijs], message="\nAFTER\n", summarize=1000)
 
             # Add stabilizer to bias to be able to split that as well
             zj_sum = stabilizer_operation(zj_sum, EPSILON)

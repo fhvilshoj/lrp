@@ -525,9 +525,6 @@ class TestConvolutionConfigs(unittest.TestCase):
             with tf.Session() as s:
                 before_soft, output, explanation = s.run([conv_reshaped, out, expl],
                                                          feed_dict={inp: input, conv_filter: filters, conv_bias: bias})
-                print("before_soft: ", before_soft)
-                print("Output: ", output)
-                print("Explanation: ", explanation)
                 self.assertTrue(np.allclose(expected_explanation, explanation, rtol=1.e-3, atol=1.e-3),
                                 "expected indices did not equal actual indices")
 

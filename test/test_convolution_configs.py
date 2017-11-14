@@ -2,7 +2,8 @@ import tensorflow as tf
 import numpy as np
 import unittest
 
-from configuration import LRPConfiguration, LAYER, EpsilonConfiguration, BIAS_STRATEGY, AlphaBetaConfiguration
+from configuration import LRPConfiguration, LAYER, EpsilonConfiguration, BIAS_STRATEGY, AlphaBetaConfiguration, \
+    WWConfiguration, FlatConfiguration
 from lrp import lrp
 
 
@@ -344,6 +345,120 @@ class TestConvolutionConfigs(unittest.TestCase):
                        [0., 0.]],
                       [[0., 0.],
                        [0.53026941, 0.96735494],
+                       [0., 0.],
+                       [0., 0.]]]]]
+
+        self._do_convolutional_test_with_config(config, expected)
+
+    def test_ww(self):
+        # config
+        config = LRPConfiguration()
+        config.set(LAYER.CONVOLUTIONAL, WWConfiguration())
+
+        # Shape (3, 2, 2, 4, 2)
+        expected = [[[[[0., 0.],
+                       [0., 0.],
+                       [0.2205872, 0.21228028],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0.08030722, 0.37700302],
+                       [0., 0.]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.1153995, 0.11105376]]]],
+                    [[[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.217177, 0.20899851]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.0790657, 0.3711747]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0.11823574, 0.1137832],
+                       [0., 0.],
+                       [0., 0.]]]],
+                    [[[[0.08709392, 0.08381412],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0.03170751, 0.14885121],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0.18555663, 0.1785689],
+                       [0., 0.],
+                       [0., 0.]]]]]
+
+        self._do_convolutional_test_with_config(config, expected)
+
+    def test_flat(self):
+        # config
+        config = LRPConfiguration()
+        config.set(LAYER.CONVOLUTIONAL, FlatConfiguration())
+
+        # Shape (3, 2, 2, 4, 2)
+        expected = [[[[[0., 0.],
+                       [0., 0.],
+                       [0.22254443, 0.22254443],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0.22254443, 0.22254443],
+                       [0., 0.]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.11642342, 0.11642342]]]],
+                    [[[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.21910398, 0.21910398]],
+                      [[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0.21910398, 0.21910398]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0.11928483, 0.11928483],
+                       [0., 0.],
+                       [0., 0.]]]],
+                    [[[[0.08786669, 0.08786669],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0.08786669, 0.08786669],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]]],
+                     [[[0., 0.],
+                       [0., 0.],
+                       [0., 0.],
+                       [0., 0.]],
+                      [[0., 0.],
+                       [0.18720304, 0.18720304],
                        [0., 0.],
                        [0., 0.]]]]]
 

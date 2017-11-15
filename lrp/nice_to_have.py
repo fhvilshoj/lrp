@@ -67,3 +67,20 @@ def print_array_from_paste_book():
                 list(map(lambda str: float(str.replace(",", ".")) if "," in str else int(str), line.split("	"))))
 
     copy2clip(str(arr).replace('],', '],\n'))
+
+
+def dense_to_sparse(dense):
+    if not type(dense).__module__ == np.__name__:
+        dense = np.array(dense)
+
+    values = dense.reshape((-1))
+    if dense.ndim == 3:
+        indices = [(i, j, k)
+                   for i in range(dense.shape[0])
+                   for j in range(dense.shape[1])
+                   for k in range(dense.shape[2])]
+    elif dense.ndim == 2:
+        indices = [(i, j)
+                   for i in range(dense.shape[0])
+                   for j in range(dense.shape[1])]
+    return tf.SparseTensor(indices, values, dense.shape)

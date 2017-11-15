@@ -3,7 +3,7 @@
 This project aims to implement the LRP rules for any [tensorflow](https://www.tensorflow.org) graph consisting of simple components such as linear layers, convolutions, LSTMs and simple pooling layers. See *Status* to see how far we have come.
 
 # Status
-### Alpha rule
+### Alpha Beta rule, Epsilon rule and W^2 rule and flat rule
 - [x] Linear layers
 - [x] Convolutions
 - [x] Max pooling

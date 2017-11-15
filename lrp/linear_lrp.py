@@ -768,7 +768,7 @@ def sparse_dense_linear(router, R):
 
     # Forward new Relevance to the proper operation
     for op in destinations:
-        router.forward_relevance_to_operation(R_new, current_operation, op)
+        router.forward_relevance_to_operation(R_new, matmul_operation, op)
 
 
 def _sparse_distribute_relevances(Rs, batch_size, in_size, predictions_per_sample, fractions):

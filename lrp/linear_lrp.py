@@ -393,8 +393,6 @@ def _sparse_distribute_bias(config, zijs, bias):
     elif config.bias_strategy == BIAS_STRATEGY.ALL:
         raise NotImplementedError("BIAS_STRATEGY.ALL is not implemented for sparse matmul")
 
-    zijs = tf.SparseTensor(zijs.indices, tf.Print(zijs.values, [zijs.values], summarize=1000, message="ZIJS before"), zijs.dense_shape)
-
     # Dense Shape (batch_size, input_width, output_width)
     indicators = tf.SparseTensor(zijs.indices,
                                  tf.where(tf.equal(zijs.values, 0), tf.zeros_like(zijs.values), tf.ones_like(zijs.values)),

@@ -151,6 +151,7 @@ fabric.properties
 
 playground.py
 plg_*.py
+/playground/MNIST_data/
 /MNIST_data/
 
 /sepsis/

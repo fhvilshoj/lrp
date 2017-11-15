@@ -371,10 +371,6 @@ def linear(router, R):
     router.forward_relevance_to_operation(R_new, matmultensor.op, input.op)
 
 
-def sparse_divide_bias_among_zs(config, zs_sparse, bias_to_divide):
-    return zs_sparse
-
-
 def _sparse_flat(config, zijs, bias):
     # TODO should we implement these? They will end up being huge, since all parts of the input (also zeros) will
     # get relevance

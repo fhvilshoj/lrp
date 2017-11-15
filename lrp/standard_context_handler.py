@@ -20,10 +20,10 @@ from sparse_reshape_lrp import sparse_reshape
 class StandardContextHandler(ContextHandler):
     # Known operations to the standard context handler
     _router = {
-        'MatMul': linear,  # TODO Handle beta part of alphabeta rule
-        'Mul': elementwise_linear,  # TODO Handle beta part of alphabeta rule
-        'SparseTensorDenseMatMul': sparse_dense_linear,  # TODO ConfigHandeling
-        'Conv2D': convolutional,  # TODO ConfigHandeling
+        'MatMul': linear,
+        'Mul': elementwise_linear,
+        'SparseTensorDenseMatMul': sparse_dense_linear,
+        'Conv2D': convolutional,
         'MaxPool': max_pooling,  # TODO ConfigHandeling
         'ExpandDims': shaping,
         'Squeeze': shaping,

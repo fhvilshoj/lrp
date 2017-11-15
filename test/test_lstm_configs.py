@@ -48,6 +48,26 @@ class TestLSTMConfigs(unittest.TestCase):
                                       [0.52473047, 0.76832693, 0.14187811]]]])
         self._do_test_with_config_and_expected_result(config, expected_result)
 
+    def test_lstm_alpha_beta_all_bias(self):
+        config = LRPConfiguration()
+        config.set(LAYER.LSTM, AlphaBetaConfiguration(alpha=2, beta=-1, bias_strategy=BIAS_STRATEGY.ALL))
+
+        expected_result = np.array([[[[0.90404336, -1.24239185, 1.40181034],
+                                      [0., 0., 0.]],
+                                     [[0.58241955, -1.00368592, 3.04841668],
+                                      [0.30076316, 0.54435962, -0.08208919]]]])
+        self._do_test_with_config_and_expected_result(config, expected_result)
+
+    def test_lstm_alpha_beta_active_bias(self):
+        config = LRPConfiguration()
+        config.set(LAYER.LSTM, AlphaBetaConfiguration(alpha=2, beta=-1, bias_strategy=BIAS_STRATEGY.ACTIVE))
+
+        expected_result = np.array([[[[1.17243838, -1.42132187, 1.67020536],
+                                      [0., 0., 0.]],
+                                     [[1.47216972, -3.08726835, 4.70236698],
+                                      [0.52473047, 0.76832693, 0.14187811]]]])
+        self._do_test_with_config_and_expected_result(config, expected_result)
+
     def test_ww(self):
         config = LRPConfiguration()
         config.set(LAYER.LSTM, WWConfiguration())
@@ -113,9 +133,6 @@ class TestLSTMConfigs(unittest.TestCase):
 
                 # Assign mock kernel and bias
                 s.run([assign_kernel, assign_bias])
-
-                # Get the output
-                out = s.run(output)
 
                 # Calculate relevance
                 relevances = s.run(R)

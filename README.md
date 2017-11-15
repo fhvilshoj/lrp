@@ -9,3 +9,9 @@ This project aims to implement the LRP rules for any [tensorflow](https://www.te
 - [x] Max pooling
 - [x] Nonlinearities
 - [x] LSTM
+- [x] Concatenates
+- [x] Splits
+- [x] Tile
+- [x] Reshaping (Reshape, Expand_dims, Squeeze)
+- [x] Sparse matrix multiplication
+- [x] Sparse reshape

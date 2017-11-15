@@ -76,7 +76,7 @@ class LRPConfiguration(object):
     def __init__(self):
         self._rules = {
             LAYER.LINEAR: AlphaBetaConfiguration(),
-            LAYER.SPARSE_LINEAR: AlphaBetaConfiguration(bias_strategy=BIAS_STRATEGY.ACTIVE),
+            LAYER.SPARSE_LINEAR: AlphaBetaConfiguration(),
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
             LAYER.MAX_POOL: AlphaBetaConfiguration(),
             LAYER.LSTM: EpsilonConfiguration()

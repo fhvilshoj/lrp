@@ -93,7 +93,6 @@ def convolutional(router, R):
     linear_R = tf.reshape(linear_R,
                           (batch_size * output_height * output_width, predictions_per_sample, output_channels))
 
-    # TODO: refactor to call with appropriate configuration
     # Fetch configuration for linear_lrp
     config = router.get_configuration(LAYER.CONVOLUTIONAL)
 

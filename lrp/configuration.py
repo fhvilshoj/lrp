@@ -2,10 +2,9 @@
 class LAYER:
     CONVOLUTIONAL = 0
     SPARSE_LINEAR = 1
-    MAX_POOL = 2
-    LINEAR = 3
-    EMPTY = 4
-    LSTM = 5
+    LINEAR = 2
+    EMPTY = 3
+    LSTM = 4
 
 
 # Rules

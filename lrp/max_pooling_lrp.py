@@ -46,13 +46,9 @@ def max_pooling(router, R):
 
     # (_, output_height, output_width, output_channels) = current_tensor.get_shape().as_list()
 
-    # Replace the negative elements with zeroes to only have the positive entries left
-    # Shape of max_pool_input_positive: (batch_size, in_height, in_width, in_depth)
-    max_pool_input_positive = lrp_util.replace_negatives_with_zeros(max_pool_input)
-
     # Extract every patch of the input (i.e. portion of the input that the kernel looks at a time)
     # Shape of image_patches: (batch, out_height, out_width, kernel_height*kernel_width*input_channels)
-    image_patches = tf.extract_image_patches(max_pool_input_positive, kernel_size,
+    image_patches = tf.extract_image_patches(max_pool_input, kernel_size,
                                              strides, [1, 1, 1, 1], padding)
 
     # Reshape image patches to "small images" instead of lists
@@ -62,18 +58,19 @@ def max_pooling(router, R):
 
     # Find the largest elements in each patch and set all other entries to zero (to find z_ijk+'s)
     # Shape of max_elems: (batch_size, out_height, out_width, 1, 1, input_channels)
-    # max_elems = tf.reduce_max(image_patches, axis=[3, 4], keep_dims=True)
     max_elems = tf.reshape(current_tensor, (batch_size, output_height, output_width, 1, 1, input_channels))
 
     # Select maximum in each patch and set all others to zero
     # Shape of zs: (batch_size, out_height, out_width, kernel_height, kernel_width, input_channels)
-    zs = tf.where(tf.equal(image_patches, max_elems), image_patches, tf.zeros_like(image_patches))
+    zs = tf.where(tf.equal(image_patches, max_elems), tf.ones_like(image_patches), tf.zeros_like(image_patches))
+
+    # Count how many zijs had the maximum value for each patch
+    max_counts = tf.reduce_sum(zs, axis=[3, 4], keep_dims=True)
 
     # Find the contribution of each feature in the input to the activations,
-    # i.e. the ratio between the z_ijk's and the z_jk's (plus a small stabilizer to avoid division by zero)
-    # TODO We do not take care of two equaly big entries (currently doubles given relevance)
+    # i.e. the ratio between the z_ijk's and the z_jk's
     # Shape of fractions: (batch_size, out_height, out_width, kernel_height, kernel_width, input_channels)
-    fractions = zs / (max_elems + EPSILON)
+    fractions = zs / max_counts
 
     # Add the predictions_per_sample dimension to be able to broadcast fractions over the different
     # predictions for the same sample

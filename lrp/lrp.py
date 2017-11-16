@@ -1,5 +1,5 @@
 from lrp import lrp_util
-from lrp.configuration import LRPConfiguration
+from lrp.configuration import LRPConfiguration, LOG_LEVEL
 from context_handler_switch import ContextHandlerSwitch
 from constants import *
 
@@ -34,6 +34,9 @@ class _LRPImplementation:
         # Remember if there has been added an dimension to the starting point relevances
         self.starting_point_relevances_had_predictions_per_sample_dimension = True
 
+    def should_log(self):
+        return self._configuration.log_level == LOG_LEVEL.VERBOSE
+
     def lrp(self, input, output, configuration=None, R=None):
         # Remember input and output
         self._input = input
@@ -67,6 +70,15 @@ class _LRPImplementation:
         return self.handled_operations[operation._id]
 
     def forward_relevance_to_operation(self, relevance, relevance_producer, relevance_receiver):
+        if self.should_log():
+            message = "\nRelevance sum from {} to {}: \n".format(relevance_producer.type, relevance_receiver.type)
+            if isinstance(relevance, tf.SparseTensor):
+                values = tf.Print(relevance.values, [relevance_producer._id, relevance_receiver._id, tf.sparse_reduce_sum(relevance)], message)
+                relevance = tf.SparseTensor(relevance.indices, values, relevance.dense_shape)
+            else :
+                relevance = tf.Print(relevance, [relevance_producer._id, relevance_receiver._id, tf.reduce_sum(relevance)],
+                                     message)
+
         self.relevances[relevance_receiver._id].append(
             {RELEVANCE_PRODUCER: relevance_producer._id, RELEVANCE: relevance})
 

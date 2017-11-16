@@ -21,6 +21,10 @@ class BIAS_STRATEGY:
     NONE = 1
     ALL = 2
 
+class LOG_LEVEL:
+    VERBOSE = 0
+    NONE = 1
+
 class LayerConfiguration:
     def __init__(self, layer, bias_strategy=BIAS_STRATEGY.NONE):
         self._layer = layer
@@ -73,13 +77,21 @@ class WWConfiguration(LayerConfiguration):
 
 class LRPConfiguration(object):
     def __init__(self):
+        self._log_level = LOG_LEVEL.NONE
         self._rules = {
             LAYER.LINEAR: AlphaBetaConfiguration(),
             LAYER.SPARSE_LINEAR: AlphaBetaConfiguration(),
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
-            LAYER.MAX_POOL: AlphaBetaConfiguration(),
             LAYER.LSTM: EpsilonConfiguration()
         }
+
+    @property
+    def log_level(self):
+        return self._log_level
+
+    @log_level.setter
+    def log_level(self, level):
+        self._log_level = level
 
     def set(self, layer_type, configuration):
         if layer_type in self._rules:

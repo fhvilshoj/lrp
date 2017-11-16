@@ -1,10 +1,11 @@
 # Layers
 class LAYER:
-    CONVOLUTIONAL = 0
-    SPARSE_LINEAR = 1
-    LINEAR = 2
-    EMPTY = 3
-    LSTM = 4
+    ELEMENTWISE_LINEAR = 0
+    CONVOLUTIONAL = 1
+    SPARSE_LINEAR = 2
+    LINEAR = 3
+    EMPTY = 4
+    LSTM = 5
 
 
 # Rules
@@ -81,6 +82,7 @@ class LRPConfiguration(object):
         self._rules = {
             LAYER.LINEAR: AlphaBetaConfiguration(),
             LAYER.SPARSE_LINEAR: AlphaBetaConfiguration(),
+            LAYER.ELEMENTWISE_LINEAR: EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.ACTIVE),
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
             LAYER.LSTM: EpsilonConfiguration()
         }

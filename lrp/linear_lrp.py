@@ -281,7 +281,7 @@ def elementwise_linear(router, R):
                            true_fn=_rank2,
                            false_fn=_higher_rank)
 
-    layer_config = router.get_configuration(LAYER.LINEAR)
+    layer_config = router.get_configuration(LAYER.ELEMENTWISE_LINEAR)
     R_new = linear_with_config(R, new_input, weights, layer_config, bias)
 
     # if layer_config.type == ALPHA_BETA_RULE:

@@ -83,4 +83,4 @@ def dense_to_sparse(dense):
         indices = [(i, j)
                    for i in range(dense.shape[0])
                    for j in range(dense.shape[1])]
-    return tf.SparseTensor(indices, values, dense.shape)
+    return tf.SparseTensor(indices, tf.constant(values, tf.float32), dense.shape), indices, values

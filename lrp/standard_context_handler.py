@@ -24,7 +24,7 @@ class StandardContextHandler(ContextHandler):
         'Mul': elementwise_linear,
         'SparseTensorDenseMatMul': sparse_dense_linear,
         'Conv2D': convolutional,
-        'MaxPool': max_pooling,  # TODO ConfigHandeling
+        'MaxPool': max_pooling,
         'ExpandDims': shaping,
         'Squeeze': shaping,
         'Reshape': shaping,

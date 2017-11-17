@@ -1,5 +1,5 @@
-from context_handler import ContextHandler
 from lrp import lrp_util
+from lrp.context_handler import ContextHandler
 from lrp.convolutional_lrp import convolutional
 from lrp.linear_lrp import linear, elementwise_linear, sparse_dense_linear
 from lrp.max_pooling_lrp import max_pooling
@@ -8,13 +8,12 @@ from lrp.softmax_lrp import softmax
 from lrp.shaping_lrp import shaping
 from lrp.concatenate_lrp import concatenate
 from lrp.split_lrp import split
-from sparse_reorder_lrp import sparse_reorder
-from tile_lrp import tile
-
-from constants import *
-from print_lrp import printing
-from slicing_lrp import slicing
-from sparse_reshape_lrp import sparse_reshape
+from lrp.sparse_reorder_lrp import sparse_reorder
+from lrp.tile_lrp import tile
+from lrp.print_lrp import printing
+from lrp.slicing_lrp import slicing
+from lrp.sparse_reshape_lrp import sparse_reshape
+from lrp.constants import *
 
 
 class StandardContextHandler(ContextHandler):

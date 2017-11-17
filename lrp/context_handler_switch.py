@@ -1,7 +1,7 @@
-from constants import CONTEXT_TYPE, LSTM_CONTEXT_TYPE
-from context_handler import ContextHandler
-from lstm_context_handler import LSTMContextHandler
-from standard_context_handler import StandardContextHandler
+from lrp.constants import CONTEXT_TYPE, LSTM_CONTEXT_TYPE
+from lrp.context_handler import ContextHandler
+from lrp.lstm_context_handler import LSTMContextHandler
+from lrp.standard_context_handler import StandardContextHandler
 
 
 class ContextHandlerSwitch(ContextHandler):

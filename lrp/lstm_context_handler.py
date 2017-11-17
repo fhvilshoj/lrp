@@ -1,8 +1,8 @@
-from context_handler import ContextHandler
-from lstm_lrp import lstm
-from configuration import LAYER
-import lrp_util
-from constants import *
+from lrp.context_handler import ContextHandler
+from lrp.lstm_lrp import lstm
+from lrp.configuration import LAYER
+import lrp.lrp_util
+from lrp.constants import *
 
 
 class LSTMContextHandler(ContextHandler):

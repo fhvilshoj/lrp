@@ -1,7 +1,7 @@
 import tensorflow as tf
 from lrp import lrp_util
-from configuration import LAYER, RULE, BIAS_STRATEGY
-from constants import BIAS_DELTA, EPSILON
+from lrp.configuration import LAYER, RULE, BIAS_STRATEGY
+from lrp.constants import BIAS_DELTA, EPSILON
 
 
 def _linear_flat(R, input, weights, config, bias=None):

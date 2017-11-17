@@ -1,6 +1,6 @@
 from lrp import lrp_util
 import tensorflow as tf
-from constants import EPSILON
+from lrp.constants import EPSILON
 
 # TODO: We do not currently support max pooling where kernels span over the depts dimension (k: [1,1,1,d])
 def max_pooling(router, R):

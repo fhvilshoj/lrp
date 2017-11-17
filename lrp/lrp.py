@@ -1,7 +1,7 @@
 from lrp import lrp_util
 from lrp.configuration import LRPConfiguration, LOG_LEVEL
-from context_handler_switch import ContextHandlerSwitch
-from constants import *
+from lrp.context_handler_switch import ContextHandlerSwitch
+from lrp.constants import *
 
 import tensorflow as tf
 

@@ -1,5 +1,5 @@
 import tensorflow as tf
-from constants import *
+from lrp.constants import *
 
 
 # Helper function that takes a tensor, goes back to the operation that created it,

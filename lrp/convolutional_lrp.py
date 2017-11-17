@@ -1,5 +1,5 @@
 from lrp import lrp_util
-from linear_lrp import linear_with_config
+from lrp.linear_lrp import linear_with_config
 from lrp.configuration import LAYER
 import tensorflow as tf
 

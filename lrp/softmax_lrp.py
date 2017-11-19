@@ -1,4 +1,4 @@
-import lrp.forward_lrp
+import lrp.forward_lrp as forward_lrp
 
 
 def softmax(router, R):

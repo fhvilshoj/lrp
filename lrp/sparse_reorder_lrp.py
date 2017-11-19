@@ -1,4 +1,4 @@
-import lrp.lrp_util
+import lrp.lrp_util as lrp_util
 
 def sparse_reorder(router, R):
     """

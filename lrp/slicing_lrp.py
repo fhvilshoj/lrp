@@ -1,4 +1,4 @@
-import lrp.lrp_util
+import lrp.lrp_util as lrp_util
 import tensorflow as tf
 
 # TODO: Big fat todo. We don't handle slicing with sizes of -1 at the moment

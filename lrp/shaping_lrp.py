@@ -1,5 +1,5 @@
 import tensorflow as tf
-import lrp.lrp_util
+import lrp.lrp_util as lrp_util
 
 def shaping(router, R):
     # Sum the potentially multiple relevances from the upper layers

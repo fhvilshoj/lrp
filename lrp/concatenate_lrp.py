@@ -1,5 +1,5 @@
 import tensorflow as tf
-import lrp.lrp_util
+import lrp.lrp_util as lrp_util
 
 
 # When we see a concatenate we want to split the incoming relevances accordingly

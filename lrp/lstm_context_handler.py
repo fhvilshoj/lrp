@@ -1,7 +1,7 @@
 from lrp.context_handler import ContextHandler
 from lrp.lstm_lrp import lstm
 from lrp.configuration import LAYER
-import lrp.lrp_util
+import lrp.lrp_util as lrp_util
 from lrp.constants import *
 
 

@@ -22,9 +22,11 @@ class BIAS_STRATEGY:
     NONE = 1
     ALL = 2
 
+
 class LOG_LEVEL:
     VERBOSE = 0
     NONE = 1
+
 
 class LayerConfiguration:
     def __init__(self, layer, bias_strategy=BIAS_STRATEGY.NONE):
@@ -38,6 +40,15 @@ class LayerConfiguration:
     @property
     def bias_strategy(self):
         return self._bias_strategy
+
+    def __str__(self) -> str:
+        if self._bias_strategy == BIAS_STRATEGY.ACTIVE:
+            bias_strategy = 'ac'
+        elif self._bias_strategy == BIAS_STRATEGY.ALL:
+            bias_strategy = 'al'
+        else:
+            bias_strategy = 'no'
+        return bias_strategy
 
 
 class AlphaBetaConfiguration(LayerConfiguration):
@@ -55,6 +66,9 @@ class AlphaBetaConfiguration(LayerConfiguration):
     def beta(self):
         return self._beta
 
+    def __str__(self) -> str:
+        return "a{}b{}_{}".format(self.alpha, self.beta, super().__str__())
+
 
 class EpsilonConfiguration(LayerConfiguration):
     def __init__(self, epsilon=1e-12, bias_strategy=BIAS_STRATEGY.ALL):
@@ -65,15 +79,24 @@ class EpsilonConfiguration(LayerConfiguration):
     def epsilon(self):
         return self._epsilon
 
+    def __str__(self) -> str:
+        return "e{:.2}_{}".format(self.epsilon, super().__str__())
+
 
 class FlatConfiguration(LayerConfiguration):
     def __init__(self):
         super().__init__(RULE.FLAT)
 
+    def __str__(self) -> str:
+        return 'flat'
+
 
 class WWConfiguration(LayerConfiguration):
     def __init__(self):
         super().__init__(RULE.WW)
+
+    def __str__(self) -> str:
+        return 'ww'
 
 
 class LRPConfiguration(object):
@@ -106,3 +129,10 @@ class LRPConfiguration(object):
             return self._rules[layer]
         else:
             return LayerConfiguration(LAYER.EMPTY)
+
+    def __str__(self) -> str:
+        return "LIN_{3}_ELE_{0}_SPA_{2}_CONV_{1}_LSTM_{4}".format(self._rules[LAYER.LINEAR],
+                                                                  self._rules[LAYER.ELEMENTWISE_LINEAR],
+                                                                  self._rules[LAYER.SPARSE_LINEAR],
+                                                                  self._rules[LAYER.CONVOLUTIONAL],
+                                                                  self._rules[LAYER.LSTM])

@@ -80,7 +80,7 @@ class EpsilonConfiguration(LayerConfiguration):
         return self._epsilon
 
     def __str__(self) -> str:
-        return "e{:.2}_{}".format(self.epsilon, super().__str__())
+        return "e{:.2f}_{}".format(self.epsilon, super().__str__())
 
 
 class FlatConfiguration(LayerConfiguration):
@@ -131,7 +131,7 @@ class LRPConfiguration(object):
             return LayerConfiguration(LAYER.EMPTY)
 
     def __str__(self) -> str:
-        return "LIN_{3}_ELE_{0}_SPA_{2}_CONV_{1}_LSTM_{4}".format(self._rules[LAYER.LINEAR],
+        return "LIN_{0}_ELE_{1}_SPA_{2}_CONV_{3}_LSTM_{4}".format(self._rules[LAYER.LINEAR],
                                                                   self._rules[LAYER.ELEMENTWISE_LINEAR],
                                                                   self._rules[LAYER.SPARSE_LINEAR],
                                                                   self._rules[LAYER.CONVOLUTIONAL],

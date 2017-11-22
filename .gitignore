@@ -156,3 +156,4 @@ plg_*.py
 
 /sepsis/
 /test/tmp/
+/config_selection/results/

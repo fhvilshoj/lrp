@@ -3,8 +3,9 @@ from data_loader import sparse_merge
 
 
 class FeatureParser(object):
-    def __init__(self, feature_file, single_feature_size, context_size):
+    def __init__(self, feature_file, single_feature_size, context_size, batch_size):
         self.feature_file = feature_file
+        self.batch_size = batch_size
 
         self.record_count = None
         self.get_record_count()
@@ -18,11 +19,11 @@ class FeatureParser(object):
         self.reader = tf.TFRecordReader(options=tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP))
         _, self.serialized_example = self.reader.read(self.queue)
 
-    def has_next(self, batch_size = 1):
-        return self.records_read + batch_size < self.get_record_count()
+    def has_next(self):
+        return self.records_read + self.batch_size < self.get_record_count()
 
-    def next_batch(self, batch_size=1):
-        batch = tf.train.batch([self.serialized_example], batch_size)
+    def next_batch(self):
+        batch = tf.train.batch([self.serialized_example], self.batch_size)
 
         features = tf.parse_example(batch, features={
             'fea_indices_row': tf.VarLenFeature(tf.int64),
@@ -102,5 +103,5 @@ class FeatureParser(object):
     def samples_read(self):
         return self.records_read
 
-    def did_read_sample(self, batch_size):
-        self.records_read += batch_size
+    def did_read_sample(self):
+        self.records_read += self.batch_size

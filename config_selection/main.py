@@ -27,7 +27,6 @@ NUM_CLASSES = 10
 
 # The number of epochs and the size of each mini batch
 NUM_EPOCHS = None
-MINIBATCH_SIZE = 3
 
 # Don't use autoencoder, text or doc_vec since we are dealing with images
 USE_AUTOENCODER = False
@@ -38,9 +37,10 @@ USE_DOC2VEC = False
 SAVED_MODEL = "MNIST_trained"
 
 class ConfigSelection(object):
-    def __init__(self, input_features, model, destination):
+    def __init__(self, input_features, model, destination, batch_size):
         # Remember the file for the input features
         self.input_features_file = input_features
+        self.batch_size = batch_size
 
         # Remember the file containing the model
         self.model_file = model if not isinstance(model, list) else model[0]
@@ -66,7 +66,7 @@ class ConfigSelection(object):
         # Prepare separate graph for reading input
         self.input_graph = tf.Graph()
         with self.input_graph.as_default():
-            self.parser = FeatureParser(input_features, INPUT_SIZE, CONTEXT_SIZE)
+            self.parser = FeatureParser(input_features, INPUT_SIZE, CONTEXT_SIZE, batch_size)
             self.next_batch = self.parser.next_batch()
             self.input_session = tf.Session(graph=self.input_graph)
             self.input_session.run([tf.local_variables_initializer()])
@@ -299,10 +299,11 @@ class ConfigSelection(object):
 def _main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Test LRP configurations')
-    parser.add_argument('-i', '--input_features', type=str, nargs=1,
+    parser.add_argument('-i', '--input_features', type=str, nargs='+',
                         help='the location of the input features')
     parser.add_argument('-m', '--model', type=str, nargs=1, help='trained model to use')
     parser.add_argument('-d', '--destination', type=str, nargs=1, help='Destination directory')
+    parser.add_argument('-b', '--batch_size', type=int, default=1, help='Batch size when testing')
     args = parser.parse_args()
 
     config_select = ConfigSelection(**vars(args))

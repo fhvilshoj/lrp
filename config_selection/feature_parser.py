@@ -103,5 +103,5 @@ class FeatureParser(object):
     def samples_read(self):
         return self.records_read
 
-    def did_read_sample(self):
+    def did_read_batch(self):
         self.records_read += self.batch_size

@@ -38,8 +38,7 @@ SAVED_MODEL = "MNIST_trained"
 
 class ConfigSelection(object):
     def __init__(self, input_features, model, destination, batch_size):
-        # Remember the file for the input features
-        self.input_features_file = input_features
+        # Remember the batch_size
         self.batch_size = batch_size
 
         # Remember the file containing the model
@@ -71,19 +70,18 @@ class ConfigSelection(object):
             self.input_session = tf.Session(graph=self.input_graph)
             self.input_session.run([tf.local_variables_initializer()])
 
-        logger.info("Testing {} samples from {}".format(self.parser.get_record_count(), self.input_features_file))
+        logger.info("Testing {} samples from {}".format(self.parser.get_record_count(), input_features))
 
     def __call__(self, *args, **kwargs):
         # This is the main entrance to run configuration testing
         logger.debug("In the __call__ function")
 
         # Read through all samples in the input file
-        while self.parser.has_next() and self.parser.samples_read() < 2000:
+        while self.parser.has_next():
             logger.info('Starting new sample')
 
             # Read input from file
             self._read_next_input()
-
 
             logger.info('Testing configuration {}/{}'.format(1, self.num_configurations))
             self._test_configuration("random")
@@ -106,11 +104,8 @@ class ConfigSelection(object):
         # Read the next input
         self.features_read = self.input_session.run(self.next_batch)
 
-        # Find how big a batch we got
-        batch_size = self.features_read['features'].dense_shape[0]
-
-        # Tell the parser how big a batch we read
-        self.parser.did_read_sample(batch_size)
+        # Tell the parser that we read a batch
+        self.parser.did_read_batch()
 
         logger.info("Read sample {} with label {}".format(self.parser.samples_read(), self.features_read['label']))
 

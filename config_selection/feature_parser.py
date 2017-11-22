@@ -45,7 +45,6 @@ class FeatureParser(object):
         })
 
         seq_len = tf.sparse_reduce_max(features['fea_indices_row'], axis=1) + 10
-        seq_len = tf.Print(seq_len, [seq_len], message="EVALUATING NEXT INPUT")
         max_seq_len = tf.reduce_max(
             tf.stack([
                 tf.reduce_max(seq_len) - 1,

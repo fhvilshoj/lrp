@@ -27,7 +27,7 @@ NUM_CLASSES = 10
 
 # The number of epochs and the size of each mini batch
 NUM_EPOCHS = None
-MINIBATCH_SIZE = 1
+MINIBATCH_SIZE = 3
 
 # Don't use autoencoder, text or doc_vec since we are dealing with images
 USE_AUTOENCODER = False
@@ -39,10 +39,13 @@ SAVED_MODEL = "MNIST_trained"
 
 class ConfigSelection(object):
     def __init__(self, input_features, model, destination):
-
+        # Remember the file for the input features
         self.input_features_file = input_features
+
+        # Remember the file containing the model
         self.model_file = model if not isinstance(model, list) else model[0]
 
+        # Dict used to holde the input elements (as tensors)
         self.features_batch = {
             'features': None,
             'context': None,
@@ -51,11 +54,16 @@ class ConfigSelection(object):
             'forloeb': None,
         }
 
+        # Result writer used to append benchmark results to files according to destination directory
         self.writer = ResultWriter(*destination)
 
+        # Gets all the different configurations
         self.configurations = get_configurations()
-        self.num_configurations = len(self.configurations) + 2 # add random and SA
 
+        # Count the configurations and add sensitivity analysis and random
+        self.num_configurations = len(self.configurations) + 2
+
+        # Prepare separate graph for reading input
         self.input_graph = tf.Graph()
         with self.input_graph.as_default():
             self.parser = FeatureParser(input_features, INPUT_SIZE, CONTEXT_SIZE)
@@ -63,22 +71,27 @@ class ConfigSelection(object):
             self.input_session = tf.Session(graph=self.input_graph)
             self.input_session.run([tf.local_variables_initializer()])
 
-            logger.info("Testing {} samples from {}".format(self.parser.get_record_count(), self.input_features_file))
+        logger.info("Testing {} samples from {}".format(self.parser.get_record_count(), self.input_features_file))
 
     def __call__(self, *args, **kwargs):
+        # This is the main entrance to run configuration testing
         logger.debug("In the __call__ function")
 
+        # Read through all samples in the input file
         while self.parser.has_next() and self.parser.samples_read() < 2000:
             logger.info('Starting new sample')
+
             # Read input from file
             self._read_next_input()
-            self.parser.did_read_sample()
+
 
             logger.info('Testing configuration {}/{}'.format(1, self.num_configurations))
             self._test_configuration("random")
+
             logger.info('Testing configuration {}/{}'.format(2, self.num_configurations))
             self._test_configuration("sensitivity_analysis")
 
+            # Run test for each configuration in the configuration list.
             for idx, config in enumerate(self.configurations):
                 logger.info('Testing configuration {}/{}'.format(idx + 3, self.num_configurations))
                 self._test_configuration(config)
@@ -88,74 +101,111 @@ class ConfigSelection(object):
     def _read_next_input(self):
         logger.debug("Starting input session")
 
+        # Start queue runners for the reader queue to work
         tf.train.start_queue_runners(sess=self.input_session)
+        # Read the next input
         self.features_read = self.input_session.run(self.next_batch)
+
+        # Find how big a batch we got
+        batch_size = self.features_read['features'].dense_shape[0]
+
+        # Tell the parser how big a batch we read
+        self.parser.did_read_sample(batch_size)
 
         logger.info("Read sample {} with label {}".format(self.parser.samples_read(), self.features_read['label']))
 
+
     def _test_configuration(self, config):
+        # Start new graph for this configuration
         graph = tf.Graph()
         with graph.as_default():
+
             logger.debug("Start of new test graph with config {}".format(config))
+
+            # Dictionary to hold all the 'feed_dict' parameters for session.run
             to_feed = dict()
 
             # Construct sparse tensors from placeholders
-            # X
+            # X read from the input (this is a SparseTensorValue , i.e. numpy like)
             X_read = self.features_read['features']
+
+            # Placeholders to reconstruct X in this new graph
             X_indices = tf.placeholder(tf.int64, X_read.indices.shape)
             X_values = tf.placeholder(tf.float32, X_read.values.shape)
             X_shape = tf.placeholder(tf.int64, np.size(X_read.dense_shape))
 
             X = tf.SparseTensor(X_indices, X_values, X_shape)
+
+            # Do sparse reorder to ensure that LRP (and other sparse matrix operations) works
             X_reordered = tf.sparse_reorder(X)
 
+            # Fill actual values into the three placeholders above
             to_feed[X_indices] = X_read.indices
             to_feed[X_values] = X_read.values
             to_feed[X_shape] = X_read.dense_shape
 
+            # Store sparse tensor to use in the pertubation steps.
             self.features_batch['features'] = X_reordered
 
-            # C
+            # Do the same sparse tensor reconstruction trick for the context
+            # C read from the input (this is a SparseTensorValue, i.e. numpy like)
             C_read = self.features_read['context']
+
+            # Placeholders to reconstruct C in this new graph
             C_indices = tf.placeholder(tf.int64, C_read.indices.shape)
             C_values = tf.placeholder(tf.float32, C_read.values.shape)
             C_shape = tf.placeholder(tf.int64, np.size(C_read.dense_shape))
+
             C = tf.SparseTensor(C_indices, C_values, C_shape)
 
+            # Fill actual values into the three placeholders for C
             to_feed[C_indices] = C_read.indices
             to_feed[C_values] = C_read.values
             to_feed[C_shape] = C_read.dense_shape
 
+            # Store sparse context tensor
             self.features_batch['context'] = C
 
+            # Same circus for seq_len
             seq_len = tf.placeholder(tf.int64, (None,))
             self.features_batch['seq_len'] = seq_len
 
+            # Same circus for label
             label = tf.placeholder(tf.int64, self.features_read['label'].shape)
             self.features_batch['label'] = label
 
+            # Same circus for forloeb
             forloeb = tf.placeholder(tf.int64, self.features_read['forloeb'].shape)
             self.features_batch['forloeb'] = forloeb
 
+            # Fill actual values into seq_len, label, forloeb
             to_feed[seq_len] = self.features_read['seq_len']
             to_feed[label] = self.features_read['label']
             to_feed[forloeb] = self.features_read['forloeb']
 
+            # Prepare template (that uses parameter sharing across calls to sirs_template)
             sirs_template = tf.make_template('', self.create_model)
+
+            # Compute the DRN graph
             model = sirs_template(X_reordered)
 
             if isinstance(config, str):
                 # The config is either random or SA
                 if config == 'random':
+                    # Compute random relevances
                     R = get_random_relevance(X)
                 else:
+                    # Compute sensitivity analysis
                     R = get_sensitivity_analysis(X, model['y_hat'])
             else:
-                logger.debug('building lrp graph')
+                logger.debug('Building lrp graph')
                 R = lrp.lrp(X, model['y_hat'], config)
-                logger.debug('done building lrp graph')
+                logger.debug('Done building lrp graph')
 
+            # Make pertuber for X and R that prepares a number of pertubations of X
             pertuber = Pertuber(X, R, 10)
+
+            # Build the pertubation graph
             benchmark = pertuber.build_pertubation_graph(sirs_template)
 
             # Create a tf Saver that can be used to restore a pre-trained model below
@@ -175,13 +225,16 @@ class ConfigSelection(object):
                 threads = tf.train.start_queue_runners(coord=coord, sess=s)
 
                 try:
+                    # Run the benchmarks
                     benchmark_result, expl, y, y_hat = self.run_model([benchmark, R, model['y'], model['y_hat']],
                                                                 model,
                                                                 feed_dict=to_feed,
                                                                 session=s)
+                    # TODO Update when increasing batch size
                     y = np.squeeze(y)
                     y_hat = np.squeeze(np.argmax(y_hat, axis=1))
 
+                    # Write results to file
                     self.writer.write_result(config, y, y_hat, benchmark_result)
 
                     # TODO write explanation to a file
@@ -194,15 +247,15 @@ class ConfigSelection(object):
                     coord.request_stop()
 
                 coord.join(threads)
-
                 logger.debug("Done with test")
 
     # Helper function that creates the model
     def create_model(self, features):
-
+        # First update the features stored in this class with the new features
         feature_batch = self.features_batch
         feature_batch['features'] = features
 
+        # Run sirs_classifier to get the model for forward passes
         # Ignoring two first parameters (session and global_step) since session is never used and
         # global_step is only for training
         model = sirs_classifier.create_model(None, None, feature_batch, False, INPUT_SIZE, CONTEXT_SIZE,
@@ -227,8 +280,11 @@ class ConfigSelection(object):
             model['reset_auc']: False,
             model['dropout_keep_prob']: 1.
         }
+
+        # Merge static feed dict witbh feed_dict argument
         to_feed = {**feed_dict, **static}
 
+        # Run the session
         res = session.run(fetches,
                           feed_dict=to_feed)
         return res
@@ -241,6 +297,7 @@ class ConfigSelection(object):
 
 # Code so enable commandline execution of the configuration selection
 def _main():
+    # Parse command line arguments
     parser = argparse.ArgumentParser(description='Test LRP configurations')
     parser.add_argument('-i', '--input_features', type=str, nargs=1,
                         help='the location of the input features')

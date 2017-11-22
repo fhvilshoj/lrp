@@ -186,11 +186,13 @@ class ConfigSelection(object):
             # Compute the DRN graph
             model = sirs_template(X_reordered)
 
+            should_write_input = False
             if isinstance(config, str):
                 # The config is either random or SA
                 if config == 'random':
                     # Compute random relevances
                     R = get_random_relevance(X)
+                    should_write_input = True
                 else:
                     # Compute sensitivity analysis
                     R = get_sensitivity_analysis(X, model['y_hat'])
@@ -232,8 +234,6 @@ class ConfigSelection(object):
                                                                 session=s)
                     # Remove extra dimension from y
                     # y shape: (batch_size,)
-                    print(benchmark_result.shape)
-                    print(y.shape)
                     y = y[:, 0]
 
                     # Find argmax for y_hat
@@ -242,8 +242,11 @@ class ConfigSelection(object):
 
                     # Write results to file
                     self.writer.write_result(config, y, y_hat, benchmark_result)
+                    self.writer.write_explanation(config, expl)
 
-                    # TODO write explanation to a file
+                    if should_write_input:
+                        self.writer.write_input(X_read)
+
 
                 except tf.errors.OutOfRangeError:
                     logger.debug("Done with the testing")
@@ -309,7 +312,7 @@ def _main():
                         help='the location of the input features')
     parser.add_argument('-m', '--model', type=str, nargs=1, help='trained model to use')
     parser.add_argument('-d', '--destination', type=str, nargs=1, help='Destination directory')
-    parser.add_argument('-b', '--batch_size', type=int, default=5, help='Batch size when testing')
+    parser.add_argument('-b', '--batch_size', type=int, default=10, help='Batch size when testing')
     parser.add_argument('-p', '--pertubations', type=int, default=10, help='Pertubation iterations for each configuration')
     args = parser.parse_args()
 

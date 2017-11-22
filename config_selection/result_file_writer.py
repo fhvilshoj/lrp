@@ -1,5 +1,6 @@
 import os
 from config_selection import logger
+import numpy as np
 
 class ResultWriter(object):
     def __init__(self, dest) -> None:
@@ -35,4 +36,35 @@ class ResultWriter(object):
                 f.write("\n")
 
         logger.info("Saved result for config {}".format(config))
+
+    def write_input(self, X):
+        self._write_sparse_tensor('inputs', X)
+        logger.info("Saved input batch")
+
+    def write_explanation(self, config, R):
+        self._write_sparse_tensor('rel_{}'.format(config), R)
+        logger.info("Saved relevances for batch")
+
+    def _clean_sparse_values(self, sparse_tensor):
+        sel = np.where(sparse_tensor.values > 1e-8)
+        return sparse_tensor.indices[sel], sparse_tensor.values[sel]
+
+    def _write_sparse_tensor(self, file_name, sparse_tensor):
+        file_name = "{}/{}.spt".format(self._destination_folder, file_name)
+        indices, values = self._clean_sparse_values(sparse_tensor)
+
+        with open(file_name, 'a') as f:
+            # Write shape
+            f.write("{} {} {}\n\n".format(*sparse_tensor.dense_shape))
+
+            # Write indices
+            indices = indices.transpose()
+            num_values = indices.shape[1]
+            fmt = "{:>10} " * num_values + "\n"
+            for dimension in indices:
+                f.write(fmt.format(*dimension))
+
+            # Write values
+            fmt = "\n" + "{:>10.8f} " * num_values + "\n\n\n"
+            f.write(fmt.format(*values))
 

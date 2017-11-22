@@ -77,8 +77,6 @@ def get_configurations():
                         config.set(LAYER.LSTM, lstm_conf)
 
                         configurations.append(config)
-    for c in configurations:
-        print(c)
     return configurations
 
 

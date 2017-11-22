@@ -37,9 +37,11 @@ USE_DOC2VEC = False
 SAVED_MODEL = "MNIST_trained"
 
 class ConfigSelection(object):
-    def __init__(self, input_features, model, destination, batch_size):
+    def __init__(self, input_features, model, destination, batch_size, **kwargs):
         # Remember the batch_size
         self.batch_size = batch_size
+
+        self.confs = kwargs
 
         # Remember the file containing the model
         self.model_file = model if not isinstance(model, list) else model[0]
@@ -198,7 +200,7 @@ class ConfigSelection(object):
                 logger.debug('Done building lrp graph')
 
             # Make pertuber for X and R that prepares a number of pertubations of X
-            pertuber = Pertuber(X, R, 10)
+            pertuber = Pertuber(X, R, **self.confs)
 
             # Build the pertubation graph
             benchmark = pertuber.build_pertubation_graph(sirs_template)
@@ -299,6 +301,7 @@ def _main():
     parser.add_argument('-m', '--model', type=str, nargs=1, help='trained model to use')
     parser.add_argument('-d', '--destination', type=str, nargs=1, help='Destination directory')
     parser.add_argument('-b', '--batch_size', type=int, default=1, help='Batch size when testing')
+    parser.add_argument('-p', '--pertubations', type=int, default=10, help='Pertubation iterations for each configuration')
     args = parser.parse_args()
 
     config_select = ConfigSelection(**vars(args))

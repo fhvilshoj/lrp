@@ -3,10 +3,13 @@ import tensorflow as tf
 from config_selection import logger
 
 class Pertuber(object):
-    def __init__(self, X, R, num_iterations=100):
+    def __init__(self, X, R, **kwargs):
+
         self.X = X
         self.R = R
-        self.num_iterations = num_iterations
+        self.num_iterations = kwargs['pertubations'] if 'pertubations' in kwargs else 100
+
+        print(self.num_iterations)
 
         self.X_actives = tf.size(self.X.values)
         self.R_actives = tf.size(self.R.values)

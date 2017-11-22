@@ -200,7 +200,7 @@ class ConfigSelection(object):
                 logger.debug('Done building lrp graph')
 
             # Make pertuber for X and R that prepares a number of pertubations of X
-            pertuber = Pertuber(X, R, **self.confs)
+            pertuber = Pertuber(X, R, self.batch_size, **self.confs)
 
             # Build the pertubation graph
             benchmark = pertuber.build_pertubation_graph(sirs_template)
@@ -222,14 +222,23 @@ class ConfigSelection(object):
                 threads = tf.train.start_queue_runners(coord=coord, sess=s)
 
                 try:
-                    # Run the benchmarks
+                    # Run the benchmarks. Shapes:
+                    # Benchmark_result: batch_size, pertubations, num_classes
+                    # y                 batch_size, 1
+                    # y_hat             batch_size, num_classes
                     benchmark_result, expl, y, y_hat = self.run_model([benchmark, R, model['y'], model['y_hat']],
                                                                 model,
                                                                 feed_dict=to_feed,
                                                                 session=s)
-                    # TODO Update when increasing batch size
-                    y = np.squeeze(y)
-                    y_hat = np.squeeze(np.argmax(y_hat, axis=1))
+                    # Remove extra dimension from y
+                    # y shape: (batch_size,)
+                    print(benchmark_result.shape)
+                    print(y.shape)
+                    y = y[:, 0]
+
+                    # Find argmax for y_hat
+                    # y_hat shape: (batch_size,)
+                    y_hat = np.argmax(y_hat, axis=1)
 
                     # Write results to file
                     self.writer.write_result(config, y, y_hat, benchmark_result)
@@ -262,10 +271,10 @@ class ConfigSelection(object):
         # Shape: (batch_size, sequence_length, num_classes)
         y_hat = model['y_hat']
 
-        # for_explanation shape: (1, 1, num_classes)
-        for_explanation = tf.slice(y_hat, [0, tf.shape(y_hat)[1] - 1, 0], [1, 1, NUM_CLASSES])
+        # for_explanation shape: (batch_size, 1, num_classes)
+        for_explanation = tf.slice(y_hat, [0, tf.shape(y_hat)[1] - 1, 0], [self.batch_size, 1, NUM_CLASSES])
 
-        # for_explanation shape: (1, num_classes)
+        # for_explanation shape: (batch_size, num_classes)
         for_explanation = tf.squeeze(for_explanation, axis=1)
         model['y_hat'] = for_explanation
 
@@ -300,7 +309,7 @@ def _main():
                         help='the location of the input features')
     parser.add_argument('-m', '--model', type=str, nargs=1, help='trained model to use')
     parser.add_argument('-d', '--destination', type=str, nargs=1, help='Destination directory')
-    parser.add_argument('-b', '--batch_size', type=int, default=1, help='Batch size when testing')
+    parser.add_argument('-b', '--batch_size', type=int, default=5, help='Batch size when testing')
     parser.add_argument('-p', '--pertubations', type=int, default=10, help='Pertubation iterations for each configuration')
     args = parser.parse_args()
 

@@ -56,7 +56,7 @@ class PertubationTest(unittest.TestCase):
                 # Test to see that we can do decorators around templates
                 return scale_sum(x)
 
-            pertuber = Pertuber(X, R, **{'batch_size': 2, 'pertubations': 2})
+            pertuber = Pertuber(X, R, 2, **{'pertubations': 2})
 
             res = pertuber.build_pertubation_graph(_some_other)
 

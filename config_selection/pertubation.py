@@ -4,8 +4,9 @@ from config_selection import logger
 
 
 class Pertuber(object):
-    def __init__(self, X, R, **kwargs):
+    def __init__(self, X, R, batch_size, **kwargs):
         self.args = kwargs
+        self.batch_size = batch_size
 
         self.X = X
         self.R = R
@@ -19,8 +20,6 @@ class Pertuber(object):
     # Prevares priority tensor arrays for each sample
     def _prepare_priority_array(self):
         logger.debug("Preparing priority array")
-
-        self.batch_size = self.args['batch_size']
 
         # Find the active count for each sample by first making an indicator tensor
         indicatores = tf.SparseTensor(self.R.indices, tf.ones_like(self.R.values), self.R.dense_shape)
@@ -36,7 +35,9 @@ class Pertuber(object):
         # Split values of R into a tensor array with respect to the sizes of the samples
         values_ta = tf.TensorArray(tf.float32, self.batch_size, dynamic_size=False, clear_after_read=True,
                                    infer_shape=False, element_shape=(None,))
-        values_ta = values_ta.split(self.R.values, self.counts)
+
+        R_values = tf.cast(self.R.values, dtype=tf.float32)
+        values_ta = values_ta.split(R_values, self.counts)
 
         # Prepare tensorarray to hold ordered indices for each sample
         ordered_indices_ta = tf.TensorArray(tf.int64, self.batch_size, dynamic_size=False, clear_after_read=True,
@@ -181,5 +182,5 @@ class Pertuber(object):
         results = results_ta.gather(range)
 
         # Transpose result to shape (batch_size, num_iterations, num_classes)
-        result = tf.transpose(results, [1, 0, 2])
+        result = tf.transpose(results, [1, 2, 0])
         return result

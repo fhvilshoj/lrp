@@ -4,10 +4,7 @@ from data_loader import sparse_merge
 
 class FeatureParser(object):
     def __init__(self, feature_file, single_feature_size, context_size):
-        if isinstance(feature_file, list):
-            self.feature_file = feature_file[0]
-        else:
-            self.feature_file = feature_file
+        self.feature_file = feature_file
 
         self.record_count = None
         self.get_record_count()
@@ -15,7 +12,7 @@ class FeatureParser(object):
         self.records_read = 0
 
         # Create a queue with the input images
-        self.queue = tf.train.string_input_producer([self.feature_file], num_epochs=self.record_count, shuffle=False)
+        self.queue = tf.train.string_input_producer(self.feature_file, num_epochs=self.record_count, shuffle=False)
         self.feature_size = single_feature_size
         self.context_size = context_size
         self.reader = tf.TFRecordReader(options=tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP))
@@ -93,9 +90,11 @@ class FeatureParser(object):
             return self.record_count
 
         count = 0
-        for _ in tf.python_io.tf_record_iterator(self.feature_file, options=tf.python_io.TFRecordOptions(
-                tf.python_io.TFRecordCompressionType.GZIP)):
-            count += 1
+        print(self.feature_file)
+        for file in self.feature_file:
+            for _ in tf.python_io.tf_record_iterator(file, options=tf.python_io.TFRecordOptions(
+                    tf.python_io.TFRecordCompressionType.GZIP)):
+                count += 1
         self.record_count = count
         print(self.record_count)
         return self.record_count

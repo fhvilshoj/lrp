@@ -85,15 +85,16 @@ class ConfigSelection(object):
             # Read input from file
             self._read_next_input()
 
-            logger.info('Testing configuration {}/{}'.format(1, self.num_configurations))
+            batch_number = self.parser.samples_read() // self.batch_size
+            logger.info('Testing configuration {}/{} for batch {}'.format(1, self.num_configurations, batch_number))
             self._test_configuration("random")
 
-            logger.info('Testing configuration {}/{}'.format(2, self.num_configurations))
+            logger.info('Testing configuration {}/{} for batch {}'.format(2, self.num_configurations, batch_number))
             self._test_configuration("sensitivity_analysis")
 
             # Run test for each configuration in the configuration list.
-            for idx, config in enumerate(self.configurations):
-                logger.info('Testing configuration {}/{}'.format(idx + 3, self.num_configurations))
+            for idx, config in enumerate(self.configurations[:2]):
+                logger.info('Testing configuration {}/{} for batch {}'.format(idx + 3, self.num_configurations, batch_number))
                 self._test_configuration(config)
 
         logger.info("Done testing all of the input to the given file")

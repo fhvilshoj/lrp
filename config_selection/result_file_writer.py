@@ -20,8 +20,8 @@ class ResultWriter(object):
         file_name = "{}/{}.res".format(self._destination_folder, config)
         exists = os.path.isfile(file_name)
 
-        label = label.reshape((10, 1))
-        prediction = prediction.reshape((10, 1))
+        label = label.reshape((label.shape[0], 1))
+        prediction = prediction.reshape((prediction.shape[0], 1))
         ls = np.concatenate([label, prediction], axis=1)
         fmt = "{:>10d} " * 2 + "{:>10.6f} " * results.shape[2]
 

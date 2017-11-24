@@ -262,8 +262,8 @@ def elementwise_linear(router, R):
     (input, weights) = multensor.op.inputs
 
     # If we should just pass relevance right through. Do so.
-    layer_configuration = router.get_configuration(LAYER.ELEMENTWISE_LINEAR)
-    if layer_configuration.type == RULE.FLAT:
+    layer_config = router.get_configuration(LAYER.ELEMENTWISE_LINEAR)
+    if layer_config.type == RULE.FLAT:
         # Mark handled operations
         router.mark_operation_handled(current_operation)
         router.mark_operation_handled(multensor.op)

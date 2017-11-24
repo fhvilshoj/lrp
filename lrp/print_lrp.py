@@ -1,4 +1,4 @@
-import lrp.forward_lrp
+from lrp import forward_lrp
 
 
 def printing(router, R):

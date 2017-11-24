@@ -40,11 +40,10 @@ class ConfigSelection(object):
     def __init__(self, input_features, model, destination, batch_size, **kwargs):
         # Remember the batch_size
         self.batch_size = batch_size
-
         self.confs = kwargs
 
         # Remember the file containing the model
-        self.model_file = model if not isinstance(model, list) else model[0]
+        self.model_file = model
 
         # Dict used to holde the input elements (as tensors)
         self.features_batch = {
@@ -56,7 +55,7 @@ class ConfigSelection(object):
         }
 
         # Result writer used to append benchmark results to files according to destination directory
-        self.writer = ResultWriter(*destination)
+        self.writer = ResultWriter(destination)
 
         # Gets all the different configurations
         self.configurations = get_configurations()
@@ -69,10 +68,32 @@ class ConfigSelection(object):
         with self.input_graph.as_default():
             self.parser = FeatureParser(input_features, INPUT_SIZE, CONTEXT_SIZE, batch_size)
             self.next_batch = self.parser.next_batch()
+
+            # Required variable in order to use tf.make_template()
+            global_step = tf.Variable(0, name='global_step', trainable=False)
+
+            logger.debug('Making sirs model for the input')
+
+            self.input_model = sirs_classifier.create_model(None, global_step, self.next_batch, False, INPUT_SIZE, CONTEXT_SIZE, NUM_CLASSES,
+                                         USE_TEXT, use_char_autoencoder=USE_AUTOENCODER, use_doc2vec=USE_DOC2VEC)
+
+            y_hat = self.input_model['y_hat']
+            y_maxes = tf.reduce_max(y_hat, axis=2)
+            y_argmax = tf.cast(tf.argmax(y_maxes, axis=1), tf.int32)
+
+            self.input_model['offsets'] = tf.pad(tf.expand_dims(y_argmax, axis=1), [[0, 0], [3, 1]])
+
             self.input_session = tf.Session(graph=self.input_graph)
             self.input_session.run([tf.local_variables_initializer()])
 
+            # Create a tf Saver that can be used to restore a pre-trained model below
+            saver = tf.train.Saver()
+            self.restore_checkpoint(self.input_session, saver)
+
         logger.info("Testing {} samples from {}".format(self.parser.get_record_count(), input_features))
+        logger.info("Writing results to folder: {}".format(destination))
+        logger.info("Model used: {}".format(model))
+        logger.info("Batch size: {}".format(batch_size))
 
     def __call__(self, *args, **kwargs):
         # This is the main entrance to run configuration testing
@@ -86,6 +107,7 @@ class ConfigSelection(object):
             self._read_next_input()
 
             batch_number = self.parser.samples_read() // self.batch_size
+
             logger.info('Testing configuration {}/{} for batch {}'.format(1, self.num_configurations, batch_number))
             self._test_configuration("random")
 
@@ -104,13 +126,19 @@ class ConfigSelection(object):
 
         # Start queue runners for the reader queue to work
         tf.train.start_queue_runners(sess=self.input_session)
+
         # Read the next input
-        self.features_read = self.input_session.run(self.next_batch)
+        self.features_read, self.input_selection, y_hat = self.input_session.run([self.next_batch,
+                                                                                  self.input_model['offsets'],
+                                                                                  self.input_model['y_hat']])
+
+        # Reduce max sequence length
+        self.max_sequence = y_hat.shape[1]
 
         # Tell the parser that we read a batch
         self.parser.did_read_batch()
 
-        logger.info("Read sample {} with label {}".format(self.parser.samples_read(), self.features_read['label']))
+        logger.info("Read sample {} with label \n{}".format(self.parser.samples_read(), self.features_read['label']))
 
 
     def _test_configuration(self, config):
@@ -141,9 +169,6 @@ class ConfigSelection(object):
             to_feed[X_indices] = X_read.indices
             to_feed[X_values] = X_read.values
             to_feed[X_shape] = X_read.dense_shape
-
-            # Store sparse tensor to use in the pertubation steps.
-            self.features_batch['features'] = X_reordered
 
             # Do the same sparse tensor reconstruction trick for the context
             # C read from the input (this is a SparseTensorValue, i.e. numpy like)
@@ -182,8 +207,10 @@ class ConfigSelection(object):
             to_feed[forloeb] = self.features_read['forloeb']
 
             # Prepare template (that uses parameter sharing across calls to sirs_template)
+            self.first_template_use = True
             sirs_template = tf.make_template('', self.create_model)
 
+            logger.debug("Building graph for forward pass")
             # Compute the DRN graph
             model = sirs_template(X_reordered)
 
@@ -192,16 +219,19 @@ class ConfigSelection(object):
                 # The config is either random or SA
                 if config == 'random':
                     # Compute random relevances
+                    logger.debug("Building random graph")
                     R = get_random_relevance(X)
                     should_write_input = True
                 else:
                     # Compute sensitivity analysis
+                    logger.debug("Building SA graph")
                     R = get_sensitivity_analysis(X, model['y_hat'])
             else:
                 logger.debug('Building lrp graph')
                 R = lrp.lrp(X, model['y_hat'], config)
                 logger.debug('Done building lrp graph')
 
+            logger.debug("Instantiating pertubation class")
             # Make pertuber for X and R that prepares a number of pertubations of X
             pertuber = Pertuber(X, R, self.batch_size, **self.confs)
 
@@ -211,14 +241,13 @@ class ConfigSelection(object):
             # Create a tf Saver that can be used to restore a pre-trained model below
             saver = tf.train.Saver()
 
-            logger.debug("Starting session")
-
             with tf.Session(graph=graph) as s:
+                logger.debug("Initializing vars and restoring model")
                 # Initialize the local variables and restore the model that was trained earlier
                 s.run([tf.local_variables_initializer()])
-                self.restore_checkpoint(saver, self.model_file)
+                self.restore_checkpoint(s, saver)
 
-                logger.debug("Restored model. Now running graph.")
+                logger.debug("Restored model. Now starting threads.")
 
                 # Create the threads that run the model
                 coord = tf.train.Coordinator()
@@ -229,10 +258,13 @@ class ConfigSelection(object):
                     # Benchmark_result: batch_size, pertubations, num_classes
                     # y                 batch_size, 1
                     # y_hat             batch_size, num_classes
+                    logger.debug("Starting session for benchmarks")
                     benchmark_result, expl, y, y_hat = self.run_model([benchmark, R, model['y'], model['y_hat']],
                                                                 model,
                                                                 feed_dict=to_feed,
                                                                 session=s)
+                    logger.debug("Session done")
+
                     # Remove extra dimension from y
                     # y shape: (batch_size,)
                     y = y[:, 0]
@@ -242,12 +274,15 @@ class ConfigSelection(object):
                     y_hat = np.argmax(y_hat, axis=1)
 
                     # Write results to file
+                    logger.debug("Writing result to file")
                     self.writer.write_result(config, y, y_hat, benchmark_result)
+
+                    logger.debug("Writing explanation to file")
                     self.writer.write_explanation(config, expl)
 
                     if should_write_input:
+                        logger.debug("Writing input to file")
                         self.writer.write_input(X_read)
-
 
                 except tf.errors.OutOfRangeError:
                     logger.debug("Done with the testing")
@@ -256,8 +291,9 @@ class ConfigSelection(object):
                 finally:
                     coord.request_stop()
 
+                logger.debug("Joining threads")
                 coord.join(threads)
-                logger.debug("Done with test")
+                logger.info("Done with test")
 
     # Helper function that creates the model
     def create_model(self, features):
@@ -272,15 +308,19 @@ class ConfigSelection(object):
                                              NUM_CLASSES,
                                              USE_TEXT, use_char_autoencoder=USE_AUTOENCODER, use_doc2vec=USE_DOC2VEC)
 
-        # Shape: (batch_size, sequence_length, num_classes)
-        y_hat = model['y_hat']
+        y_hat_reshaped = tf.reshape(model['y_hat'], (1, 1, self.batch_size, self.max_sequence, NUM_CLASSES))
 
-        # for_explanation shape: (batch_size, 1, num_classes)
-        for_explanation = tf.slice(y_hat, [0, tf.shape(y_hat)[1] - 1, 0], [self.batch_size, 1, NUM_CLASSES])
+        # Each sample has shape (1, 1, max_sequence, num_classes)
+        samples = tf.split(y_hat_reshaped, self.batch_size, 2)
 
-        # for_explanation shape: (batch_size, num_classes)
-        for_explanation = tf.squeeze(for_explanation, axis=1)
-        model['y_hat'] = for_explanation
+        # each sample has shape (1, 1, 1, num_classes)
+        to_concatenate = [tf.slice(sample, max_slice, [1, 1, 1, 1, NUM_CLASSES]) for (sample, max_slice) in zip(samples, self.input_selection)]
+
+        # Shape (1, 1, 1, batch_size * num_classes)
+        highest_predictions_concatenated = tf.concat(to_concatenate, axis=4)
+
+        # Remove dimension 0, 1, 2
+        model['y_hat'] = tf.reshape(highest_predictions_concatenated, (self.batch_size, NUM_CLASSES))
 
         return model
 
@@ -300,9 +340,8 @@ class ConfigSelection(object):
         return res
 
     # Helper function that restores the model from a checkpoint
-    def restore_checkpoint(self, saver, model_name):
-        # saver.restore(tf.get_default_session(), "{}/model_{}.ckpt".format(CHECKPOINTS_DIR, model_name))
-        saver.restore(tf.get_default_session(), model_name)
+    def restore_checkpoint(self, session, saver):
+        saver.restore(session, self.model_file)
 
 
 # Code so enable commandline execution of the configuration selection
@@ -310,11 +349,20 @@ def _main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Test LRP configurations')
     parser.add_argument('-i', '--input_features', type=str, nargs='+',
+                        default=['E:/frederikogbenjamin/sepsis/data/test.txt_compressed'],
                         help='the location of the input features')
-    parser.add_argument('-m', '--model', type=str, nargs=1, help='trained model to use')
-    parser.add_argument('-d', '--destination', type=str, nargs=1, help='Destination directory')
-    parser.add_argument('-b', '--batch_size', type=int, default=10, help='Batch size when testing')
-    parser.add_argument('-p', '--pertubations', type=int, default=10, help='Pertubation iterations for each configuration')
+    parser.add_argument('-m', '--model', type=str,
+                        default='E:/frederikogbenjamin/sepsis/models/new_model4.ckpt',
+                        help='trained model to use')
+    parser.add_argument('-d', '--destination', type=str,
+                        default='E:/frederikogbenjamin/sepsis/checkpoints/new_model4.ckpt',
+                        help='Destination directory')
+    parser.add_argument('-b', '--batch_size', type=int,
+                        default=10,
+                        help='Batch size when testing')
+    parser.add_argument('-p', '--pertubations', type=int,
+                        default=100,
+                        help='Pertubation iterations for each configuration')
     args = parser.parse_args()
 
     config_select = ConfigSelection(**vars(args))

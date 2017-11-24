@@ -20,6 +20,11 @@ class ResultWriter(object):
         file_name = "{}/{}.res".format(self._destination_folder, config)
         exists = os.path.isfile(file_name)
 
+        label = label.reshape((10, 1))
+        prediction = prediction.reshape((10, 1))
+        ls = np.concatenate([label, prediction], axis=1)
+        fmt = "{:>10d} " * 2 + "{:>10.6f} " * results.shape[2]
+
         with open(file_name, 'a') as f:
             if not exists:
                 num_iterations = results.shape[2]
@@ -29,10 +34,7 @@ class ResultWriter(object):
 
             for i, sample in enumerate(results):
                 for row in sample:
-                    fmt = "{:>10d} " * 2
-                    fmt += "{:>10.6f} " * len(row)
-                    res = fmt.format(label[i], prediction[i], *row) + "\n"
-                    f.write(res)
+                    f.write(fmt.format(*ls[i], *row) + "\n")
                 f.write("\n")
 
         logger.info("Saved result for config {}".format(config))

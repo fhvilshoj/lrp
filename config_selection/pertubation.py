@@ -26,6 +26,7 @@ class Pertuber(object):
 
         # Then summing over everything but the batch dimension
         self.counts = tf.cast(tf.sparse_reduce_sum(indicatores, axis=[1, 2]), dtype=tf.int32)
+        self.counts = tf.Print(self.counts, [self.counts], "COUNTS", summarize=120)
 
         # Split indices of R into a tensor array with respect to the sizes of the samples
         indices_ta = tf.TensorArray(tf.int64, self.batch_size, dynamic_size=False, clear_after_read=True,
@@ -133,6 +134,7 @@ class Pertuber(object):
 
                     def _skip_index():
                         skipping = tf.zeros_like(current_selection)
+                        skipping = tf.Print(skipping, [i, j], message="\n\nNB: Skipping pertubation at round {idx1} for sample {idx2}: ")
                         return skipping
 
                     # Only select index if there are more values in the given sample
@@ -181,6 +183,6 @@ class Pertuber(object):
         range = tf.range(0, self.num_iterations + 1)
         results = results_ta.gather(range)
 
-        # Transpose result to shape (batch_size, num_iterations, num_classes)
-        result = tf.transpose(results, [1, 2, 0])
+        # Transpose result to shape (batch_size, num_classes, num_iterations)
+        result = tf.transpose(results, [1,  2, 0])
         return result

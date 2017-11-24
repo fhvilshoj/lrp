@@ -1,5 +1,7 @@
 import tensorflow as tf
 import unittest
+
+from configuration import AlphaBetaConfiguration, LRPConfiguration, LAYER
 from lrp import lrp
 import numpy as np
 
@@ -27,7 +29,9 @@ class TestBatchNormalization(unittest.TestCase):
             assign_variance = tf.assign(variance, v)
 
             # Get the explanation
-            explanation = lrp.lrp(inp, x)
+            config = LRPConfiguration()
+            config.set(LAYER.ELEMENTWISE_LINEAR, AlphaBetaConfiguration())
+            explanation = lrp.lrp(inp, x, config)
 
             with tf.Session() as s:
                 s.run(tf.global_variables_initializer())
@@ -65,7 +69,9 @@ class TestBatchNormalization(unittest.TestCase):
             assign_variance = tf.assign(variance, v)
 
             # Get the explanation
-            explanation = lrp.lrp(inp, x)
+            config = LRPConfiguration()
+            config.set(LAYER.ELEMENTWISE_LINEAR, AlphaBetaConfiguration())
+            explanation = lrp.lrp(inp, x, config)
 
             with tf.Session() as s:
                 s.run(tf.global_variables_initializer())

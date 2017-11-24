@@ -134,8 +134,6 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     if bias is not None and config.bias_strategy != BIAS_STRATEGY.IGNORE:
         output += bias
 
-    output = tf.Print(output, [output], "OUTPUT epsilon", summarize=100)
-
     # Prepare batch for elementwise multiplication
     # Shape of input: (batch_size, input_width)
     # Shape of input after expand_dims: (batch_size, input_width, 1)
@@ -145,7 +143,7 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     # feature i to neuron j for input k
     # Shape of zs: (batch_size, input_width, output_width)
     zs = tf.multiply(input, weights)
-    zs = tf.Print(zs, [zs], "ZS epsilon", summarize=100)
+
     # When bias is given divide it equally among the i's to avoid relevance loss
 
     output_sign = tf.sign(output)
@@ -161,7 +159,6 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     # Add stabilizer to denominator to avoid dividing with 0
     # Shape of denominator: (batch, output_width)
     denominator = output + config.epsilon * output_sign
-    denominator = tf.Print(denominator, [denominator], summarize=100, message="Epsilon denominator")
 
     # Expand the second to last dimension to be able to divide the denominator through the rows of zs
     # Shape after expand_dims: (batch, 1, output_width)
@@ -175,7 +172,6 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     # Shape of fractions after transpose: (batch_size, output_width, input_width)
     fractions = tf.transpose(fractions, [0, 2, 1])
 
-    fractions = tf.Print(fractions, [config.epsilon, fractions], "Fractions epsilon", summarize=100)
     # Multiply relevances with fractions to find relevance per feature in input
     # Shape of R: (batch_size, predictions_per_sample, output_width)
     # Shape of fractions: (batch_size, output_width, input_width)
@@ -264,6 +260,18 @@ def elementwise_linear(router, R):
 
     # Find the inputs to the matrix multiplication
     (input, weights) = multensor.op.inputs
+
+    # If we should just pass relevance right through. Do so.
+    layer_configuration = router.get_configuration(LAYER.ELEMENTWISE_LINEAR)
+    if layer_configuration.type == RULE.FLAT:
+        # Mark handled operations
+        router.mark_operation_handled(current_operation)
+        router.mark_operation_handled(multensor.op)
+
+        # Forward relevance
+        router.forward_relevance_to_operation(R, multensor.op, input.op)
+        return
+
     # Make the weights to a diagonal matrix
     weights = tf.diag(weights)
 
@@ -287,7 +295,6 @@ def elementwise_linear(router, R):
                            true_fn=_rank2,
                            false_fn=_higher_rank)
 
-    layer_config = router.get_configuration(LAYER.ELEMENTWISE_LINEAR)
     R_new = linear_with_config(R, new_input, weights, layer_config, bias)
 
     # Turn the calculated relevances into the correct form if the rank of the input was > 2

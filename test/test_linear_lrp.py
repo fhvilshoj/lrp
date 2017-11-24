@@ -166,7 +166,6 @@ class LinearLRPTest(unittest.TestCase):
                 # Run the operations of interest and feed an input to the network
                 prediction, explanation = sess.run([pred, expl], feed_dict={inp: [[1, -2, 3, 4]]})
 
-                print(explanation)
                 # Check if the predictions has the right shape
                 self.assertEqual(prediction.shape, (1, 2), msg="Should be able to do a linear forward pass")
                 # Check if the relevance scores are correct (the correct values

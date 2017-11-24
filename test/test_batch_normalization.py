@@ -43,7 +43,6 @@ class TestBatchNormalization(unittest.TestCase):
             config = LRPConfiguration()
             config.set(LAYER.LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.NONE))
             config.set(LAYER.ELEMENTWISE_LINEAR, FlatConfiguration())
-            config.log_level = LOG_LEVEL.VERBOSE
             explanation = lrp.lrp(inp, x, config)
 
             with tf.Session() as s:

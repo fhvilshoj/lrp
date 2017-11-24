@@ -26,7 +26,6 @@ class Pertuber(object):
 
         # Then summing over everything but the batch dimension
         self.counts = tf.cast(tf.sparse_reduce_sum(indicatores, axis=[1, 2]), dtype=tf.int32)
-        self.counts = tf.Print(self.counts, [self.counts], "COUNTS", summarize=120)
 
         # Split indices of R into a tensor array with respect to the sizes of the samples
         indices_ta = tf.TensorArray(tf.int64, self.batch_size, dynamic_size=False, clear_after_read=True,

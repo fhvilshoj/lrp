@@ -3,17 +3,19 @@ class LAYER:
     ELEMENTWISE_LINEAR = 0
     CONVOLUTIONAL = 1
     SPARSE_LINEAR = 2
-    LINEAR = 3
-    EMPTY = 4
-    LSTM = 5
+    MAX_POOOING = 3
+    LINEAR = 4
+    EMPTY = 5
+    LSTM = 6
 
 
 # Rules
 class RULE:
-    ALPHA_BETA = 0
-    EPSILON = 1
-    FLAT = 2
-    WW = 3
+    WINNER_TAKE_ALL = 0
+    ALPHA_BETA = 1
+    EPSILON = 2
+    FLAT = 3
+    WW = 4
 
 
 # Bias strategy
@@ -110,7 +112,8 @@ class LRPConfiguration(object):
             LAYER.SPARSE_LINEAR: AlphaBetaConfiguration(),
             LAYER.ELEMENTWISE_LINEAR: EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.ACTIVE),
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
-            LAYER.LSTM: EpsilonConfiguration()
+            LAYER.LSTM: EpsilonConfiguration(),
+            LAYER.MAX_POOOING: LayerConfiguration(RULE.WINNER_TAKE_ALL)
         }
 
     @property

@@ -1,13 +1,13 @@
 from lrp.configuration import *
 
 linear_configurations = [
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.IGNORE),
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.ACTIVE),
+    EpsilonConfiguration(1e-12, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(1e-12, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(1e-12, BIAS_STRATEGY.ACTIVE),
 
-    EpsilonConfiguration(1, BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(1, BIAS_STRATEGY.IGNORE),
-    EpsilonConfiguration(1, BIAS_STRATEGY.ACTIVE),
+    EpsilonConfiguration(0.01, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(0.01, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(0.01, BIAS_STRATEGY.ACTIVE),
 
     EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
     EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
@@ -29,10 +29,9 @@ linear_configurations = [
 ]
 
 conv_configurations = [
-    # Naive
-    EpsilonConfiguration(BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(BIAS_STRATEGY.IGNORE),
-    EpsilonConfiguration(BIAS_STRATEGY.ACTIVE),
+    EpsilonConfiguration(1e-12, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(1e-12, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(1e-12, BIAS_STRATEGY.ACTIVE),
 
     EpsilonConfiguration(0.01, BIAS_STRATEGY.NONE),
     EpsilonConfiguration(0.01, BIAS_STRATEGY.IGNORE),
@@ -58,13 +57,14 @@ conv_configurations = [
 ]
 
 lstm_configurations = [
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.ALL),
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(1e-12, BIAS_STRATEGY.ALL),
+    EpsilonConfiguration(1e-12, BIAS_STRATEGY.IGNORE),
 ]
 
 max_pooling_configurations = [
-    LayerConfiguration(RULE.WINNER_TAKE_ALL),
-    EpsilonConfiguration()
+    LayerConfiguration(RULE.WINNERS_TAKE_ALL),
+    # This second rule doesn't matter since implementation looks for WINNERS_TAKE_ALL or not
+    LayerConfiguration(RULE.FLAT)
 ]
 
 def get_configurations():
@@ -90,5 +90,3 @@ def get_configurations():
 
                         configurations.append(config)
     return configurations
-
-

@@ -11,7 +11,7 @@ class LAYER:
 
 # Rules
 class RULE:
-    WINNER_TAKE_ALL = 0
+    WINNERS_TAKE_ALL = 0
     ALPHA_BETA = 1
     EPSILON = 2
     FLAT = 3
@@ -113,7 +113,7 @@ class LRPConfiguration(object):
             LAYER.ELEMENTWISE_LINEAR: EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.ACTIVE),
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
             LAYER.LSTM: EpsilonConfiguration(),
-            LAYER.MAX_POOLING: LayerConfiguration(RULE.WINNER_TAKE_ALL)
+            LAYER.MAX_POOLING: LayerConfiguration(RULE.WINNERS_TAKE_ALL)
         }
 
     @property

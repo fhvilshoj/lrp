@@ -114,7 +114,7 @@ class ConfigSelection(object):
             self._test_configuration("sensitivity_analysis")
 
             # Run test for each configuration in the configuration list.
-            for idx, config in enumerate(self.configurations[:2]):
+            for idx, config in enumerate(self.configurations):
                 logger.info('Testing configuration {}/{} for batch {}'.format(idx + 3, self.num_configurations, batch_number))
                 self._test_configuration(config)
 

@@ -17,7 +17,6 @@ import sirs_classifier
 import argparse
 import tensorflow as tf
 import numpy as np
-from tabulate import tabulate
 
 # The size of the input and the number of classes
 

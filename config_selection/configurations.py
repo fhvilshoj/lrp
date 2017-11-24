@@ -30,13 +30,13 @@ linear_configurations = [
 
 conv_configurations = [
     # Naive
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.IGNORE),
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.ACTIVE),
+    EpsilonConfiguration(BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(BIAS_STRATEGY.ACTIVE),
 
-    EpsilonConfiguration(1, BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(1, BIAS_STRATEGY.IGNORE),
-    EpsilonConfiguration(1, BIAS_STRATEGY.ACTIVE),
+    EpsilonConfiguration(0.01, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(0.01, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(0.01, BIAS_STRATEGY.ACTIVE),
 
     EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
     EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),

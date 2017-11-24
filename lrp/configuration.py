@@ -3,7 +3,7 @@ class LAYER:
     ELEMENTWISE_LINEAR = 0
     CONVOLUTIONAL = 1
     SPARSE_LINEAR = 2
-    MAX_POOOING = 3
+    MAX_POOLING = 3
     LINEAR = 4
     EMPTY = 5
     LSTM = 6
@@ -113,7 +113,7 @@ class LRPConfiguration(object):
             LAYER.ELEMENTWISE_LINEAR: EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.ACTIVE),
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
             LAYER.LSTM: EpsilonConfiguration(),
-            LAYER.MAX_POOOING: LayerConfiguration(RULE.WINNER_TAKE_ALL)
+            LAYER.MAX_POOLING: LayerConfiguration(RULE.WINNER_TAKE_ALL)
         }
 
     @property

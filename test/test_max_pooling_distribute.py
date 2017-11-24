@@ -24,7 +24,7 @@ class TestMaxPoolingDistribute(unittest.TestCase):
             output = tf.reshape(activation, (1, 4))
 
             config = LRPConfiguration()
-            config.set(LAYER.MAX_POOOING, EpsilonConfiguration())
+            config.set(LAYER.MAX_POOLING, EpsilonConfiguration())
 
             explanation = lrp.lrp(input, output, config)
 

@@ -137,7 +137,7 @@ def max_pooling(router, R):
 
         return linear_R_new
 
-    config = router.get_configuration(LAYER.MAX_POOOING)
+    config = router.get_configuration(LAYER.MAX_POOLING)
     if config.type == RULE.WINNER_TAKE_ALL:
         relevances = _winners_takes_all()
     else:

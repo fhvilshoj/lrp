@@ -18,9 +18,10 @@ class RULE:
 
 # Bias strategy
 class BIAS_STRATEGY:
-    ACTIVE = 0
-    NONE = 1
-    ALL = 2
+    IGNORE = 0
+    ACTIVE = 1
+    NONE = 2
+    ALL = 3
 
 
 class LOG_LEVEL:
@@ -46,6 +47,8 @@ class LayerConfiguration:
             bias_strategy = 'ac'
         elif self._bias_strategy == BIAS_STRATEGY.ALL:
             bias_strategy = 'al'
+        elif self._bias_strategy == BIAS_STRATEGY.IGNORE:
+            bias_strategy = 'ig'
         else:
             bias_strategy = 'no'
         return bias_strategy

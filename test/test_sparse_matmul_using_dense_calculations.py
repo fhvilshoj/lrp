@@ -35,13 +35,23 @@ class TestSparseMatMulUsingDenseCalculations(unittest.TestCase):
         expected_result = [[0., 0., 2.2352, 29.8039]]
         self._do_test(expected_result)
 
-    def test_linear_with_beta(self):
+    def test_linear_with_beta_no_bias(self):
         # Prepare configuration of linear layer
         config = LRPConfiguration()
         config.set(LAYER.SPARSE_LINEAR, AlphaBetaConfiguration(alpha=2, beta=-1))
         config.set(LAYER.LINEAR, AlphaBetaConfiguration(alpha=2, beta=-1))
 
         expected_result = [[-80.14545455, 9.566433566, -28.36791444, 125.5933087]]
+
+        self._do_test(expected_result, config)
+
+    def test_linear_with_beta_ignore_bias(self):
+        # Prepare configuration of linear layer
+        config = LRPConfiguration()
+        config.set(LAYER.SPARSE_LINEAR, AlphaBetaConfiguration(alpha=2, beta=-1, bias_strategy=BIAS_STRATEGY.IGNORE))
+        config.set(LAYER.LINEAR, AlphaBetaConfiguration(alpha=2, beta=-1, bias_strategy=BIAS_STRATEGY.IGNORE))
+
+        expected_result = [[-83.6, 22.8, -57.79534884, 156.5953488]]
 
         self._do_test(expected_result, config)
 
@@ -62,6 +72,16 @@ class TestSparseMatMulUsingDenseCalculations(unittest.TestCase):
         config.set(LAYER.LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.NONE))
 
         expected_result = [[0., -12, 21, 32]]
+
+        self._do_test(expected_result, config)
+
+    def test_linear_with_epsilon_ignore_bias(self):
+        # Prepare configuration of linear layer
+        config = LRPConfiguration()
+        config.set(LAYER.SPARSE_LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.IGNORE, epsilon=1e-12))
+        config.set(LAYER.LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.IGNORE, epsilon=1e-12))
+
+        expected_result = [[-5302325581397, 31813953488372, -47720930232555, 21209302325624]]
 
         self._do_test(expected_result, config)
 

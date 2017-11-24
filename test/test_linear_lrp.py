@@ -42,6 +42,16 @@ class LinearLRPTest(unittest.TestCase):
 
         self.do_test_with_config_and_result(expected_result, config)
 
+
+    def test_linear_lrp_alpha_beta_ignore_bias(self):
+        # Prepare configuration of linear layer
+        config = LRPConfiguration()
+        config.set(LAYER.LINEAR, AlphaBetaConfiguration(alpha=2, beta=-1, bias_strategy=BIAS_STRATEGY.IGNORE))
+
+        expected_result = [[-83.6, 22.8, -57.79534884, 156.5953488]]
+
+        self.do_test_with_config_and_result(expected_result, config)
+
     def test_linear_with_flat(self):
         # Prepare configuration of linear layer
         config = LRPConfiguration()
@@ -75,6 +85,16 @@ class LinearLRPTest(unittest.TestCase):
         config.set(LAYER.LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.NONE))
 
         expected_result = [[0., -12, 21, 32]]
+
+        self.do_test_with_config_and_result(expected_result, config)
+
+
+    def test_linear_with_epsilon_ignore_bias(self):
+        # Prepare configuration of linear layer
+        config = LRPConfiguration()
+        config.set(LAYER.LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.IGNORE, epsilon=1e-12))
+
+        expected_result = [[-5302325581397, 31813953488372, -47720930232555, 21209302325624]]
 
         self.do_test_with_config_and_result(expected_result, config)
 
@@ -146,6 +166,7 @@ class LinearLRPTest(unittest.TestCase):
                 # Run the operations of interest and feed an input to the network
                 prediction, explanation = sess.run([pred, expl], feed_dict={inp: [[1, -2, 3, 4]]})
 
+                print(explanation)
                 # Check if the predictions has the right shape
                 self.assertEqual(prediction.shape, (1, 2), msg="Should be able to do a linear forward pass")
                 # Check if the relevance scores are correct (the correct values

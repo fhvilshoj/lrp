@@ -131,8 +131,10 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     # Calculate the output of the layer
     output = tf.matmul(input, weights)
     # Only add bias when bias is not none
-    if bias is not None:
+    if bias is not None and config.bias_strategy != BIAS_STRATEGY.IGNORE:
         output += bias
+
+    output = tf.Print(output, [output], "OUTPUT epsilon", summarize=100)
 
     # Prepare batch for elementwise multiplication
     # Shape of input: (batch_size, input_width)
@@ -143,18 +145,23 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     # feature i to neuron j for input k
     # Shape of zs: (batch_size, input_width, output_width)
     zs = tf.multiply(input, weights)
-
+    zs = tf.Print(zs, [zs], "ZS epsilon", summarize=100)
     # When bias is given divide it equally among the i's to avoid relevance loss
-    if bias is not None:
+
+    output_sign = tf.sign(output)
+    output_sign = tf.where(tf.equal(output_sign, 0), tf.ones_like(output_sign), output_sign)
+
+    if bias is not None and config.bias_strategy != BIAS_STRATEGY.IGNORE:
         # Find the bias to divide among the rows (This includes the stabilizer: epsilon)
         # Shape: (output_width) or (batch, output_width)
-        bias_to_divide = (BIAS_DELTA * bias + config.epsilon * tf.sign(output))
+        bias_to_divide = (BIAS_DELTA * bias + config.epsilon * output_sign)
 
         zs = _divide_bias_among_zs(config, zs, bias_to_divide)
 
     # Add stabilizer to denominator to avoid dividing with 0
     # Shape of denominator: (batch, output_width)
-    denominator = output + config.epsilon * tf.sign(output)
+    denominator = output + config.epsilon * output_sign
+    denominator = tf.Print(denominator, [denominator], summarize=100, message="Epsilon denominator")
 
     # Expand the second to last dimension to be able to divide the denominator through the rows of zs
     # Shape after expand_dims: (batch, 1, output_width)
@@ -168,6 +175,7 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     # Shape of fractions after transpose: (batch_size, output_width, input_width)
     fractions = tf.transpose(fractions, [0, 2, 1])
 
+    fractions = tf.Print(fractions, [config.epsilon, fractions], "Fractions epsilon", summarize=100)
     # Multiply relevances with fractions to find relevance per feature in input
     # Shape of R: (batch_size, predictions_per_sample, output_width)
     # Shape of fractions: (batch_size, output_width, input_width)
@@ -199,20 +207,18 @@ def _linear_alpha(R, input, weights, config, bias=None):
         zj_sum = tf.reduce_sum(zijs, axis=1, keep_dims=True)
 
         # Find and add the positive parts of an eventual bias (i.e. find and add the b^+s).
-        if bias is not None:
+        if bias is not None and config.bias_strategy != BIAS_STRATEGY.IGNORE:
             # Filter elements in bias to either positives of negatives according to selection callable
             bias_filtered = selection(bias)
+
             # Divide the bias according to the current configuration
             zijs = _divide_bias_among_zs(config, zijs, bias_filtered)
 
-            # Add stabilizer to bias to be able to split that as well
-            zj_sum = stabilizer_operation(zj_sum, EPSILON)
-
             # Add the sum of the z_ij^+'s and the positive bias (i.e. find the z_j^+'s)
             zj_sum = tf.add(zj_sum, bias_filtered)
-        else:
-            # Add stabilizer to the denominator
-            zj_sum = stabilizer_operation(zj_sum, EPSILON)
+
+        # Add stabilizer to the denominator
+        zj_sum = stabilizer_operation(zj_sum, EPSILON)
 
         # Find the relative contribution from feature i to neuron j for input k
         # Shape of fractions: (batch_size, input_width, output_width)
@@ -284,13 +290,6 @@ def elementwise_linear(router, R):
     layer_config = router.get_configuration(LAYER.ELEMENTWISE_LINEAR)
     R_new = linear_with_config(R, new_input, weights, layer_config, bias)
 
-    # if layer_config.type == ALPHA_BETA_RULE:
-    #     # Calculate new relevances with the alpha rule
-    #     R_new = linear_alpha(R, new_input, weights, bias=bias, alpha=layer_config.alpha, beta=layer_config.beta)
-    # elif layer_config.type == EPSILON_RULE:
-    #     # Calculate new relevances with the epsilon rule
-    #     R_new = linear_epsilon(R, new_input, weights, bias=bias, epsilon=layer_config.epsilon)
-
     # Turn the calculated relevances into the correct form if the rank of the input was > 2
     def _revert_rank2():
         return R_new
@@ -355,13 +354,6 @@ def linear(router, R):
 
     layer_config = router.get_configuration(LAYER.LINEAR)
     R_new = linear_with_config(R, input, weights, layer_config, bias)
-    # if layer_config.type == ALPHA_BETA_RULE:
-    #     # Calculate new relevances with the alpha rule
-    #     R_new = linear_alpha(R, input, weights, bias=bias, alpha=layer_config.alpha, beta=layer_config.beta)
-    # elif layer_config.type == EPSILON_RULE:
-    #     # Calculate new relevances with the epsilon rule
-    #     R_new = linear_epsilon(R, input, weights, bias=bias, epsilon=layer_config.epsilon)
-
 
     # Mark handled operations
     router.mark_operation_handled(tensor.op)
@@ -386,7 +378,7 @@ def _sparse_ww(config, zijs, bias):
 def _sparse_distribute_bias(config, zijs, bias):
     # Return if bias or the bias strategy is none or throw error if it is all
     # since all will kill the memory (remember we are in sparse land here ;) )
-    if bias is None:
+    if bias is None or config.bias_strategy == BIAS_STRATEGY.IGNORE:
         return zijs
     if config.bias_strategy == BIAS_STRATEGY.NONE:
         return zijs
@@ -423,8 +415,12 @@ def _sparse_epsilon(config, Rs, predictions_per_sample, zijs, bias):
     zj = tf.sparse_reduce_sum(zijs, 1, keep_dims=True)
 
     # Prepare sparse tensor with duplicated bias for addition with zj
-    if bias is not None:
-        zj = zj + bias + config.epsilon
+    if bias is not None and config.bias_strategy != BIAS_STRATEGY.IGNORE:
+        zj = zj + bias
+
+    zj_sign = tf.sign(zj)
+    zj_sign = tf.where(tf.equal(zj, 0), tf.ones_like(zj_sign), zj_sign)
+    zj += zj_sign * config.epsilon
 
     # Distribute bias according to config
     zijs = _sparse_distribute_bias(config, zijs, bias)
@@ -440,7 +436,7 @@ def _sparse_epsilon(config, Rs, predictions_per_sample, zijs, bias):
 
 
 def _sparse_alpha(config, Rs, predictions_per_sample, zijs, bias):
-    def _selective_Rs(selection):
+    def _selective_Rs(selection, stabilizer):
         selection_values = selection(zijs.values)
         zijs_selection = tf.SparseTensor(zijs.indices, selection_values, zijs.dense_shape)
 
@@ -448,13 +444,13 @@ def _sparse_alpha(config, Rs, predictions_per_sample, zijs, bias):
         zj = tf.sparse_reduce_sum(zijs_selection, 1, keep_dims=True)
         b = bias
         # If there is actually
-        if b is not None:
+        if b is not None and config.bias_strategy != BIAS_STRATEGY.IGNORE:
             # Filter bias
             b = selection(b)
             zj = zj + b
 
         # Add stabilizer
-        zj = zj + EPSILON
+        zj = stabilizer(zj, EPSILON)
 
         # Distribute bias according to the current configuration
         zijs_selection = _sparse_distribute_bias(config, zijs_selection, b)
@@ -467,10 +463,10 @@ def _sparse_alpha(config, Rs, predictions_per_sample, zijs, bias):
                                              predictions_per_sample, fractions)
 
     # Scale the positive relevances by the alpha value of the configuration
-    R_positive = _selective_Rs(lrp_util.replace_negatives_with_zeros) * config.alpha
+    R_positive = _selective_Rs(lrp_util.replace_negatives_with_zeros, tf.add) * config.alpha
 
     # Scale the negative relevances by the beta value of the configuration
-    R_negative = _selective_Rs(lrp_util.replace_positives_with_zeros) * config.beta
+    R_negative = _selective_Rs(lrp_util.replace_positives_with_zeros, tf.subtract) * config.beta
 
     # Return the sum of the positive and the negative relevances
     return tf.sparse_add(R_positive, R_negative)

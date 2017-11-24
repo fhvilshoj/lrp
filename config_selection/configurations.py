@@ -1,80 +1,92 @@
 from lrp.configuration import *
 
 linear_configurations = [
-    AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.ACTIVE),
-    # AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.ALL),
-    # AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.NONE),
-    # AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.ACTIVE),
-    AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.ALL),
-    # AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.NONE),
-    # EpsilonConfiguration(1e-3, BIAS_STRATEGY.ALL),
-    # EpsilonConfiguration(1e-3, BIAS_STRATEGY.ACTIVE),
     EpsilonConfiguration(1e-3, BIAS_STRATEGY.NONE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.ALL),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.ACTIVE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(1e-3, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(1e-3, BIAS_STRATEGY.ACTIVE),
+
+    EpsilonConfiguration(1, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(1, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(1, BIAS_STRATEGY.ACTIVE),
+
+    EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
+
+    EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(100, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(100, BIAS_STRATEGY.ACTIVE),
+
+    AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.NONE),
+    AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.IGNORE),
+    AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.ACTIVE),
+
+    AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.NONE),
+    AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.IGNORE),
+    AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.ACTIVE),
+
     WWConfiguration()
 ]
-elementwise_linear_configurations = [
-    # AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.ACTIVE),
-    # AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.NONE),
-    # AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.ACTIVE),
-    # AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.ACTIVE),
-    # EpsilonConfiguration(1e-3, BIAS_STRATEGY.NONE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.ACTIVE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
-]
-sparse_linear_configurations = [
-    AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.ACTIVE),
-    # AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.NONE),
-    AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.ACTIVE),
-    # AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.ACTIVE),
-    # EpsilonConfiguration(1e-3, BIAS_STRATEGY.NONE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.ACTIVE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
-]
+
 conv_configurations = [
-    AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.ACTIVE),
-    # AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.ALL),
-    # AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.NONE),
-    AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.ACTIVE),
-    # AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.ALL),
-    # AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(1e-3, BIAS_STRATEGY.ALL),
-    # EpsilonConfiguration(1e-3, BIAS_STRATEGY.ACTIVE),
-    # EpsilonConfiguration(1e-3, BIAS_STRATEGY.NONE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.ALL),
-    EpsilonConfiguration(100, BIAS_STRATEGY.ACTIVE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
-    # WWConfiguration()
-]
-lstm_configurations = [
-    # EpsilonConfiguration(1e-3, BIAS_STRATEGY.ALL),
+    # Naive
+    EpsilonConfiguration(1e-3, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(1e-3, BIAS_STRATEGY.IGNORE),
     EpsilonConfiguration(1e-3, BIAS_STRATEGY.ACTIVE),
-    # EpsilonConfiguration(1e-3, BIAS_STRATEGY.NONE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.ALL),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.ACTIVE),
-    # EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
-    # WWConfiguration()
+
+    EpsilonConfiguration(1, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(1, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(1, BIAS_STRATEGY.ACTIVE),
+
+    EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
+
+    EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
+    EpsilonConfiguration(100, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(100, BIAS_STRATEGY.ACTIVE),
+
+    AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.NONE),
+    AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.IGNORE),
+    AlphaBetaConfiguration(2, -1, BIAS_STRATEGY.ACTIVE),
+
+    AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.NONE),
+    AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.IGNORE),
+    AlphaBetaConfiguration(1, 0, BIAS_STRATEGY.ACTIVE),
+
+    WWConfiguration()
 ]
 
+lstm_configurations = [
+    EpsilonConfiguration(1e-3, BIAS_STRATEGY.ALL),
+    EpsilonConfiguration(1e-3, BIAS_STRATEGY.IGNORE),
+]
+
+max_pooling_configurations = [
+    LayerConfiguration(RULE.WINNER_TAKE_ALL),
+    EpsilonConfiguration()
+]
 
 def get_configurations():
     configurations = []
 
     for lin_conf in linear_configurations:
-        for ele_conf in elementwise_linear_configurations:
-            for spa_conf in sparse_linear_configurations:
-                for conv_conf in conv_configurations:
-                    for lstm_conf in lstm_configurations:
+        for conv_conf in conv_configurations:
+            for lstm_conf in lstm_configurations:
+                for max_conf in max_pooling_configurations:
+                    for i in range(2):
                         config = LRPConfiguration()
+
                         config.set(LAYER.LINEAR, lin_conf)
-                        config.set(LAYER.ELEMENTWISE_LINEAR, ele_conf)
-                        config.set(LAYER.SPARSE_LINEAR, spa_conf)
+                        config.set(LAYER.SPARSE_LINEAR, lin_conf)
                         config.set(LAYER.CONVOLUTIONAL, conv_conf)
+                        config.set(LAYER.MAX_POOLING, max_conf)
                         config.set(LAYER.LSTM, lstm_conf)
+
+                        if i == 0:
+                            config.set(LAYER.ELEMENTWISE_LINEAR, lin_conf)
+                        else:
+                            config.set(LAYER.ELEMENTWISE_LINEAR, FlatConfiguration())
 
                         configurations.append(config)
     return configurations

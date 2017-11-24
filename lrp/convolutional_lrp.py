@@ -72,14 +72,13 @@ def convolutional(router, R):
     # Reshape finters to suit linear
     linear_filters = tf.reshape(filters, (-1, output_channels))
 
-    # Find the number of predictions per sample from R
-    relevances_shape = tf.shape(R)
-    predictions_per_sample = relevances_shape[1]
-
     # Transpose relevances to suit linear
     # Shape goes from (batch_size, predictions_per_sample, out_height, out_width, out_channels)
     # to: (batch_size, out_height, out_width, predictions_per_sample, out_channels)
     R_shape = tf.shape(R)
+
+    # Find the number of predictions per sample from R
+    predictions_per_sample = R_shape[1]
 
     # Make transpose order (0, 2, .. , 1, last_dim)
     # This in necessary because for conv1d the output might have been expanded which

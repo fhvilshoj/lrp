@@ -103,6 +103,20 @@ class WWConfiguration(LayerConfiguration):
     def __str__(self) -> str:
         return 'ww'
 
+class BaseConfiguration(LayerConfiguration):
+    def __init__(self, layer, **kwargs):
+        super().__init__(layer, **kwargs)
+
+    def __str__(self) -> str:
+        rule = ""
+        if self.type == RULE.WINNERS_TAKE_ALL:
+            rule = "win"
+        elif self.type == RULE.FLAT:
+            rule = "flat"
+        else:
+            rule = "unknown"
+        return rule
+
 
 class LRPConfiguration(object):
     def __init__(self):
@@ -137,8 +151,9 @@ class LRPConfiguration(object):
             return LayerConfiguration(LAYER.EMPTY)
 
     def __str__(self) -> str:
-        return "LIN_{0}_ELE_{1}_SPA_{2}_CONV_{3}_LSTM_{4}".format(self._rules[LAYER.LINEAR],
-                                                                  self._rules[LAYER.ELEMENTWISE_LINEAR],
-                                                                  self._rules[LAYER.SPARSE_LINEAR],
-                                                                  self._rules[LAYER.CONVOLUTIONAL],
-                                                                  self._rules[LAYER.LSTM])
+        return "LIN_{0}_ELE_{1}_SPA_{2}_CONV_{3}_MAX_{4}_LSTM_{5}".format(self._rules[LAYER.LINEAR],
+                                                                          self._rules[LAYER.ELEMENTWISE_LINEAR],
+                                                                          self._rules[LAYER.SPARSE_LINEAR],
+                                                                          self._rules[LAYER.CONVOLUTIONAL],
+                                                                          self._rules[LAYER.MAX_POOLING],
+                                                                          self._rules[LAYER.LSTM])

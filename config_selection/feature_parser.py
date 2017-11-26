@@ -3,7 +3,7 @@ from data_loader import sparse_merge
 
 
 class FeatureParser(object):
-    def __init__(self, feature_file, single_feature_size, context_size, batch_size):
+    def __init__(self, feature_file, single_feature_size, context_size, batch_size, **kwargs):
         self.feature_file = feature_file
         self.batch_size = batch_size
 

@@ -4,9 +4,10 @@ class LAYER:
     CONVOLUTIONAL = 1
     SPARSE_LINEAR = 2
     MAX_POOLING = 3
-    LINEAR = 4
-    EMPTY = 5
-    LSTM = 6
+    SOFTMAX = 4
+    LINEAR = 5
+    EMPTY = 6
+    LSTM = 7
 
 
 # Rules
@@ -103,6 +104,7 @@ class WWConfiguration(LayerConfiguration):
     def __str__(self) -> str:
         return 'ww'
 
+
 class BaseConfiguration(LayerConfiguration):
     def __init__(self, layer, **kwargs):
         super().__init__(layer, **kwargs)
@@ -127,7 +129,8 @@ class LRPConfiguration(object):
             LAYER.ELEMENTWISE_LINEAR: EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.ACTIVE),
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
             LAYER.LSTM: EpsilonConfiguration(),
-            LAYER.MAX_POOLING: LayerConfiguration(RULE.WINNERS_TAKE_ALL)
+            LAYER.MAX_POOLING: LayerConfiguration(RULE.WINNERS_TAKE_ALL),
+            LAYER.SOFTMAX: AlphaBetaConfiguration(alpha=2, beta=-1)
         }
 
     @property
@@ -151,9 +154,10 @@ class LRPConfiguration(object):
             return LayerConfiguration(LAYER.EMPTY)
 
     def __str__(self) -> str:
-        return "LIN_{0}_ELE_{1}_SPA_{2}_CONV_{3}_MAX_{4}_LSTM_{5}".format(self._rules[LAYER.LINEAR],
-                                                                          self._rules[LAYER.ELEMENTWISE_LINEAR],
-                                                                          self._rules[LAYER.SPARSE_LINEAR],
-                                                                          self._rules[LAYER.CONVOLUTIONAL],
-                                                                          self._rules[LAYER.MAX_POOLING],
-                                                                          self._rules[LAYER.LSTM])
+        return "LIN_{0}_ELE_{1}_SPA_{2}_CONV_{3}_MAX_{4}_LSTM_{5}_SM_{6}".format(self._rules[LAYER.LINEAR],
+                                                                                 self._rules[LAYER.ELEMENTWISE_LINEAR],
+                                                                                 self._rules[LAYER.SPARSE_LINEAR],
+                                                                                 self._rules[LAYER.CONVOLUTIONAL],
+                                                                                 self._rules[LAYER.MAX_POOLING],
+                                                                                 self._rules[LAYER.LSTM],
+                                                                                 self._rules[LAYER.SOFTMAX])

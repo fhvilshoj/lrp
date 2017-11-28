@@ -37,7 +37,7 @@ class _LRPImplementation:
     def should_log(self):
         return self._configuration.log_level == LOG_LEVEL.VERBOSE
 
-    def lrp(self, input, output, configuration=None, R=None):
+    def lrp(self, input, output, configuration=None, R=None, **kwargs):
         # Remember input and output
         self._input = input
         self._output = output
@@ -48,7 +48,7 @@ class _LRPImplementation:
         # Find relevance to distribute from the output if the relevance tensor
         # is not already defined
         if R is None:
-            R = self._find_starting_point_relevances(output)
+            R = self._find_starting_point_relevances(output, **kwargs)
 
         # Fill structures
         g = output.op.graph
@@ -156,7 +156,7 @@ class _LRPImplementation:
 
         # If the user has provided the indexes of the number_of_classes of interest, use those. If not, find
         # the indexes by finding the class with the largest prediction score for each sample
-        max_score_indices = user_chosen_indices if user_chosen_indices else tf.argmax(predictions, axis=-1)
+        max_score_indices = user_chosen_indices if user_chosen_indices is not None else tf.argmax(predictions, axis=-1)
 
         # Create a tensor that for each sample has a one at the position of the class of interest and
         # zeros in all other positions
@@ -194,14 +194,14 @@ class _LRPImplementation:
 
 # The purpose of this method is to have a handle for test cases where
 # the relevence is predefined
-def _lrp(input, output, configuration, R=None):
+def _lrp(input, output, configuration, R=None, **kwargs):
     # Instantiate a LRP object
     impl = _LRPImplementation()
     # Return the relevances computed from the object
-    return impl.lrp(input, output, configuration, R)
+    return impl.lrp(input, output, configuration, R, **kwargs)
 
 
-def lrp(input, output, configuration=None):
+def lrp(input, output, configuration=None, **kwargs):
     """
     lrp main function
     :param input: Expecting a tensor containing a single input causing the output
@@ -209,4 +209,4 @@ def lrp(input, output, configuration=None):
     :param configuration: Expecting LRPConfiguration object
     :return: Tensor of input size containing a relevance score for each feature of the input
     """
-    return _lrp(input, output, configuration)
+    return _lrp(input, output, configuration, **kwargs)

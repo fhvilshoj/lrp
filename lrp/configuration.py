@@ -130,7 +130,7 @@ class LRPConfiguration(object):
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
             LAYER.LSTM: EpsilonConfiguration(),
             LAYER.MAX_POOLING: LayerConfiguration(RULE.WINNERS_TAKE_ALL),
-            LAYER.SOFTMAX: AlphaBetaConfiguration(alpha=2, beta=-1)
+            LAYER.SOFTMAX: EpsilonConfiguration()
         }
 
     @property

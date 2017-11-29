@@ -66,7 +66,9 @@ def print_array_from_paste_book():
             arr.append(
                 list(map(lambda str: float(str.replace(",", ".")) if "," in str else int(str), line.split("	"))))
 
-    copy2clip(str(arr).replace('],', '],\n'))
+    array_str = str(arr).replace('],', '],\n')
+    print(array_str)
+    copy2clip(array_str)
 
 
 def dense_to_sparse(dense):

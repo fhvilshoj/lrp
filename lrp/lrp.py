@@ -34,6 +34,9 @@ class _LRPImplementation:
         # Remember if there has been added an dimension to the starting point relevances
         self.starting_point_relevances_had_predictions_per_sample_dimension = True
 
+        # Remember if we are close to the input in the sense of contexts
+        self.final_context = False
+
     def should_log(self):
         return self._configuration.log_level == LOG_LEVEL.VERBOSE
 
@@ -69,6 +72,12 @@ class _LRPImplementation:
     def is_operation_handled(self, operation):
         return self.handled_operations[operation._id]
 
+    def is_final_context(self):
+        return self.final_context
+
+    def get_first_layer_zb(self):
+        return self._configuration.get_first_layer_zb()
+
     def forward_relevance_to_operation(self, relevance, relevance_producer, relevance_receiver):
         if self.should_log():
             message = "\nRelevance sum from {} to {}: \n".format(relevance_producer.type, relevance_receiver.type)
@@ -96,7 +105,8 @@ class _LRPImplementation:
         context_switch = ContextHandlerSwitch(self)
 
         # Handle each context separately by routing the context through the context switch
-        for current_context in self.contexts:
+        for idx, current_context in enumerate(self.contexts):
+            self.final_context = len(self.contexts) == idx + 1
             context_switch.handle_context(current_context)
 
         # Sum the potentially multiple relevances calculated for the input

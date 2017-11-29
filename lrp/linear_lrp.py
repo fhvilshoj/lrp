@@ -119,7 +119,7 @@ def _divide_bias_among_zs(config, zs, bias_to_divide):
 
 def _linear_epsilon(R, input, weights, config, bias=None):
     """
-    Simple linear layer used for partial computations of LSTM
+    Epsilon rule implementation
     :param R: tensor of relevance to distribute. Shape: (batch_size, output_width)
     :param input: The input tensor. Shape: (batch_size, input_width)
     :param weights: The kernel weights. Shape: (input_width, output_width)
@@ -167,6 +167,76 @@ def _linear_epsilon(R, input, weights, config, bias=None):
     # Find the relative contribution from feature i to neuron j for input k
     # Shape of fractions: (batch_size, input_width, output_width)
     fractions = tf.divide(zs, denominator)
+
+    # Prepare the fractions for the matmul below
+    # Shape of fractions after transpose: (batch_size, output_width, input_width)
+    fractions = tf.transpose(fractions, [0, 2, 1])
+
+    # Multiply relevances with fractions to find relevance per feature in input
+    # Shape of R: (batch_size, predictions_per_sample, output_width)
+    # Shape of fractions: (batch_size, output_width, input_width)
+    # Shape of R_new: (batch_size, predictions_per_sample, input_width)
+    R_new = tf.matmul(R, fractions)
+
+    return R_new
+
+
+def _linear_zb(R, input, weights, config, bias=None):
+    """
+    Implementation of Zb rule
+    :param R: tensor of relevance to distribute. Shape: (batch_size, output_width)
+    :param input: The input tensor. Shape: (batch_size, input_width)
+    :param weights: The kernel weights. Shape: (input_width, output_width)
+    :param output: Optional output tensor. Shape: (batch_size, output_width)
+           If none output is calculated as input times weights plus bias.
+    :param bias: Optional tensor with bias. Shape: (output_width) or (batch_size, output_width)
+    :return: Redistributed relevance. Shape: (batch_size, input_width)
+    """
+    # Shapes: (input_width, output_width)
+    positive_weights = lrp_util.replace_negatives_with_zeros(weights) * config.low
+    negative_weights = lrp_util.replace_positives_with_zeros(weights) * config.high
+
+    # Prepare batch for elementwise multiplication
+    # Shape of input: (batch_size, input_width)
+    # Shape of input after expand_dims: (batch_size, input_width, 1)
+    input = tf.expand_dims(input, -1)
+
+    # Perform elementwise multiplication of input, weights to get z_kij which is the contribution from
+    # feature i to neuron j for input k
+    # Shape of zs: (batch_size, input_width, output_width)
+    zs = tf.multiply(input, weights)
+
+    # Shape of zs_lwp_hwn: (batch_size, input_width, output_width)
+    zs_lwp_hwn = zs - positive_weights - negative_weights
+
+    # Shape of output: (batch_size, 1, output_width)
+    output = tf.reduce_sum(zs_lwp_hwn, axis=1)
+
+    # Only add bias when bias is not none
+    if bias is not None and config.bias_strategy != BIAS_STRATEGY.IGNORE:
+        output += bias
+
+    # When bias is given divide it equally among the i's to avoid relevance loss
+    output_sign = tf.sign(output)
+    output_sign = tf.where(tf.equal(output_sign, 0), tf.ones_like(output_sign), output_sign)
+
+    if bias is not None and config.bias_strategy != BIAS_STRATEGY.IGNORE:
+        # Find the bias to divide among the rows (This includes the stabilizer: epsilon)
+        # Shape: (output_width) or (batch, output_width)
+        bias_to_divide = bias + output_sign * 1e-12
+        zs_lwp_hwn = _divide_bias_among_zs(config, zs_lwp_hwn, bias_to_divide)
+
+    # Add stabilizer to denominator to avoid dividing with 0
+    # Shape of denominator: (batch, output_width)
+    denominator = output + 1e-12 * output_sign
+
+    # Expand the second to last dimension to be able to divide the denominator through the rows of zs
+    # Shape after expand_dims: (batch, 1, output_width)
+    denominator = tf.expand_dims(denominator, -2)
+
+    # Find the relative contribution from feature i to neuron j for input k
+    # Shape of fractions: (batch_size, input_width, output_width)
+    fractions = tf.divide(zs_lwp_hwn, denominator)
 
     # Prepare the fractions for the matmul below
     # Shape of fractions after transpose: (batch_size, output_width, input_width)
@@ -329,6 +399,8 @@ def linear_with_config(R, input, weights, configuration, bias=None):
         handler = _linear_flat
     elif config_rule == RULE.WW:
         handler = _linear_ww
+    elif config_rule == RULE.ZB:
+        handler = _linear_zb
 
     return handler(R, input, weights, configuration, bias)
 
@@ -394,7 +466,8 @@ def _sparse_distribute_bias(config, zijs, bias):
 
     # Dense Shape (batch_size, input_width, output_width)
     indicators = tf.SparseTensor(zijs.indices,
-                                 tf.where(tf.equal(zijs.values, 0), tf.zeros_like(zijs.values), tf.ones_like(zijs.values)),
+                                 tf.where(tf.equal(zijs.values, 0), tf.zeros_like(zijs.values),
+                                          tf.ones_like(zijs.values)),
                                  zijs.dense_shape)
 
     # Count all the indicators in each column

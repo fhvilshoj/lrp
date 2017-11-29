@@ -17,6 +17,7 @@ class RULE:
     EPSILON = 2
     FLAT = 3
     WW = 4
+    ZB = 5
 
 
 # Bias strategy
@@ -105,6 +106,24 @@ class WWConfiguration(LayerConfiguration):
         return 'ww'
 
 
+class ZbConfiguration(LayerConfiguration):
+    def __init__(self, low, high, bias_strategy):
+        super().__init__(RULE.ZB, bias_strategy=bias_strategy)
+        self._low = low
+        self._high = high
+
+    @property
+    def low(self):
+        return self._low
+
+    @property
+    def high(self):
+        return self._high
+
+    def __str__(self):
+        return 'zb_l{}_h{}'.format(self._low, self._high)
+
+
 class BaseConfiguration(LayerConfiguration):
     def __init__(self, layer, **kwargs):
         super().__init__(layer, **kwargs)
@@ -132,6 +151,7 @@ class LRPConfiguration(object):
             LAYER.MAX_POOLING: LayerConfiguration(RULE.WINNERS_TAKE_ALL),
             LAYER.SOFTMAX: EpsilonConfiguration()
         }
+        self._zb = {}
 
     @property
     def log_level(self):
@@ -140,6 +160,12 @@ class LRPConfiguration(object):
     @log_level.setter
     def log_level(self, level):
         self._log_level = level
+
+    def set_first_layer_zb(self, low, high, bias_strategy=BIAS_STRATEGY.IGNORE):
+        self._zb = {'low': low, 'high': high, 'bias_strategy': bias_strategy}
+
+    def get_first_layer_zb(self):
+        return self._zb
 
     def set(self, layer_type, configuration):
         if layer_type in self._rules:
@@ -154,10 +180,14 @@ class LRPConfiguration(object):
             return LayerConfiguration(LAYER.EMPTY)
 
     def __str__(self) -> str:
-        return "LIN_{0}_ELE_{1}_SPA_{2}_CONV_{3}_MAX_{4}_LSTM_{5}_SM_{6}".format(self._rules[LAYER.LINEAR],
-                                                                                 self._rules[LAYER.ELEMENTWISE_LINEAR],
-                                                                                 self._rules[LAYER.SPARSE_LINEAR],
-                                                                                 self._rules[LAYER.CONVOLUTIONAL],
-                                                                                 self._rules[LAYER.MAX_POOLING],
-                                                                                 self._rules[LAYER.LSTM],
-                                                                                 self._rules[LAYER.SOFTMAX])
+        s = "LIN_{0}_ELE_{1}_SPA_{2}_CONV_{3}_MAX_{4}_LSTM_{5}_SM_{6}".format(self._rules[LAYER.LINEAR],
+                                                                              self._rules[LAYER.ELEMENTWISE_LINEAR],
+                                                                              self._rules[LAYER.SPARSE_LINEAR],
+                                                                              self._rules[LAYER.CONVOLUTIONAL],
+                                                                              self._rules[LAYER.MAX_POOLING],
+                                                                              self._rules[LAYER.LSTM],
+                                                                              self._rules[LAYER.SOFTMAX])
+        if self._zb:
+            s += "_ZB_l{low}_h{high}".format(**self._zb)
+
+        return s

@@ -1,3 +1,4 @@
+from configuration import LAYER, ZbConfiguration
 from lrp import lrp_util
 from lrp.context_handler import ContextHandler
 from lrp.convolutional_lrp import convolutional
@@ -43,16 +44,60 @@ class StandardContextHandler(ContextHandler):
     def __init__(self, router):
         super().__init__(router)
         self.current_path_index = 0
+        self.zb_info = {}
+        self.zb_path_index = -1
 
     def get_current_operation(self):
         # return the operation at the current path index of the context path
         return self.context[CONTEXT_PATH][self.current_path_index]
 
+    def get_configuration(self, layer):
+        if self.current_path_index == self.zb_path_index:
+            # Check if final layer and return zb configuration
+            return ZbConfiguration(**self.zb_info)
+        else:
+            return super(StandardContextHandler, self).get_configuration(layer)
+
+    def _find_add_if_exists(self, reverse_index):
+        path = self.context[CONTEXT_PATH]
+        path = path[:len(path) - reverse_index - 1]
+
+        for i, op in enumerate(reversed(path)):
+            if op.type in ['Add', 'BiasAdd']:
+                return reverse_index + 1 + i
+            elif self._is_real_layer(op):
+                return reverse_index
+
+        return reverse_index
+
+    @staticmethod
+    def _is_real_layer(op):
+        return op.type in ['MatMul', 'Mul', 'Conv2D', 'MaxPool', 'Softmax']
+
+    @staticmethod
+    def _is_zb_supported(op):
+        return op.type in ['MatMul', 'Conv2D']
+
+    def _find_first_real_layer(self):
+        current_path = self.context[CONTEXT_PATH]
+        for rev_idx, op in enumerate(reversed(current_path)):
+            if self._is_real_layer(op):
+                if self._is_zb_supported(op):
+                    # First real layer supports zb rule and zb rule is activated
+                    self.zb_path_index = len(current_path) - self._find_add_if_exists(rev_idx) - 1
+                break
+
     def handle_context(self, context):
+
         # Reset current path index if the handler was used before
         self.current_path_index = 0
         # Remember the new context
         self.context = context
+
+        self.zb_info = self.router.get_first_layer_zb()
+        if self.router.is_final_context and self.zb_info:
+            self._find_first_real_layer()
+
         # Extract the current path
         current_path = context[CONTEXT_PATH]
 

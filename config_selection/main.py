@@ -98,6 +98,7 @@ class ConfigSelection(object):
         # This is the main entrance to run configuration testing
         logger.debug("In the __call__ function")
 
+        start_idx = 2736
         # Read through all samples in the input file
         while self.parser.has_next():
             logger.info('Starting new sample')
@@ -107,16 +108,20 @@ class ConfigSelection(object):
 
             batch_number = self.parser.samples_read() // self.batch_size
 
-            logger.info('Testing configuration {}/{} for batch {}'.format(1, self.num_configurations, batch_number))
-            self._test_configuration("random")
+            # Don't run in first pass since we have already calculated these
+            if start_idx == 0:
+                logger.info('Testing configuration {}/{} for batch {}'.format(1, self.num_configurations, batch_number))
+                self._test_configuration("random")
 
-            logger.info('Testing configuration {}/{} for batch {}'.format(2, self.num_configurations, batch_number))
-            self._test_configuration("sensitivity_analysis")
+                logger.info('Testing configuration {}/{} for batch {}'.format(2, self.num_configurations, batch_number))
+                self._test_configuration("sensitivity_analysis")
 
             # Run test for each configuration in the configuration list.
-            for idx, config in enumerate(self.configurations):
-                logger.info('Testing configuration {}/{} for batch {}'.format(idx + 3, self.num_configurations, batch_number))
+            for idx, config in enumerate(self.configurations[start_idx:]):
+                logger.info('Testing configuration {}/{} for batch {}'.format(idx + 3 + start_idx, self.num_configurations, batch_number))
                 self._test_configuration(config)
+
+            start_idx = 0
 
         logger.info("Done testing all of the input to the given file")
 

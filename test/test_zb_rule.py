@@ -247,11 +247,7 @@ class TestZbRule(unittest.TestCase):
             expl = lrp.lrp(inp, out4, config)
 
             with tf.Session() as s:
-                output = s.run(out4)
                 explanation = s.run(expl)
-
-                print(expected_result)
-                print(explanation)
 
                 # Check if the explanation has the right shape
                 self.assertEqual(explanation.shape, expected_result.shape, msg="Should be a wellformed explanation")

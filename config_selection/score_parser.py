@@ -22,7 +22,6 @@ bias_strategies = {
 class Config(object):
 
     def __init__(self, layer, conf_string):
-        print(conf_string)
         rule_dict = re.match(rules_re, conf_string).groupdict()
 
         self.layer = layer.replace("_", " ").title()
@@ -89,10 +88,8 @@ class ScoreParser(object):
             return
 
         if "SM" in score_file:
-            print(score_file)
             layer_dict = re.match(type_config_sm_re, score_file).groupdict()
         else:
-            print()
             layer_dict = re.match(type_config_re, score_file[:-4]).groupdict()
 
         for (layer, conf_string) in layer_dict.items():

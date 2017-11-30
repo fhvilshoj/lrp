@@ -442,16 +442,31 @@ def linear(router, R):
     router.forward_relevance_to_operation(R_new, matmultensor.op, input.op)
 
 
-def _sparse_flat(config, zijs, bias):
+def _sparse_flat(config, Rs, predictions_per_sample, zijs, bias):
     # TODO should we implement these? They will end up being huge, since all parts of the input (also zeros) will
     # get relevance
     raise NotImplementedError("Flat relevance distribution is not implemented for sparse matrix multiplications")
 
 
-def _sparse_ww(config, zijs, bias):
-    # TODO should we implement these? They will end up being huge, since all parts of the input (also zeros) will
-    # get relevance
-    raise NotImplementedError("WW relevance distribution is not implemented for sparse matrix multiplications")
+def _sparse_ww(config, Rs, predictions_per_sample, zijs, bias):
+    # Zj has shape (batch_size, 1, output_width) dense tensor
+    zj = tf.sparse_reduce_sum(zijs, 1, keep_dims=True)
+
+    # Stabilizer
+    zj_sign = tf.sign(zj)
+    zj_sign = tf.where(tf.equal(zj, 0), tf.ones_like(zj_sign), zj_sign)
+    zj += zj_sign * EPSILON
+
+    zj = tf.Print(zj, [zj], "ZJs", summarize=200)
+
+    # construct bias to add to zj
+    fractions = zijs / zj
+
+    # Distribute the relevance according to the fractions
+    R_new = _sparse_distribute_relevances(Rs, zijs.dense_shape[0], zijs.dense_shape[1], predictions_per_sample,
+                                          fractions)
+
+    return R_new
 
 
 def _sparse_distribute_bias(config, zijs, bias):
@@ -586,66 +601,20 @@ def sparse_dense_linear(router, R):
     # We know that sparse tensor to sparse_tensor_dense_matmul must be two dimensional
     in_size = sparse_input_tensor.dense_shape[1]
 
-    # Create tensor array for the weights. This is used in the following while_loop.
-    ta = tf.TensorArray(tf.float32, out_size)
+    # Get the configuration for sparse linear from the router
+    config = router.get_configuration(LAYER.SPARSE_LINEAR)
 
-    # Unstack the columns of the weights to be able to "manually" broadcast them
-    # over the input
-    # each element in ta has shape: (input_width,)
-    ta = ta.unstack(tf.transpose(dense_input_weights))
+    # Extract the config type
+    config_rule = config.type
 
-    # Create tensor array to hold all Zij's values calculated in the following while_loop
-    all_values = tf.TensorArray(tf.float32, 1, dynamic_size=True)
-
-    # Create tensor array to hold all indices of the Zij's calculated in the following while_loop
-    all_indices = tf.TensorArray(tf.int64, 1, dynamic_size=True)
-
-    def _zij_loop(t, av, ai, ta, offset):
-        # Broad cast one column of the weights through the input tensor (over the batch_size dimension)
-        # tmp_sparse shape: (batch_size, input_width)
-        tmp_sparse = sparse_input_tensor * ta.read(t)
-
-        # Count how many elements we are about to add to the tensor arrays
-        value_cnt = tf.shape(tmp_sparse.values)[0]
-
-        # Calculate all the indexes to scatter the calculated values and indices into in the tensor arrays
-        scatter_range = tf.range(offset, offset + value_cnt, dtype=tf.int32)
-
-        # Scatter the values as is into the av ('all_values') array
-        av = av.scatter(scatter_range, tmp_sparse.values)
-
-        # Append the current column of the weights to the indices of the results to be able to
-        # get the shape (batch_size, input_width, output_width) when creating the sparse tensor
-        # that will later hold the fractions
-        new_indices = tf.pad(tmp_sparse.indices, [[0, 0], [0, 1]], constant_values=tf.cast(t, dtype=tf.int64))
-
-        # Scatter the indices like we did with with the values above
-        ai = ai.scatter(scatter_range, new_indices)
-
-        # Go to next column in the weights
-        return t + 1, av, ai, ta, offset + value_cnt
-
-    _, all_values, all_indices, *_ = tf.while_loop(
-        cond=lambda t, *_: t < out_size,
-        body=_zij_loop,
-        loop_vars=[0, all_values, all_indices, ta, 0])
-
-    # Stack all the values into one list; shape: (values_length,)
-    all_values = all_values.stack()
-
-    # Stack all the indices into one list; shape: (values_length, 3)
-    all_indices = tf.cast(all_indices.stack(), dtype=tf.int64)
-
-    # Create new sparse tensor holding all Zij's across all outpus
-    # Zijs shape: (batch_size, in_size, out_size)
-    in_size = tf.cast(in_size, tf.int64)
-    out_size = tf.cast(out_size, tf.int64)
-
-    # Construct a sparse tensor of the zijs
-    zijs = tf.SparseTensor(all_indices, all_values, (batch_size, in_size, out_size))
-
-    # Make sure that the zijs are ordered properly since it is expected by `_sparse_distribute_bias`
-    zijs = tf.sparse_reorder(zijs)
+    if config_rule == RULE.WW:
+        sparse_indicator = tf.SparseTensor(sparse_input_tensor.indices,
+                                           tf.ones_like(sparse_input_tensor.values),
+                                           sparse_input_tensor.dense_shape)
+        squared_weights = tf.square(dense_input_weights)
+        zijs = _sparse_calculate_zijs(batch_size, sparse_indicator, squared_weights, in_size, out_size)
+    else:
+        zijs = _sparse_calculate_zijs(batch_size, sparse_input_tensor, dense_input_weights, in_size, out_size)
 
     # Move the predictions_per_sample dimension up to be able to unstack it
     R = tf.transpose(R, [1, 0, 2])
@@ -655,12 +624,6 @@ def sparse_dense_linear(router, R):
 
     # Unstack R to get a tensor array containing elements of shape (batch_size, out_size)
     Rs = tf.TensorArray(tf.float32, predictions_per_sample, clear_after_read=False).unstack(R)
-
-    # Get the configuration for sparse linear from the router
-    config = router.get_configuration(LAYER.SPARSE_LINEAR)
-
-    # Extract the config type
-    config_rule = config.type
 
     handler = None
     # Find rule to distribute relevance by
@@ -696,6 +659,62 @@ def sparse_dense_linear(router, R):
     # Forward new Relevance to the proper operation
     for op in destinations:
         router.forward_relevance_to_operation(R_new, matmul_operation, op)
+
+
+def _sparse_calculate_zijs(batch_size, sparse_input_tensor, dense_input_weights, in_size, out_size):
+    # Create tensor array for the weights. This is used in the following while_loop.
+    ta = tf.TensorArray(tf.float32, out_size)
+    # Unstack the columns of the weights to be able to "manually" broadcast them
+    # over the input
+    # each element in ta has shape: (input_width,)
+    ta = ta.unstack(tf.transpose(dense_input_weights))
+    # Create tensor array to hold all Zij's values calculated in the following while_loop
+    all_values = tf.TensorArray(tf.float32, 1, dynamic_size=True)
+    # Create tensor array to hold all indices of the Zij's calculated in the following while_loop
+    all_indices = tf.TensorArray(tf.int64, 1, dynamic_size=True)
+
+    def _zij_loop(t, av, ai, ta, offset):
+        # Broad cast one column of the weights through the input tensor (over the batch_size dimension)
+        # tmp_sparse shape: (batch_size, input_width)
+        tmp_sparse = sparse_input_tensor * ta.read(t)
+
+        # Count how many elements we are about to add to the tensor arrays
+        value_cnt = tf.shape(tmp_sparse.values)[0]
+
+        # Calculate all the indexes to scatter the calculated values and indices into in the tensor arrays
+        scatter_range = tf.range(offset, offset + value_cnt, dtype=tf.int32)
+
+        # Scatter the values as is into the av ('all_values') array
+        av = av.scatter(scatter_range, tmp_sparse.values)
+
+        # Append the current column of the weights to the indices of the results to be able to
+        # get the shape (batch_size, input_width, output_width) when creating the sparse tensor
+        # that will later hold the fractions
+        new_indices = tf.pad(tmp_sparse.indices, [[0, 0], [0, 1]], constant_values=tf.cast(t, dtype=tf.int64))
+
+        # Scatter the indices like we did with with the values above
+        ai = ai.scatter(scatter_range, new_indices)
+
+        # Go to next column in the weights
+        return t + 1, av, ai, ta, offset + value_cnt
+
+    _, all_values, all_indices, *_ = tf.while_loop(
+        cond=lambda t, *_: t < out_size,
+        body=_zij_loop,
+        loop_vars=[0, all_values, all_indices, ta, 0])
+    # Stack all the values into one list; shape: (values_length,)
+    all_values = all_values.stack()
+    # Stack all the indices into one list; shape: (values_length, 3)
+    all_indices = tf.cast(all_indices.stack(), dtype=tf.int64)
+    # Create new sparse tensor holding all Zij's across all outpus
+    # Zijs shape: (batch_size, in_size, out_size)
+    in_size = tf.cast(in_size, tf.int64)
+    out_size = tf.cast(out_size, tf.int64)
+    # Construct a sparse tensor of the zijs
+    zijs = tf.SparseTensor(all_indices, all_values, (batch_size, in_size, out_size))
+    # Make sure that the zijs are ordered properly since it is expected by `_sparse_distribute_bias`
+    zijs = tf.sparse_reorder(zijs)
+    return zijs
 
 
 def _sparse_distribute_relevances(Rs, batch_size, in_size, predictions_per_sample, fractions):

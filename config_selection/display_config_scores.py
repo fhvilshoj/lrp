@@ -40,13 +40,17 @@ def _show_results(**kwargs):
                   isfile(join(kwargs['benchmark_dir'], f)) and f.endswith(".res")]
 
     scores.sort(key=lambda x: x.AOPC, reverse=True)
+    to_print = [sc for sc in scores if sc.title in ['Sensitivity Analysis', 'Random']]
+    rest = [sc for sc in scores if sc.title not in ['Sensitivity Analysis', 'Random']]
 
-    for score in scores:
+    to_print.extend(rest[:max(10, len(rest))])
+
+    for score in to_print:
         logger.info("--------------------------------------------------")
-        logger.info(score)
+        logger.info("\n" + str(score))
 
     if kwargs['plot']:
-        _write_scores_to_plot(scores, **kwargs)
+        _write_scores_to_plot(to_print, **kwargs)
 
 
 def _main():

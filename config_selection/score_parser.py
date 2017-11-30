@@ -4,6 +4,7 @@ from lrp.configuration import *
 
 # Lookup at linear, batch_norm, sparse, convolution, max_pool, lstm
 type_config_re = r'.*/LIN_(?P<linear>.*)_ELE_(?P<batch_norm>.*)_SPA_(?P<sparse>.*)_CONV_(?P<convolution>.*)_MAX_(?P<max_pool>.*)_LSTM_(?P<lstm>.*)'
+type_config_sm_re = r'.*/LIN_(?P<linear>.*)_ELE_(?P<batch_norm>.*)_SPA_(?P<sparse>.*)_CONV_(?P<convolution>.*)_MAX_(?P<max_pool>.*)_LSTM_(?P<lstm>.*)_SM_(?P<softmax>.*)\.res'
 
 # Lookup at alpha, epsilon, bias, winners_take_all, flat, ww
 rules_re = r'(((a(?P<alpha>\-{0,1}[0-9]+\.*[0-9]*)b(?P<beta>\-{0,1}[0-9]+\.*[0-9]*))|(e(?P<epsilon>[0-9]+\.*[0-9]*)))_(?P<bias>\w\w))|(?P<winners_take_all>win)|(?P<flat>flat)|(?P<ww>ww)'
@@ -21,6 +22,7 @@ bias_strategies = {
 class Config(object):
 
     def __init__(self, layer, conf_string):
+        print(conf_string)
         rule_dict = re.match(rules_re, conf_string).groupdict()
 
         self.layer = layer.replace("_", " ").title()
@@ -55,19 +57,20 @@ class ScoreParser(object):
         self.pertubations = 0
         self.classes = 0
         self.AOPC = 0
+        self.title = ""
 
         self._infer_config_from_file_name(score_file)
         self._find_shapes(score_file)
         self._parse_file(score_file)
 
     def __str__(self) -> str:
+        res = ""
         if self.layer_configurations:
-            res = ""
             for config in self.layer_configurations:
                 res += "{}\n".format(config)
         else:
-            res = self.title + "\n"
-        res += "{:12}: {}".format('File', re.sub(file_name_re, r'\1\n', self.score_file))
+            res += self.title + "\n"
+        res += "{:12}: {}\n".format('File', re.sub(file_name_re, r'\1', self.score_file))
         res += "{:12}: {:10f}".format('AOPC', self.AOPC)
         return res
 
@@ -85,8 +88,13 @@ class ScoreParser(object):
             self.title = 'Sensitivity Analysis'
             return
 
+        if "SM" in score_file:
+            print(score_file)
+            layer_dict = re.match(type_config_sm_re, score_file).groupdict()
+        else:
+            print()
+            layer_dict = re.match(type_config_re, score_file[:-4]).groupdict()
 
-        layer_dict = re.match(type_config_re, score_file[:-4]).groupdict()
         for (layer, conf_string) in layer_dict.items():
             if layer == 'sparse':
                 continue

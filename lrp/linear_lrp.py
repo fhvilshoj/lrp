@@ -457,8 +457,6 @@ def _sparse_ww(config, Rs, predictions_per_sample, zijs, bias):
     zj_sign = tf.where(tf.equal(zj, 0), tf.ones_like(zj_sign), zj_sign)
     zj += zj_sign * EPSILON
 
-    zj = tf.Print(zj, [zj], "ZJs", summarize=200)
-
     # construct bias to add to zj
     fractions = zijs / zj
 

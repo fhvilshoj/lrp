@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 import lrp.forward_lrp as forward_lrp
-from configuration import LAYER, RULE
+from lrp.configuration import LAYER, RULE
 from lrp.lrp_util import sum_relevances
 
 

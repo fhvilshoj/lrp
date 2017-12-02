@@ -1,4 +1,4 @@
-from configuration import LAYER, RULE, LRPConfiguration, EpsilonConfiguration, BIAS_STRATEGY
+from lrp.configuration import LAYER, RULE, LRPConfiguration, EpsilonConfiguration, BIAS_STRATEGY
 from lrp.linear_lrp import linear_with_config
 from lrp import lrp_util
 import tensorflow as tf

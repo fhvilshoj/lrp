@@ -1,4 +1,4 @@
-from configuration import LAYER, ZbConfiguration
+from lrp.configuration import LAYER, ZbConfiguration
 from lrp import lrp_util
 from lrp.context_handler import ContextHandler
 from lrp.convolutional_lrp import convolutional

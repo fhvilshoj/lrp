@@ -64,8 +64,9 @@ lstm_configurations = [
 
 max_pooling_configurations = [
     BaseConfiguration(RULE.WINNERS_TAKE_ALL),
+    BaseConfiguration(RULE.WINNER_TAKES_ALL),
     # This second rule doesn't matter since implementation looks for WINNERS_TAKE_ALL or not
-    BaseConfiguration(RULE.FLAT)
+    BaseConfiguration(RULE.FLAT),
 ]
 
 def get_configurations_for_layers(linear=False, convolution=False, lstm=False, maxpool=False, batchnorm=False):

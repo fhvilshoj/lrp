@@ -66,7 +66,17 @@ def max_pooling(router, R):
                                         [batch_size, output_height, output_width, kernel_size[1], kernel_size[2],
                                          input_channels])
 
-    def _winners_takes_all():
+    def _winner_takes_all():
+        image_patches_transposed = tf.transpose(image_patches_reshaped, [0, 1, 2, 5, 3, 4])
+        image_patches_rt = tf.reshape(image_patches_transposed, (batch_size, output_height, output_width, input_channels, -1))
+        image_patches_argmax = tf.argmax(image_patches_rt, axis=-1)
+        # Shape (batch_size, out_height, out_width, input_channels, kernel_height * kernel_width)
+        image_patches_one_hot = tf.one_hot(image_patches_argmax, kernel_size[1] * kernel_size[2])
+        one_hot_transposed = tf.transpose(image_patches_one_hot, [0, 1, 2, 4, 3])
+        one_hot_reshaped = tf.reshape(one_hot_transposed, (batch_size, output_height, output_width, kernel_size[1], kernel_size[2], input_channels))
+        return one_hot_reshaped
+    
+    def _winners_take_all():
         # Find the largest elements in each patch and set all other entries to zero (to find z_ijk+'s)
         # Shape of max_elems: (batch_size, out_height, out_width, 1, 1, input_channels)
         max_elems = tf.reshape(current_tensor, (batch_size, output_height, output_width, 1, 1, input_channels))
@@ -81,7 +91,9 @@ def max_pooling(router, R):
 
     config = router.get_configuration(LAYER.MAX_POOLING)
     if config.type == RULE.WINNERS_TAKE_ALL:
-        zs = _winners_takes_all()
+        zs = _winners_take_all()
+    elif config.type == RULE.WINNER_TAKES_ALL:
+        zs = _winner_takes_all()
     else:
         zs = _distribute_relevances()
 

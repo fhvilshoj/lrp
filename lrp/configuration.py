@@ -13,11 +13,12 @@ class LAYER:
 # Rules
 class RULE:
     WINNERS_TAKE_ALL = 0
-    ALPHA_BETA = 1
-    EPSILON = 2
-    FLAT = 3
-    WW = 4
-    ZB = 5
+    WINNER_TAKES_ALL = 1
+    ALPHA_BETA = 2
+    EPSILON = 3
+    FLAT = 4
+    WW = 5
+    ZB = 6
 
 
 # Bias strategy
@@ -131,6 +132,8 @@ class BaseConfiguration(LayerConfiguration):
     def __str__(self) -> str:
         rule = ""
         if self.type == RULE.WINNERS_TAKE_ALL:
+            rule = "wins"
+        elif self.type == RULE.WINNER_TAKES_ALL:
             rule = "win"
         elif self.type == RULE.FLAT:
             rule = "flat"

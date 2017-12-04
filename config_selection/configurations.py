@@ -1,4 +1,5 @@
 from lrp.configuration import *
+from copy import deepcopy
 
 linear_configurations = [
     EpsilonConfiguration(1e-12, BIAS_STRATEGY.NONE),
@@ -67,6 +68,51 @@ max_pooling_configurations = [
     BaseConfiguration(RULE.FLAT)
 ]
 
+def get_configurations_for_layers(linear=False, convolution=False, lstm=False, maxpool=False, batchnorm=False):
+    cf = []
+    
+    def _c(configs, layers, rules):
+        if configs:
+            new_configs = []
+            for rule in rules:
+                for c in configs:
+                    new_c = deepcopy(c)
+                    for l in layers:
+                        new_c.set(l, rule)
+                    new_configs.append(new_c)
+            return new_configs
+        else:
+            for rule in rules:
+                config = LRPConfiguration()
+                for l in layers:
+                    config.set(l, rule)
+                configs.append(config)
+            return configs
+
+    if linear:
+        cf = _c(cf, [LAYER.LINEAR, LAYER.SPARSE_LINEAR], linear_configurations)
+    if convolution:
+        cf = _c(cf, [LAYER.CONVOLUTIONAL], conv_configurations)
+    if lstm:
+        cf = _c(cf, [LAYER.LSTM], lstm_configurations)
+    if maxpool:
+        cf = _c(cf, [LAYER.MAX_POOLING], max_pooling_configurations)
+
+    if batchnorm:
+        flat = FlatConfiguration()
+        for c in cf:
+            l = c.get(LAYER.LINEAR)
+            c.set(LAYER.ELEMENTWISE_LINEAR, l)
+        to_append = []
+        for c in cf:
+            c_new = deepcopy(c)
+            c_new.set(LAYER.ELEMENTWISE_LINEAR, flat)
+            to_append.append(c_new)
+        cf.extend(to_append)
+    
+    return cf
+            
+        
 def get_configurations():
     configurations = []
 

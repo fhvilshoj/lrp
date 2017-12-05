@@ -7,7 +7,7 @@ type_config_re = r'.*/LIN_(?P<linear>.*)_ELE_(?P<batch_norm>.*)_SPA_(?P<sparse>.
 type_config_sm_re = r'.*/LIN_(?P<linear>.*)_ELE_(?P<batch_norm>.*)_SPA_(?P<sparse>.*)_CONV_(?P<convolution>.*)_MAX_(?P<max_pool>.*)_LSTM_(?P<lstm>.*)_SM_(?P<softmax>.*)\.res'
 
 # Lookup at alpha, epsilon, bias, winners_take_all, flat, ww
-rules_re = r'(((a(?P<alpha>\-{0,1}[0-9]+\.*[0-9]*)b(?P<beta>\-{0,1}[0-9]+\.*[0-9]*))|(e(?P<epsilon>[0-9]+\.*[0-9]*)))_(?P<bias>\w\w))|(?P<winners_take_all>win)|(?P<flat>flat)|(?P<ww>ww)'
+rules_re = r'(((a(?P<alpha>\-{0,1}[0-9]+\.*[0-9]*)b(?P<beta>\-{0,1}[0-9]+\.*[0-9]*))|(e(?P<epsilon>[0-9]+\.*[0-9]*)))_(?P<bias>\w\w))|(?P<winners_take_all>win)|(?P<flat>flat)|(?P<ww>ww)|(?P<none>\w\w)'
 
 # File name
 file_name_re = r'.*/(LIN.*\.res)'
@@ -22,7 +22,11 @@ bias_strategies = {
 class Config(object):
 
     def __init__(self, layer, conf_string):
-        rule_dict = re.match(rules_re, conf_string).groupdict()
+        try:
+            rule_dict = re.match(rules_re, conf_string).groupdict()
+        except:
+            print("Conf string could not be passed: {}".format(conf_string))
+            return
 
         self.layer = layer.replace("_", " ").title()
         self.bias_strategy = None
@@ -37,6 +41,8 @@ class Config(object):
             self.rule = 'Flat'
         elif rule_dict['winners_take_all'] is not None:
             self.rule = 'Winners take all'
+        elif rule_dict['none'] is not None:
+            self.rule = 'none'
         else:
             self.rule = 'WW'
 

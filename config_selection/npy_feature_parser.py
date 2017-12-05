@@ -11,8 +11,8 @@ class NpyFeatureParser(object):
 
     def _merge_models(self, m1, m2):
         sparse_merges = ['context', 'features']
-        dense_merges = ['seq_len', 'label']
-        ignores = ['test', 'doc_ids', 'text_len', 'forloeb']
+        dense_merges = ['seq_len', 'label', 'forloeb']
+        ignores = ['test', 'doc_ids', 'text_len']
 
         new_model = {}
         
@@ -65,7 +65,7 @@ class NpyFeatureParser(object):
 
     def did_read_batch(self):
         pass
-        
+
 if __name__ == '__main__':
     fp = NpyFeatureParser(['./to_remove/test.npy'], 3)
     

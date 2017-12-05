@@ -101,7 +101,7 @@ def _search_for_tensors(indices, values, shapes, feature_file, **kwargs):
             found_tensors.sort(key=lambda x: x['permutation'])
            
             print("Found {} matching".format(found))
-
+            print(found_tensors[0]['forloeb'])
             return found_tensors
 
 def _write_found_tensors_to_file(found_tensors, destination):

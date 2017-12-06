@@ -11,22 +11,33 @@ from config_selection.score_parser_mnist import ScoreParser
 
 def _write_scores_to_plot(scores, destination, **kwargs):
     def _add_plot(score, title):
-        to_plot = np.concatenate([[0], np.mean(score.pertubation_scores, axis=0)], axis=0)
+        to_plot = np.concatenate([score.x0_predictions, score.pertubation_scores], axis=0)
         plt.plot(np.arange(score.pertubations + 1), to_plot, label=title, marker=kwargs['marker'])
 
+    plt.axhline(y=scores[0].x0_predictions[0], xmin=0, xmax=100, linewidth=0.8, color = 'tab:gray', linestyle='--')
+        
     if kwargs['line_titles']:
         for (score, title) in zip(scores, kwargs['line_titles']):
             _add_plot(score, title)
+    elif kwargs['best']:
+        for score in scores[:3]:
+            desc = score.short_description()
+            desc = 'LRP' if 'LIN_' in desc else desc
+            _add_plot(score, desc)
     else:
         for score in scores:
             _add_plot(score, score.short_description())
 
-    plt.ylabel('Score differences')
+    plt.ylabel('Prediction score')
     plt.xlabel('Pertubations')
+    plt.xlim(0, 100)
+    plt.ylim(0, 1)
+    
     if len(kwargs['plot_title']) > 0:
         plt.title(kwargs['plot_title'])
 
-    plt.legend(loc=2)
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+               ncol=3, mode="expand", borderaxespad=0.) # (loc=3)
 
     plt.savefig(destination, bbox_inches='tight')
     logger.debug("Graph generated at {}".format(destination))
@@ -43,7 +54,7 @@ def _show_results(**kwargs):
     to_print = [sc for sc in scores if sc.title in ['Sensitivity Analysis', 'Random']]
     rest = [sc for sc in scores if sc.title not in ['Sensitivity Analysis', 'Random']]
 
-    to_print.extend(rest[:max(10, len(rest))])
+    to_print.extend(rest[:min(10, len(rest))])
 
     for score in to_print:
         logger.info("--------------------------------------------------")
@@ -66,6 +77,8 @@ def _main():
     # Extra options
     parser.add_argument('--plot', action='store_true',
                         help='Boolean indicator. If true plots are generated.')
+    parser.add_argument('--best', action='store_true',
+                        help='Plot the best lrp rule along with SA and random')
     parser.add_argument('-l', '--line-titles', type=str, nargs="*", default=[],
                         help='Titles to be used in plot')
     parser.add_argument('-m', '--marker', type=str, default='.')

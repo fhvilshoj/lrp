@@ -80,7 +80,10 @@ class ScoreParser(object):
         return res
 
     def short_description(self) -> str:
-        return re.sub(file_name_re, r'\1', self.score_file)
+        if self.title in ['Random', 'Sensitivity Analysis']:
+            return self.title
+        else:
+            return re.sub(file_name_re, r'\1', self.score_file)
 
     def get_AOPC(self) -> float:
         return self.AOPC
@@ -155,8 +158,12 @@ class ScoreParser(object):
 
         # Shape (samples, pertubations)
         self.pertubation_scores = np.array(pertubation_scores)
-        self.pertubation_scores = self.x0_predictions.reshape((self.samples, 1)) - self.pertubation_scores
+        differences = self.x0_predictions.reshape((self.samples, 1)) - self.pertubation_scores
 
-        self.AOPC = np.mean(np.sum(self.pertubation_scores, 1)) / (1 + self.pertubations)
+        self.AOPC = np.mean(np.sum(differences, 1)) / (1 + self.pertubations)
+
+        self.pertubation_scores = np.mean(self.pertubation_scores, 0)
+        self.x0_predictions = np.mean(self.x0_predictions, 0, keepdims=True)
+        
 
 

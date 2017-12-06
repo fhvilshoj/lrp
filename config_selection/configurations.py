@@ -64,7 +64,7 @@ lstm_configurations = [
 
 max_pooling_configurations = [
     BaseConfiguration(RULE.WINNERS_TAKE_ALL),
-    BaseConfiguration(RULE.WINNER_TAKES_ALL),
+    # BaseConfiguration(RULE.WINNER_TAKES_ALL),
     # This second rule doesn't matter since implementation looks for WINNERS_TAKE_ALL or not
     BaseConfiguration(RULE.FLAT),
 ]

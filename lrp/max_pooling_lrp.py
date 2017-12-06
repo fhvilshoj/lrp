@@ -99,6 +99,7 @@ def max_pooling(router, R):
 
     # Count how many zijs had the maximum value for each patch
     denominator = tf.reduce_sum(zs, axis=[3, 4], keep_dims=True)
+    denominator = tf.where(tf.equal(denominator, 0), tf.ones_like(denominator), denominator)
 
     # Find the contribution of each feature in the input to the activations,
     # i.e. the ratio between the z_ijk's and the z_jk's

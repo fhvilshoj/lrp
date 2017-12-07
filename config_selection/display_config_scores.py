@@ -2,34 +2,13 @@ import argparse
 import numpy as np
 from matplotlib import pyplot as plt
 
+from config_selection.plotter import write_scores_to_plot
+
 from os import listdir
 from os.path import isfile, join
 
 from config_selection import logger
 from config_selection.score_parser import ScoreParser
-
-
-def _write_scores_to_plot(scores, destination, **kwargs):
-    def _add_plot(score, title):
-        to_plot = np.concatenate([[0], np.mean(score.pertubation_scores, axis=0)], axis=0)
-        plt.plot(np.arange(score.pertubations + 1), to_plot, label=title, marker=kwargs['marker'])
-
-    if kwargs['line_titles']:
-        for (score, title) in zip(scores, kwargs['line_titles']):
-            _add_plot(score, title)
-    else:
-        for score in scores:
-            _add_plot(score, score.short_description())
-
-    plt.ylabel('Score differences')
-    plt.xlabel('Pertubations')
-    if len(kwargs['plot_title']) > 0:
-        plt.title(kwargs['plot_title'])
-
-    plt.legend(loc=2)
-
-    plt.savefig(destination, bbox_inches='tight')
-    logger.debug("Graph generated at {}".format(destination))
 
 
 def _show_results(**kwargs):
@@ -50,7 +29,7 @@ def _show_results(**kwargs):
         logger.info("\n" + str(score))
 
     if kwargs['plot']:
-        _write_scores_to_plot(to_print, **kwargs)
+        write_scores_to_plot(to_print, **kwargs)
 
 
 def _main():

@@ -80,7 +80,7 @@ class ScoreParser(object):
         return res
 
     def short_description(self) -> str:
-        if self.title in ['Random', 'Sensitivity Analysis']:
+        if self.title in ['Random', 'Sensitivity analysis']:
             return self.title
         else:
             return re.sub(file_name_re, r'\1', self.score_file)
@@ -93,7 +93,7 @@ class ScoreParser(object):
             self.title = 'Random'
             return
         elif 'sensitivity' in score_file:
-            self.title = 'Sensitivity Analysis'
+            self.title = 'Sensitivity analysis'
             return
 
         if "SM" in score_file:

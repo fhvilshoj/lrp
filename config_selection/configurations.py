@@ -10,9 +10,9 @@ linear_configurations = [
     EpsilonConfiguration(0.01, BIAS_STRATEGY.IGNORE),
     EpsilonConfiguration(0.01, BIAS_STRATEGY.ACTIVE),
 
-    EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
-    EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
+    #EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
+    #EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
+    #EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
 
     EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
     EpsilonConfiguration(100, BIAS_STRATEGY.IGNORE),
@@ -38,9 +38,9 @@ conv_configurations = [
     EpsilonConfiguration(0.01, BIAS_STRATEGY.IGNORE),
     EpsilonConfiguration(0.01, BIAS_STRATEGY.ACTIVE),
 
-    EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
-    EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
-    EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
+    #EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
+    #EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
+    #EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
 
     EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
     EpsilonConfiguration(100, BIAS_STRATEGY.IGNORE),
@@ -58,7 +58,7 @@ conv_configurations = [
 ]
 
 lstm_configurations = [
-    EpsilonConfiguration(0.001, BIAS_STRATEGY.ALL),
+    EpsilonConfiguration(0.001, BIAS_STRATEGY.ACTIVE),
     EpsilonConfiguration(0.001, BIAS_STRATEGY.NONE),
 ]
 

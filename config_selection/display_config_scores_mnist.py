@@ -21,14 +21,17 @@ def _show_results(**kwargs):
     to_print = [sc for sc in scores if sc.title in ['Sensitivity analysis', 'Random']]
     rest = [sc for sc in scores if sc.title not in ['Sensitivity analysis', 'Random']]
 
-    to_print.extend(rest[:min(10, len(rest))])
+    to_print.extend(rest[:1])
 
     for score in to_print:
-        logger.info("--------------------------------------------------")
+        logger.info("------------ -   best    - -------------------------")
         logger.info("\n" + str(score))
 
     if kwargs['plot']:
         write_scores_to_plot(to_print, **kwargs)
+
+    logger.info("------------ -   worst    - -------------------------")
+    logger.info("\n" + str(rest[-1]))
 
 
 def _main():

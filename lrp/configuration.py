@@ -15,10 +15,12 @@ class RULE:
     WINNERS_TAKE_ALL = 0
     WINNER_TAKES_ALL = 1
     ALPHA_BETA = 2
-    EPSILON = 3
-    FLAT = 4
-    WW = 5
-    ZB = 6
+    IDENTITY = 3
+    EPSILON = 4
+    NAIVE = 5
+    FLAT = 6
+    WW = 7
+    ZB = 8
 
 
 # Bias strategy
@@ -137,6 +139,10 @@ class BaseConfiguration(LayerConfiguration):
             rule = "win"
         elif self.type == RULE.FLAT:
             rule = "flat"
+        elif self.type == RULE.IDENTITY:
+            rule = "id"
+        elif self.type == RULE.NAIVE:
+            rule = "nai"
         else:
             rule = "unknown"
         return rule

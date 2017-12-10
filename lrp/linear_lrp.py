@@ -333,7 +333,7 @@ def elementwise_linear(router, R):
 
     # If we should just pass relevance right through. Do so.
     layer_config = router.get_configuration(LAYER.ELEMENTWISE_LINEAR)
-    if layer_config.type == RULE.FLAT:
+    if layer_config.type == RULE.IDENTITY:
         # Mark handled operations
         router.mark_operation_handled(current_operation)
         router.mark_operation_handled(multensor.op)

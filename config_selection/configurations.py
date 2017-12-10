@@ -58,15 +58,15 @@ conv_configurations = [
 ]
 
 lstm_configurations = [
-    EpsilonConfiguration(1e-12, BIAS_STRATEGY.ALL),
-    EpsilonConfiguration(1e-12, BIAS_STRATEGY.IGNORE),
+    EpsilonConfiguration(0.001, BIAS_STRATEGY.ALL),
+    EpsilonConfiguration(0.001, BIAS_STRATEGY.NONE),
 ]
 
 max_pooling_configurations = [
     BaseConfiguration(RULE.WINNERS_TAKE_ALL),
     # BaseConfiguration(RULE.WINNER_TAKES_ALL),
     # This second rule doesn't matter since implementation looks for WINNERS_TAKE_ALL or not
-    BaseConfiguration(RULE.FLAT),
+    BaseConfiguration(RULE.NAIVE),
 ]
 
 def get_configurations_for_layers(linear=False, convolution=False, lstm=False, maxpool=False, batchnorm=False):
@@ -100,7 +100,7 @@ def get_configurations_for_layers(linear=False, convolution=False, lstm=False, m
         cf = _c(cf, [LAYER.MAX_POOLING], max_pooling_configurations)
 
     if batchnorm:
-        flat = FlatConfiguration()
+        flat = BaseConfiguration(RULE.IDENTITY)
         for c in cf:
             l = c.get(LAYER.LINEAR)
             c.set(LAYER.ELEMENTWISE_LINEAR, l)
@@ -133,7 +133,7 @@ def get_configurations():
                         if i == 0:
                             config.set(LAYER.ELEMENTWISE_LINEAR, lin_conf)
                         else:
-                            config.set(LAYER.ELEMENTWISE_LINEAR, FlatConfiguration())
+                            config.set(LAYER.ELEMENTWISE_LINEAR, BaseConfiguration(RULE.IDENTITY))
 
                         configurations.append(config)
     return configurations

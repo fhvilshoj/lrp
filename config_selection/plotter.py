@@ -4,6 +4,7 @@ from config_selection import logger
 
 from matplotlib import rcParams
 rcParams['font.family'] = 'serif'
+rcParams['text.usetex'] = True
 
 from matplotlib import pyplot as plt
 from matplotlib import patches
@@ -23,13 +24,6 @@ def write_scores_to_plot(scores, destination, **kwargs):
         'size': 14,
     }
 
-    ticks_font = {
-        'family': 'serif',
-        'color': 'black',
-        'weight': 'normal',
-        'size': 12,
-    }
-    
     def _add_plot(score, title):
         to_plot = np.concatenate([score.x0_predictions, score.pertubation_scores], axis=0)
         plt.plot(np.arange(score.pertubations + 1), to_plot, label=title, marker=kwargs['marker'])
@@ -59,22 +53,38 @@ def write_scores_to_plot(scores, destination, **kwargs):
         plt.text(45, 1.05, kwargs['plot_title'], fontdict=title_font)
         #plt.title(kwargs['plot_title'], fontdict=title_font, bbox_to_anchor=(0., 1.1, 1., .102))
 
-    leg = plt.legend(bbox_to_anchor=(0., -.25, 1., .102), loc=2,
-                     ncol=3, mode="expand", borderaxespad=0., prop={'size': 13}) # (loc=3)
+    leg = plt.legend(bbox_to_anchor=(0., -.25, 1., .102), loc=2, labelspacing=1.2,
+                     ncol=kwargs['legend_columns'], mode="expand", borderaxespad=0., prop={'size': 13}) # (loc=3)
     frame = leg.get_frame()
     frame.set_linewidth(0.0)
     frame.set_facecolor((1., 1., 1., 0.))
     frame.set_alpha(0.)    
     
-    aopc_y_pos = -.26
-    aopc_x_pos = [11.8, 47.7, 87.7]
+    aopc_y_pos = -.245
 
-    plt.text(-10, aopc_y_pos, r'$AOPC:$')
+    cols = kwargs['legend_columns']
+
+    col_height = (len(scores) + 1) // cols
+    for i in range(col_height):
+        plt.text(-10, aopc_y_pos + i * -0.1, r'$AOPC:$')
 
     if kwargs['best']:
-        scores = scores[:3]    
+        aopc_x_pos = [11.8, 47.7, 87.7]
+        scores = scores[:3]
         for pos, score in zip(aopc_x_pos, scores):
             plt.text(pos, aopc_y_pos, "{:.2f}".format(score.AOPC))
-    
+    else:
+        if cols == 2:
+            x_start = 18
+            x_offset = 62
+        else:
+            x_start = 14.5
+            x_offset = 37.9
+
+        for idx, score in enumerate(scores):
+            x_pos = x_start + x_offset * (idx // col_height)
+            y_pos = aopc_y_pos + (idx % col_height) * -0.1
+            plt.text(x_pos, y_pos, "{:.2f}".format(score.AOPC))
+
     plt.savefig(destination, bbox_inches='tight')
     logger.debug("Graph generated at {}".format(destination))

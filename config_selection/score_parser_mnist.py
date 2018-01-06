@@ -81,11 +81,31 @@ class ScoreParser(object):
         res += "{:12}: {:10f}".format('AOPC', self.AOPC)
         return res
 
+    def latexify(self, s, strategy):
+        if s[0] == 'e':
+            tr = {
+                '0.0001': '10^{-4}',
+                '0.001': '10^{-3}',
+                '0.01': '10^{-2}',
+                '0.1': '10^{-1}',
+                '1.0': '1',
+                '10.0': '10',
+                '100.0': '10^{2}',
+                '1000.0': '10^{3}',
+            }
+            return '\\epsilon=' + tr[s[1:]]
+        else:
+            s = s.replace('a', '\\alpha=')
+            s = s.replace('b', ', \\beta=')
+            return s
+
     def short_description(self) -> str:
         if self.title in ['Random', 'Sensitivity analysis']:
             return self.title
         else:
-            return re.sub(file_name_re, r'\1', self.score_file)
+            fname = re.sub(file_name_re, r'\1', self.score_file)[4:]
+            end = fname.find('_')
+            return "$" + self.latexify(fname[:end], fname[end+1:end+3]) + "$"
 
     def get_AOPC(self) -> float:
         return self.AOPC

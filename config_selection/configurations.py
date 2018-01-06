@@ -10,9 +10,9 @@ linear_configurations = [
     EpsilonConfiguration(0.01, BIAS_STRATEGY.IGNORE),
     EpsilonConfiguration(0.01, BIAS_STRATEGY.ACTIVE),
 
-    #EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
-    #EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
-    #EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
+    # EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
+    # EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
+    # EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
 
     EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
     EpsilonConfiguration(100, BIAS_STRATEGY.IGNORE),
@@ -38,9 +38,9 @@ conv_configurations = [
     EpsilonConfiguration(0.01, BIAS_STRATEGY.IGNORE),
     EpsilonConfiguration(0.01, BIAS_STRATEGY.ACTIVE),
 
-    #EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
-    #EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
-    #EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
+    # EpsilonConfiguration(10, BIAS_STRATEGY.NONE),
+    # EpsilonConfiguration(10, BIAS_STRATEGY.IGNORE),
+    # EpsilonConfiguration(10, BIAS_STRATEGY.ACTIVE),
 
     EpsilonConfiguration(100, BIAS_STRATEGY.NONE),
     EpsilonConfiguration(100, BIAS_STRATEGY.IGNORE),
@@ -69,9 +69,10 @@ max_pooling_configurations = [
     BaseConfiguration(RULE.NAIVE),
 ]
 
+
 def get_configurations_for_layers(linear=False, convolution=False, lstm=False, maxpool=False, batchnorm=False):
     cf = []
-    
+
     def _c(configs, layers, rules):
         if configs:
             new_configs = []
@@ -110,10 +111,10 @@ def get_configurations_for_layers(linear=False, convolution=False, lstm=False, m
             c_new.set(LAYER.ELEMENTWISE_LINEAR, flat)
             to_append.append(c_new)
         cf.extend(to_append)
-    
+
     return cf
-            
-        
+
+
 def get_configurations():
     configurations = []
 
@@ -136,4 +137,32 @@ def get_configurations():
                             config.set(LAYER.ELEMENTWISE_LINEAR, BaseConfiguration(RULE.IDENTITY))
 
                         configurations.append(config)
+    return configurations
+
+
+def get_parameter_configurations(type):
+    configurations = []
+    bias_strategies = [BIAS_STRATEGY.NONE, BIAS_STRATEGY.ACTIVE, BIAS_STRATEGY.IGNORE]
+
+    if type == 'epsilon':
+        epsilons = [1e-4, 1e-3, 1e-2, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3]
+        for b in bias_strategies:
+            for e in epsilons:
+                c = LRPConfiguration()
+                epsilonConfiguration = EpsilonConfiguration(e, b)
+                c.set(LAYER.LINEAR, epsilonConfiguration)
+                c.set(LAYER.SPARSE_LINEAR, epsilonConfiguration)
+                c.set(LAYER.CONVOLUTIONAL, epsilonConfiguration)
+                configurations.append(c)
+
+    elif type == 'alpha':
+        alphas = [0.25, 0.5, 0.75, 1, 2, 4]
+        for b in bias_strategies:
+            for a in alphas:
+                c = LRPConfiguration()
+                alphaConfiguration = AlphaBetaConfiguration(a, 1 - a, b)
+                c.set(LAYER.LINEAR, alphaConfiguration)
+                c.set(LAYER.SPARSE_LINEAR, alphaConfiguration)
+                c.set(LAYER.CONVOLUTIONAL, alphaConfiguration)
+                configurations.append(c)
     return configurations

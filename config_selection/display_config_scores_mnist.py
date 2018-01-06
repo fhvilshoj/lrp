@@ -21,13 +21,17 @@ def _show_results(**kwargs):
     to_print = [sc for sc in scores if sc.title in ['Sensitivity analysis', 'Random']]
     rest = [sc for sc in scores if sc.title not in ['Sensitivity analysis', 'Random']]
 
-    to_print.extend(rest[:1])
+    if kwargs['best']:
+        to_print.extend(rest[:1])
+    else:
+        to_print.extend(rest)
 
+    logger.info("------------ -   best    - -------------------------")
     for score in to_print:
-        logger.info("------------ -   best    - -------------------------")
         logger.info("\n" + str(score))
 
     if kwargs['plot']:
+        to_print.sort(key=lambda x: x.short_description())
         write_scores_to_plot(to_print, **kwargs)
 
     logger.info("------------ -   worst    - -------------------------")
@@ -54,6 +58,8 @@ def _main():
     parser.add_argument('-m', '--marker', type=str, default='.')
     parser.add_argument('-t', '--plot-title', type=str, default='',
                         help='Title to be displayed in top of plot')
+
+    parser.add_argument('--legend-columns', type=int, default=3)
 
     args = parser.parse_args()
 

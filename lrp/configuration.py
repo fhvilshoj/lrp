@@ -90,7 +90,13 @@ class EpsilonConfiguration(LayerConfiguration):
         return self._epsilon
 
     def __str__(self) -> str:
-        return "e{:.2f}_{}".format(self.epsilon, super().__str__())
+        if self._epsilon < 1e-4:
+            fmt = "e{:.2f}_{}"
+        elif self._epsilon >= 1:
+            fmt = "e{:.1f}_{}"
+        else:
+            fmt = "e{}_{}"
+        return fmt.format(self._epsilon, super().__str__())
 
 
 class FlatConfiguration(LayerConfiguration):
@@ -156,7 +162,7 @@ class LRPConfiguration(object):
             LAYER.SPARSE_LINEAR: AlphaBetaConfiguration(),
             LAYER.ELEMENTWISE_LINEAR: EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.ACTIVE),
             LAYER.CONVOLUTIONAL: AlphaBetaConfiguration(),
-            LAYER.LSTM: EpsilonConfiguration(),
+            LAYER.LSTM: EpsilonConfiguration(1e-3),
             LAYER.MAX_POOLING: LayerConfiguration(RULE.WINNERS_TAKE_ALL),
             LAYER.SOFTMAX: EpsilonConfiguration()
         }

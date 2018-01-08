@@ -23,8 +23,8 @@ def _show_results(**kwargs):
 
     to_print.extend(rest[:1])
 
+    logger.info("------------ -   best    - -------------------------")
     for score in to_print:
-        logger.info("------------ -   best    - -------------------------")
         logger.info("\n" + str(score))
 
     if kwargs['plot']:

@@ -160,6 +160,11 @@ class ScoreParser(object):
 
         # Shape (samples, pertubations)
         self.pertubation_scores = np.array(pertubation_scores)
+
+        if self.pertubation_scores.shape[1] == 99:
+            self.pertubation_scores = np.pad(self.pertubation_scores, [[0, 0], [0, 1]], 'edge')
+            self.pertubations += 1
+
         differences = self.x0_predictions.reshape((self.samples, 1)) - self.pertubation_scores
 
         self.AOPC = np.mean(np.sum(differences, 1)) / (1 + self.pertubations)

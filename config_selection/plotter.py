@@ -64,9 +64,27 @@ def write_scores_to_plot(scores, destination, **kwargs):
 
     cols = kwargs['legend_columns']
 
-    col_height = (len(scores) + 1) // cols
+    col_height = len(scores) // cols
+    spare = len(scores) % cols
+    col_height = col_height if spare == 0 else col_height + 1
+
     for i in range(col_height):
         plt.text(-10, aopc_y_pos + i * -0.1, r'$AOPC:$')
+
+    columns = []
+    spare_used = 0
+    score_idx = 0
+    for i in range(cols):
+        column = []
+        if spare_used == spare:
+            col_height -= 1
+        for j in range(col_height):
+            column.append(scores[score_idx])
+            score_idx += 1
+        columns.append(column)
+        spare_used += 1
+
+    print("Cols: {cols} Col height: {col_height} Scores {scores}".format(cols=cols, col_height=col_height, scores=len(scores)))
 
     if kwargs['best']:
         aopc_x_pos = [11.8, 47.7, 87.7]
@@ -81,10 +99,16 @@ def write_scores_to_plot(scores, destination, **kwargs):
             x_start = 14.5
             x_offset = 37.9
 
-        for idx, score in enumerate(scores):
-            x_pos = x_start + x_offset * (idx // col_height)
-            y_pos = aopc_y_pos + (idx % col_height) * -0.1
-            plt.text(x_pos, y_pos, "{:.2f}".format(score.AOPC))
+        for c_off, col in enumerate(columns):
+            x_pos = x_start + c_off * x_offset
+            for sc_off, sc in enumerate(col):
+                y_pos = aopc_y_pos + sc_off * -0.1
+                plt.text(x_pos, y_pos, "{:.2f}".format(sc.AOPC))
+
+        # for idx, score in enumerate(scores):
+        #     x_pos = x_start + x_offset * (idx // col_height)
+        #     y_pos = aopc_y_pos + (idx % col_height) * -0.1
+        #     plt.text(x_pos, y_pos, "{:.2f}".format(score.AOPC))
 
     plt.savefig(destination, bbox_inches='tight')
     logger.debug("Graph generated at {}".format(destination))

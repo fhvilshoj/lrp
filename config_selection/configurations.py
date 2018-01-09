@@ -145,15 +145,15 @@ def get_parameter_configurations(type):
     bias_strategies = [BIAS_STRATEGY.NONE, BIAS_STRATEGY.ACTIVE, BIAS_STRATEGY.IGNORE]
 
     if type == 'epsilon':
-        epsilons = [1e-4, 1e-3, 1e-2, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3]
+        # epsilons = [1e-4, 1e-3, 1e-2, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3]
+        epsilons = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e+0, 1e+1]
         for b in bias_strategies:
             for e in epsilons:
                 c = LRPConfiguration()
                 epsilonConfiguration = EpsilonConfiguration(e, b)
-                c.set(LAYER.LINEAR, epsilonConfiguration)
-                c.set(LAYER.SPARSE_LINEAR, epsilonConfiguration)
-                c.set(LAYER.CONVOLUTIONAL, epsilonConfiguration)
-                configurations.append(c)
+                c.set(LAYER.LSTM, epsilonConfiguration)
+                c.set(LAYER.LINEAR, EpsilonConfiguration(0.01, BIAS_STRATEGY.NONE))
+
 
     elif type == 'alpha':
         alphas = [0.25, 0.5, 0.75, 1, 2, 4]

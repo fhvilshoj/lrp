@@ -84,6 +84,7 @@ class ScoreParser(object):
     def latexify(self, s, strategy):
         if s[0] == 'e':
             tr = {
+                '0.00001': '10^{-5}',
                 '0.0001': '10^{-4}',
                 '0.001': '10^{-3}',
                 '0.01': '10^{-2}',
@@ -103,7 +104,8 @@ class ScoreParser(object):
         if self.title in ['Random', 'Sensitivity analysis']:
             return self.title
         else:
-            fname = re.sub(file_name_re, r'\1', self.score_file)[4:]
+            fname = re.sub(file_name_re, r'\1', self.score_file)
+            fname = fname[fname.find('LSTM') + 5:]
             end = fname.find('_')
             return "$" + self.latexify(fname[:end], fname[end+1:end+3]) + "$"
 

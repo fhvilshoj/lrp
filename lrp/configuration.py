@@ -90,7 +90,9 @@ class EpsilonConfiguration(LayerConfiguration):
         return self._epsilon
 
     def __str__(self) -> str:
-        if self._epsilon < 1e-4:
+        if self._epsilon == 1e-5:
+            fmt = "e{:.5f}_{}"
+        elif self._epsilon < 1e-4:
             fmt = "e{:.2f}_{}"
         elif self._epsilon >= 1:
             fmt = "e{:.1f}_{}"

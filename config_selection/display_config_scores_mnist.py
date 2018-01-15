@@ -55,6 +55,9 @@ def _main():
     parser.add_argument('-t', '--plot-title', type=str, default='',
                         help='Title to be displayed in top of plot')
 
+    parser.add_argument('--grid', action='store_true')
+    parser.add_argument('--right-axis', action='store_true')
+
     args = parser.parse_args()
 
     # Call config selection with gathered arguments

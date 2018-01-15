@@ -71,10 +71,30 @@ def write_scores_to_plot(scores, destination, **kwargs):
 
     plt.text(-10, aopc_y_pos, r'$AOPC:$')
 
+    axis = plt.gca()
+    if kwargs['grid']:
+
+        major_ticks = np.arange(0, 101, 20)
+        minor_ticks = np.arange(0, 101, 5)
+
+        axis.set_xticks(major_ticks)
+        axis.set_xticks(minor_ticks, minor=True)
+        axis.set_yticks(major_ticks / 100)
+        axis.set_yticks(minor_ticks / 100, minor=True)
+
+        axis.grid(which='both') # , color='#ececec', linestyle='--', linewidth=1
+
+    if kwargs['right_axis']:
+        ax1 = axis.twinx()
+
+        # Set the limits of the new axis from the original axis limits
+        ax1.set_ylim(axis.get_ylim())
+        ax1.set_yticklabels([])
+
     if kwargs['best']:
-        scores = scores[:3]    
+        scores = scores[:3]
         for pos, score in zip(aopc_x_pos, scores):
             plt.text(pos, aopc_y_pos, "{:.2f}".format(score.AOPC))
-    
+
     plt.savefig(destination, bbox_inches='tight')
     logger.debug("Graph generated at {}".format(destination))

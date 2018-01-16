@@ -88,14 +88,13 @@ class StandardContextHandler(ContextHandler):
                 break
 
     def handle_context(self, context):
-
         # Reset current path index if the handler was used before
         self.current_path_index = 0
         # Remember the new context
         self.context = context
 
         self.zb_info = self.router.get_first_layer_zb()
-        if self.router.is_final_context and self.zb_info:
+        if self.router.is_final_context() and self.zb_info:
             self._find_first_real_layer()
 
         # Extract the current path

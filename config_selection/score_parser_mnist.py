@@ -4,10 +4,10 @@ from lrp.configuration import *
 
 # Lookup at linear, batch_norm, sparse, convolution, max_pool, lstm
 type_config_re = r'.*/LIN_(?P<linear>.*)_ELE_(?P<batch_norm>.*)_SPA_(?P<sparse>.*)_CONV_(?P<convolution>.*)_MAX_(?P<max_pool>.*)_LSTM_(?P<lstm>.*)'
-type_config_sm_re = r'.*/LIN_(?P<linear>.*)_ELE_(?P<batch_norm>.*)_SPA_(?P<sparse>.*)_CONV_(?P<convolution>.*)_MAX_(?P<max_pool>.*)_LSTM_(?P<lstm>.*)_SM_(?P<softmax>.*)\.res'
+type_config_sm_re = r'.*/LIN_(?P<linear>.*)_ELE_(?P<batch_norm>.*)_SPA_(?P<sparse>.*)_CONV_(?P<convolution>.*)_MAX_(?P<max_pool>.*)_LSTM_(?P<lstm>.*)_SM_(?P<softmax>.+?)_?(ZB_(?P<zb>.*?))?\.?res'
 
 # Lookup at alpha, epsilon, bias, winners_take_all, flat, ww
-rules_re = r'(((a(?P<alpha>\-{0,1}[0-9]+\.*[0-9]*)b(?P<beta>\-{0,1}[0-9]+\.*[0-9]*))|(e(?P<epsilon>[0-9]+\.*[0-9]*)))_(?P<bias>\w\w))|(?P<winners_take_all>wins)|(?P<flat>flat)|(?P<ww>ww)|(?P<winner_takes_all>win)|(?P<identity>id)|(?P<naive>nai)|(?P<none>no)'
+rules_re = r'(((a(?P<alpha>\-{0,1}[0-9]+\.*[0-9]*)b(?P<beta>\-{0,1}[0-9]+\.*[0-9]*))|(e(?P<epsilon>[0-9]+\.*[0-9]*))|(?P<zb>l(?P<low>\-?[0-9]+\.?[0-9]*?)_h(?P<high>\-?[0-9]+\.?[0-9]*?)))_(?P<bias>\w\w))|(?P<winners_take_all>wins)|(?P<flat>flat)|(?P<ww>ww)|(?P<winner_takes_all>win)|(?P<identity>id)|(?P<naive>nai)|(?P<none>no)'
 
 # File name
 file_name_re = r'.*/(LIN.*\.res)'
@@ -25,7 +25,7 @@ class Config(object):
         try:
             rule_dict = re.match(rules_re, conf_string).groupdict()
         except:
-            print("Conf string could not be passed: {}".format(conf_string))
+            print("Conf string could not be passed: {} for layer {}".format(conf_string,layer))
             return
 
         self.layer = layer.replace("_", " ").title()
@@ -36,6 +36,10 @@ class Config(object):
             self.bias_strategy = bias_strategies[rule_dict['bias']]
         elif rule_dict['epsilon'] is not None:
             self.rule = 'Epsilon {epsilon}'.format(**rule_dict)
+            self.bias_strategy = bias_strategies[rule_dict['bias']]
+        elif rule_dict['zb'] is not None:
+            self.rule = 'Zb'
+            self.layer = 'Zb on first'
             self.bias_strategy = bias_strategies[rule_dict['bias']]
         elif rule_dict['flat'] is not None:
             self.rule = 'Flat'
@@ -103,8 +107,9 @@ class ScoreParser(object):
         else:
             layer_dict = re.match(type_config_re, score_file[:-4]).groupdict()
 
+        print(layer_dict)
         for (layer, conf_string) in layer_dict.items():
-            if layer == 'sparse':
+            if layer == 'sparse' or conf_string is None:
                 continue
             self.layer_configurations.append(Config(layer, conf_string))
         self.layer_configurations.sort(key=lambda x: x.layer)

@@ -69,7 +69,13 @@ max_pooling_configurations = [
     BaseConfiguration(RULE.NAIVE),
 ]
 
-def get_configurations_for_layers(linear=False, convolution=False, lstm=False, maxpool=False, batchnorm=False):
+zb_bias_strategies = [
+    BIAS_STRATEGY.NONE,
+    BIAS_STRATEGY.IGNORE,
+    BIAS_STRATEGY.ACTIVE
+]
+
+def get_configurations_for_layers(linear=False, convolution=False, lstm=False, maxpool=False, batchnorm=False, use_zb=False):
     cf = []
     
     def _c(configs, layers, rules):
@@ -110,7 +116,17 @@ def get_configurations_for_layers(linear=False, convolution=False, lstm=False, m
             c_new.set(LAYER.ELEMENTWISE_LINEAR, flat)
             to_append.append(c_new)
         cf.extend(to_append)
-    
+
+    if use_zb:
+        to_append = []
+        for c in cf:
+            for b in zb_bias_strategies:
+                c_new = deepcopy(c)
+                c_new.set_first_layer_zb(low=-1.2744186, high=845.1637, bias_strategy=b)
+                to_append.append(c_new)
+
+        cf.extend(to_append)
+
     return cf
             
         

@@ -7,6 +7,12 @@ from configuration import LRPConfiguration, AlphaBetaConfiguration, LAYER, BIAS_
 from lrp import lrp
 
 
+def _c(val, size=18):
+    return np.array([val] * size, dtype=np.float32)
+
+def _l(val):
+    return np.array([val] * 15, dtype=np.float32).reshape(3, 5, 1)
+
 class TestZbRule(unittest.TestCase):
     def test_alpha_beta_ignore_bias(self):
         config = LRPConfiguration()
@@ -25,7 +31,7 @@ class TestZbRule(unittest.TestCase):
     def test_zb_ignore_bias(self):
         config = LRPConfiguration()
         config.set(LAYER.LINEAR, AlphaBetaConfiguration(bias_strategy=BIAS_STRATEGY.IGNORE))
-        config.set_first_layer_zb(-1, 1, BIAS_STRATEGY.IGNORE)
+        config.set_first_layer_zb(_l(-1), _l(1), BIAS_STRATEGY.IGNORE)
 
         expected_result = [[[0, 0, 0, 0, 0],
                             [0, 0, 0, 0, 0]],
@@ -39,7 +45,7 @@ class TestZbRule(unittest.TestCase):
     def test_zb_no_bias(self):
         config = LRPConfiguration()
         config.set(LAYER.LINEAR, AlphaBetaConfiguration(bias_strategy=BIAS_STRATEGY.IGNORE))
-        config.set_first_layer_zb(-1, 1, BIAS_STRATEGY.NONE)
+        config.set_first_layer_zb(_l(-1), _l(1), BIAS_STRATEGY.NONE)
 
         expected_result = [[[0, 0, 0, 0, 0],
                             [0, 0, 0, 0, 0]],
@@ -53,7 +59,7 @@ class TestZbRule(unittest.TestCase):
     def test_zb_all_bias(self):
         config = LRPConfiguration()
         config.set(LAYER.LINEAR, AlphaBetaConfiguration(bias_strategy=BIAS_STRATEGY.IGNORE))
-        config.set_first_layer_zb(-1, 1, BIAS_STRATEGY.ALL)
+        config.set_first_layer_zb(_l(-1), _l(1), BIAS_STRATEGY.ALL)
 
         expected_result = [[[0, 0, 0, 0, 0],
                             [0, 0, 0, 0, 0]],
@@ -69,7 +75,7 @@ class TestZbRule(unittest.TestCase):
     def test_zb_active_bias(self):
         config = LRPConfiguration()
         config.set(LAYER.LINEAR, AlphaBetaConfiguration(bias_strategy=BIAS_STRATEGY.IGNORE))
-        config.set_first_layer_zb(-1, 1, BIAS_STRATEGY.ACTIVE)
+        config.set_first_layer_zb(_l(-1), _l(1), BIAS_STRATEGY.ACTIVE)
 
         expected_result = [[[0, 0, 0, 0, 0],
                             [0, 0, 0, 0, 0]],
@@ -128,70 +134,70 @@ class TestZbRule(unittest.TestCase):
                     msg="Should be a good explanation")
 
     def test_conv_zb_ignore_bias(self):
-        expected_result = [[[[0.00000000e+00, 0.00000000e+00],
-                             [0.00000000e+00, 0.00000000e+00],
-                             [-6.74257165e-06, -6.85537605e-06]],
-                            [[0.00000000e+00, 0.00000000e+00],
-                             [0.00000000e+00, 0.00000000e+00],
-                             [-7.96657518e-05, -3.79873151e-05]],
-                            [[1.29381648e-02, 5.45352242e-03],
-                             [4.95312909e-02, 5.51174973e-02],
-                             [-1.48041524e-04, -6.32494225e-06]]]]
+        expected_result = [[[[0, 0],
+                             [0, 0],
+                             [-2.352069164e-05, -2.391419691e-05]],
+                            [[0, 0],
+                             [0, 0],
+                             [-0.0002779048828, -0.0001325144132]],
+                            [[0.04152410963, 0.01750268803],
+                             [0.1589671162, 0.1768956439],
+                             [-0.001919716057, -8.201815885e-05]]]]
 
         config = LRPConfiguration()
         config.set(LAYER.LINEAR, EpsilonConfiguration(epsilon=1, bias_strategy=BIAS_STRATEGY.IGNORE))
-        config.set_first_layer_zb(-0.5, 2, bias_strategy=BIAS_STRATEGY.IGNORE)
+        config.set_first_layer_zb(_c(-0.5), _c(2.), bias_strategy=BIAS_STRATEGY.IGNORE)
 
         self._do_convolutional_test(config, expected_result)
 
     def test_conv_zb_no_bias(self):
-        expected_result = [[[[0.00000000e+00, 0.00000000e+00],
-                             [0.00000000e+00, 0.00000000e+00],
-                             [-6.27364621e-06, -6.37860541e-06]],
-                            [[0.00000000e+00, 0.00000000e+00],
-                             [0.00000000e+00, 0.00000000e+00],
-                             [-7.41252401e-05, -3.53454124e-05]],
-                            [[1.21680839e-02, 5.12892817e-03],
-                             [4.65831831e-02, 5.18368978e-02],
-                             [-1.38660779e-04, -5.92415830e-06]]]]
+        expected_result = [[[[0, 0],
+                             [0, 0],
+                             [-1.865625321e-05, -1.896837558e-05]],
+                            [[0, 0],
+                             [0, 0],
+                             [-0.0002204299066, -0.0001051084077]],
+                            [[0.03451383443, 0.01454781046],
+                             [0.1321296177, 0.1470313757],
+                             [-0.0010226063, -4.368994345e-05]]]]
 
         config = LRPConfiguration()
         config.set(LAYER.LINEAR, EpsilonConfiguration(epsilon=1, bias_strategy=BIAS_STRATEGY.IGNORE))
-        config.set_first_layer_zb(-0.5, 2, bias_strategy=BIAS_STRATEGY.NONE)
+        config.set_first_layer_zb(_c(-0.5), _c(2.), bias_strategy=BIAS_STRATEGY.NONE)
 
         self._do_convolutional_test(config, expected_result)
 
     def test_conv_zb_all_bias(self):
-        expected_result = [[[[0.00000000e+00, 0.00000000e+00],
-                             [0.00000000e+00, 0.00000000e+00],
-                             [-1.02539427e-05, -1.03589019e-05]],
-                            [[0.00000000e+00, 0.00000000e+00],
-                             [0.00000000e+00, 0.00000000e+00],
-                             [-7.81055366e-05, -3.93257089e-05]],
-                            [[1.51060676e-02, 8.06691188e-03],
-                             [4.95211668e-02, 5.47748815e-02],
-                             [-1.54515923e-04, -2.17793019e-05]]]]
+        expected_result = [[[[0, 0],
+                             [0, 0],
+                             [-3.049265839e-05, -3.080478076e-05]],
+                            [[0, 0],
+                             [0, 0],
+                             [-0.0002322663118, -0.0001169448129]],
+                            [[0.04284719936, 0.0228811754],
+                             [0.1404629826, 0.1553647406],
+                             [-0.001139536047, -0.0001606196899]]]]
 
         config = LRPConfiguration()
         config.set(LAYER.LINEAR, EpsilonConfiguration(epsilon=1, bias_strategy=BIAS_STRATEGY.IGNORE))
-        config.set_first_layer_zb(-0.5, 2, bias_strategy=BIAS_STRATEGY.ALL)
+        config.set_first_layer_zb(_c(-0.5), _c(2.), bias_strategy=BIAS_STRATEGY.ALL)
 
         self._do_convolutional_test(config, expected_result)
 
     def test_conv_zb_active_bias(self):
-        expected_result = [[[[0.00000000e+00, 0.00000000e+00],
-                             [0.00000000e+00, 0.00000000e+00],
-                             [-1.02539427e-05, -1.03589019e-05]],
-                            [[0.00000000e+00, 0.00000000e+00],
-                             [0.00000000e+00, 0.00000000e+00],
-                             [-7.81055366e-05, -3.93257089e-05]],
-                            [[1.51060676e-02, 8.06691188e-03],
-                             [4.95211668e-02, 5.47748815e-02],
-                             [-1.54515923e-04, -2.17793019e-05]]]]
+        expected_result = [[[[0, 0],
+                             [0, 0],
+                             [-4.232906357e-05, -4.264118594e-05]],
+                            [[0, 0],
+                             [0, 0],
+                             [-0.0002441027169, -0.0001287812181]],
+                            [[0.0511805643, 0.03121454034],
+                             [0.1487963475, 0.1636981056],
+                             [-0.001490325286, -0.0005114089294]]]]
 
         config = LRPConfiguration()
         config.set(LAYER.LINEAR, EpsilonConfiguration(epsilon=1, bias_strategy=BIAS_STRATEGY.IGNORE))
-        config.set_first_layer_zb(-0.5, 2, bias_strategy=BIAS_STRATEGY.ACTIVE)
+        config.set_first_layer_zb(_c(-0.5), _c(2.), bias_strategy=BIAS_STRATEGY.ACTIVE)
 
         self._do_convolutional_test(config, expected_result)
 
@@ -251,6 +257,10 @@ class TestZbRule(unittest.TestCase):
 
                 # Check if the explanation has the right shape
                 self.assertEqual(explanation.shape, expected_result.shape, msg="Should be a wellformed explanation")
+
+                print(expected_result)
+                print()
+                print(explanation)
 
                 # Check if the relevance scores are correct (the correct values are found by
                 # calculating the example by hand)

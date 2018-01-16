@@ -36,6 +36,18 @@ class LOG_LEVEL:
     NONE = 1
 
 
+def bias_str(strategy):
+    if strategy == BIAS_STRATEGY.ACTIVE:
+        bias_strategy = 'ac'
+    elif strategy == BIAS_STRATEGY.ALL:
+        bias_strategy = 'al'
+    elif strategy == BIAS_STRATEGY.IGNORE:
+        bias_strategy = 'ig'
+    else:
+        bias_strategy = 'no'
+    return bias_strategy
+
+
 class LayerConfiguration:
     def __init__(self, layer, bias_strategy=BIAS_STRATEGY.NONE):
         self._layer = layer
@@ -50,14 +62,7 @@ class LayerConfiguration:
         return self._bias_strategy
 
     def __str__(self) -> str:
-        if self._bias_strategy == BIAS_STRATEGY.ACTIVE:
-            bias_strategy = 'ac'
-        elif self._bias_strategy == BIAS_STRATEGY.ALL:
-            bias_strategy = 'al'
-        elif self._bias_strategy == BIAS_STRATEGY.IGNORE:
-            bias_strategy = 'ig'
-        else:
-            bias_strategy = 'no'
+        bias_strategy = bias_str(self._bias_strategy)
         return bias_strategy
 
 
@@ -119,9 +124,17 @@ class ZbConfiguration(LayerConfiguration):
     def low(self):
         return self._low
 
+    @low.setter
+    def low(self, low):
+        self._low = low
+
     @property
     def high(self):
         return self._high
+
+    @high.setter
+    def high(self, high):
+        self._high = high
 
     def __str__(self):
         return 'zb_l{}_h{}'.format(self._low, self._high)
@@ -197,6 +210,6 @@ class LRPConfiguration(object):
                                                                               self._rules[LAYER.LSTM],
                                                                               self._rules[LAYER.SOFTMAX])
         if self._zb:
-            s += "_ZB_l{low}_h{high}".format(**self._zb)
+            s += "_ZB_l{low}_h{high}_{bias}".format(bias=bias_str(self._zb['bias_strategy']), **self._zb)
 
         return s

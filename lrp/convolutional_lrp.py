@@ -1,6 +1,6 @@
 from lrp import lrp_util
 from lrp.linear_lrp import linear_with_config
-from lrp.configuration import LAYER
+from lrp.configuration import LAYER, RULE
 import tensorflow as tf
 
 
@@ -94,6 +94,25 @@ def convolutional(router, R):
 
     # Fetch configuration for linear_lrp
     config = router.get_configuration(LAYER.CONVOLUTIONAL)
+
+    if config.type == RULE.ZB:
+        # Reshape to convolution shape
+        low = tf.reshape(config.low, [1, input_height, input_width, input_channels])
+        high = tf.reshape(config.high, [1, input_height, input_width, input_channels])
+
+        # Tile to batch size
+        # Shapes: (batch_size, input_height, input_width, input_channels)
+        low = tf.tile(low, [batch_size, 1, 1, 1])
+        high = tf.tile(high, [batch_size, 1, 1, 1])
+
+        # Extract image patches
+        # Shapes: (batch_size, output_height, output_width, filter_height * filter_width * input_channels)
+        low = tf.extract_image_patches(low, [1, filter_height, filter_width, 1], strides, [1, 1, 1, 1], padding)
+        high = tf.extract_image_patches(high, [1, filter_height, filter_width, 1], strides, [1, 1, 1, 1], padding)
+
+        # Reshape image patches for linear layer
+        config.low = tf.reshape(low, (batch_size * output_height * output_width, filter_height * filter_width * input_channels, 1))
+        config.high = tf.reshape(high, (batch_size * output_height * output_width, filter_height * filter_width * input_channels, 1))
 
     # Pass the responsibility to linear_lrp
     # Shape of linear_R_new:

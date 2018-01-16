@@ -192,7 +192,7 @@ def _linear_zb(R, input, weights, config, bias=None):
     :param bias: Optional tensor with bias. Shape: (output_width) or (batch_size, output_width)
     :return: Redistributed relevance. Shape: (batch_size, input_width)
     """
-    # Shapes: (input_width, output_width)
+    # Shape (batch_size, input_width, output_width)
     positive_weights = lrp_util.replace_negatives_with_zeros(weights) * config.low
     negative_weights = lrp_util.replace_positives_with_zeros(weights) * config.high
 

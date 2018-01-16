@@ -2,7 +2,7 @@ import tensorflow as tf
 import unittest
 
 from configuration import AlphaBetaConfiguration, LRPConfiguration, LAYER, FlatConfiguration, EpsilonConfiguration, \
-    LOG_LEVEL, BIAS_STRATEGY
+    LOG_LEVEL, BIAS_STRATEGY, RULE, BaseConfiguration
 from lrp import lrp
 import numpy as np
 
@@ -42,7 +42,7 @@ class TestBatchNormalization(unittest.TestCase):
             # Get the explanation
             config = LRPConfiguration()
             config.set(LAYER.LINEAR, EpsilonConfiguration(bias_strategy=BIAS_STRATEGY.NONE))
-            config.set(LAYER.ELEMENTWISE_LINEAR, FlatConfiguration())
+            config.set(LAYER.ELEMENTWISE_LINEAR, BaseConfiguration(RULE.IDENTITY))
             explanation = lrp.lrp(inp, x, config)
 
             with tf.Session() as s:

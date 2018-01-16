@@ -75,57 +75,59 @@ zb_bias_strategies = [
     BIAS_STRATEGY.ACTIVE
 ]
 
-def get_configurations_for_layers(linear=False, convolution=False, lstm=False, maxpool=False, batchnorm=False, use_zb=False):
+def get_configurations_for_layers(linear=False, convolution=False, lstm=False, maxpool=False, batchnorm=False, use_zb=False, single_layer=False):
     cf = []
-    
-    def _c(configs, layers, rules):
-        if configs:
-            new_configs = []
-            for rule in rules:
-                for c in configs:
-                    new_c = deepcopy(c)
+    if single_layer:
+        cf.append(LRPConfiguration())
+    else:
+        def _c(configs, layers, rules):
+            if configs:
+                new_configs = []
+                for rule in rules:
+                    for c in configs:
+                        new_c = deepcopy(c)
+                        for l in layers:
+                            new_c.set(l, rule)
+                        new_configs.append(new_c)
+                return new_configs
+            else:
+                for rule in rules:
+                    config = LRPConfiguration()
                     for l in layers:
-                        new_c.set(l, rule)
-                    new_configs.append(new_c)
-            return new_configs
-        else:
-            for rule in rules:
-                config = LRPConfiguration()
-                for l in layers:
-                    config.set(l, rule)
-                configs.append(config)
-            return configs
+                        config.set(l, rule)
+                    configs.append(config)
+                return configs
 
-    if linear:
-        cf = _c(cf, [LAYER.LINEAR, LAYER.SPARSE_LINEAR], linear_configurations)
-    if convolution:
-        cf = _c(cf, [LAYER.CONVOLUTIONAL], conv_configurations)
-    if lstm:
-        cf = _c(cf, [LAYER.LSTM], lstm_configurations)
-    if maxpool:
-        cf = _c(cf, [LAYER.MAX_POOLING], max_pooling_configurations)
+        if linear:
+            cf = _c(cf, [LAYER.LINEAR, LAYER.SPARSE_LINEAR], linear_configurations)
+        if convolution:
+            cf = _c(cf, [LAYER.CONVOLUTIONAL], conv_configurations)
+        if lstm:
+            cf = _c(cf, [LAYER.LSTM], lstm_configurations)
+        if maxpool:
+            cf = _c(cf, [LAYER.MAX_POOLING], max_pooling_configurations)
 
-    if batchnorm:
-        flat = BaseConfiguration(RULE.IDENTITY)
-        for c in cf:
-            l = c.get(LAYER.LINEAR)
-            c.set(LAYER.ELEMENTWISE_LINEAR, l)
-        to_append = []
-        for c in cf:
-            c_new = deepcopy(c)
-            c_new.set(LAYER.ELEMENTWISE_LINEAR, flat)
-            to_append.append(c_new)
-        cf.extend(to_append)
+        if batchnorm:
+            flat = BaseConfiguration(RULE.IDENTITY)
+            for c in cf:
+                l = c.get(LAYER.LINEAR)
+                c.set(LAYER.ELEMENTWISE_LINEAR, l)
+            to_append = []
+            for c in cf:
+                c_new = deepcopy(c)
+                c_new.set(LAYER.ELEMENTWISE_LINEAR, flat)
+                to_append.append(c_new)
+            cf.extend(to_append)
 
     if use_zb:
         to_append = []
         for c in cf:
             for b in zb_bias_strategies:
                 c_new = deepcopy(c)
-                c_new.set_first_layer_zb(low=-1.2744186, high=845.1637, bias_strategy=b)
+                c_new.set_first_layer_zb(low=-1, high=1, bias_strategy=b)
                 to_append.append(c_new)
 
-        cf.extend(to_append)
+        cf = to_append
 
     return cf
             

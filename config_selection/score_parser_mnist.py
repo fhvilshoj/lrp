@@ -7,7 +7,7 @@ type_config_re = r'.*/LIN_(?P<linear>.*)_ELE_(?P<batch_norm>.*)_SPA_(?P<sparse>.
 type_config_sm_re = r'.*/LIN_(?P<linear>.*)_ELE_(?P<batch_norm>.*)_SPA_(?P<sparse>.*)_CONV_(?P<convolution>.*)_MAX_(?P<max_pool>.*)_LSTM_(?P<lstm>.*)_SM_(?P<softmax>.+?)_?(ZB_(?P<zb>.*?))?\.?res'
 
 # Lookup at alpha, epsilon, bias, winners_take_all, flat, ww
-rules_re = r'(((a(?P<alpha>\-{0,1}[0-9]+\.*[0-9]*)b(?P<beta>\-{0,1}[0-9]+\.*[0-9]*))|(e(?P<epsilon>[0-9]+\.*[0-9]*))|(?P<zb>l(?P<low>\-?[0-9]+\.?[0-9]*?)_h(?P<high>\-?[0-9]+\.?[0-9]*?)))_(?P<bias>\w\w))|(?P<winners_take_all>wins)|(?P<flat>flat)|(?P<ww>ww)|(?P<winner_takes_all>win)|(?P<identity>id)|(?P<naive>nai)|(?P<none>no)'
+rules_re = r'(((a(?P<alpha>\-{0,1}[0-9]+\.*[0-9]*)b(?P<beta>\-{0,1}[0-9]+\.*[0-9]*))|(e(?P<epsilon>[0-9]+\.*[0-9]*))|(?P<zb>zb))_(?P<bias>\w\w))|(?P<winners_take_all>wins)|(?P<flat>flat)|(?P<ww>ww)|(?P<winner_takes_all>win)|(?P<identity>id)|(?P<naive>nai)|(?P<none>no)'
 
 # File name
 file_name_re = r'.*/(LIN.*\.res)'

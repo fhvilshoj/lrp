@@ -210,6 +210,6 @@ class LRPConfiguration(object):
                                                                               self._rules[LAYER.LSTM],
                                                                               self._rules[LAYER.SOFTMAX])
         if self._zb:
-            s += "_ZB_l{low}_h{high}_{bias}".format(bias=bias_str(self._zb['bias_strategy']), **self._zb)
+            s += "_ZB_zb_{bias}".format(bias=bias_str(self._zb['bias_strategy']))
 
         return s

@@ -54,6 +54,7 @@ class StandardContextHandler(ContextHandler):
     def get_configuration(self, layer):
         if self.current_path_index == self.zb_path_index:
             # Check if final layer and return zb configuration
+            print(self.zb_info['low'][0])
             return ZbConfiguration(**self.zb_info)
         else:
             return super(StandardContextHandler, self).get_configuration(layer)
